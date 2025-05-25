@@ -32,7 +32,7 @@ use pgmq::PGMQueue;
 - First, you will need Postgres. We use a container in this example.
 
 ```bash
-docker run -d --name pgmq-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 quay.io/tembo/pg16-pgmq:latest
+docker run -d --name pgmq-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 ghcr.io/pgmq/pg16-pgmq:latest
 ```
 
 - If you don't have Docker installed, it can be found [here](https://docs.docker.com/get-docker/).
@@ -42,7 +42,7 @@ docker run -d --name pgmq-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 qu
 - Clone the project and run the [basic example](./examples/basic.rs):
 
 ```bash
-git clone https://github.com/tembo-io/pgmq.git
+git clone https://github.com/pgmq/pgmq.git
 
 cd pgmq-rs
 

@@ -9,12 +9,11 @@ you first need to update from `0.33.1` to `1.0.0`, and only after `1.0.0` is
 installed you can perform the update to `1.1.0`.
 
 #### When building from source (target version post-1.3.0)
-Clone the pgmq repo and checkout the desired version. For example, for `1.3.1`:
+Clone the pgmq repo and checkout the desired version. For example, for `1.5.1`:
 
 ```bash
-git clone git@github.com/tembo-io:pgmq
+git clone --branch v1.5.1 https://github.com/pgmq/pgmq.git
 cd pgmq
-git checkout v1.3.1
 ```
 
 Build and install the extension:
@@ -40,9 +39,8 @@ cargo pgrx init --6=`which pg_config`
 
 Clone the pgmq repo and checkout the desired version. For example, for `1.0.0`:
 ```
-git clone git@github.com/tembo-io:pgmq
+git clone --branch v1.0.0 https://github.com/pgmq/pgmq.git
 cd pgmq
-git checkout v1.0.0
 ```
 
 Then, compile and install the extension:

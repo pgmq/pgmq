@@ -2,10 +2,10 @@
 
 ## Installation
 
-The fastest way to get started is by running the Tembo docker image, where PGMQ comes pre-installed.
+The fastest way to get started is by running the docker image, where PGMQ comes pre-installed.
 
 ```bash
-docker run -d --name postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 quay.io/tembo/pgmq-pg:latest
+docker run -d --name postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 ghcr.io/pgmq/pgmq-pg:latest
 ```
 
 ## PGXN Installation
@@ -98,7 +98,7 @@ brew install postgresql
 2. Clone the PGMQ repository and build it:
 
 ```bash
-git clone https://github.com/tembo-io/pgmq.git
+git clone https://github.com/pgmq/pgmq.git
 cd pgmq/pgmq-extension
 make
 sudo make install
@@ -147,7 +147,7 @@ postgres=# \dx
 Clone the repo and change into the directory.
 
 ```bash
-git clone https://github.com/tembo-io/pgmq.git
+git clone https://github.com/pgmq/pgmq.git
 cd pgmq/pgmq-extension
 ```
 
@@ -192,19 +192,19 @@ make installcheck
 
 ## Releases
 
-PGMQ Postgres Extension releases are automated through two Github workflows; [Containers / Trunk packages](https://github.com/tembo-io/pgmq/blob/main/.github/workflows/extension_ci.ym), and [PGXN distribution](https://github.com/tembo-io/pgmq/blob/main/.github/workflows/pgxn-release.yml). To create a release:
+The PGMQ Postgres Extension is released as a bundle with Postgres (in a container) and as PGXN distribution. Both of these flows are managed in a [Github workflow](https://github.com/pgmq/pgmq/blob/main/.github/workflows/release.yml). To create a release,
 
-1. Update and commit the new valid [semver](https://semver.org/) version in [pgmq.control](https://github.com/tembo-io/pgmq/blob/main/pgmq-extension/pgmq.control).
-2. Create a [Github release](https://github.com/tembo-io/pgmq/releases) using the extension's version for the `tag` and `title`. Auto-generate the release notes and/or add more relevant details as needed.
+1. Update and commit the new valid [semver](https://semver.org/) version in [pgmq.control](https://github.com/pgmq/pgmq/blob/main/pgmq-extension/pgmq.control).
+2. Create a [Github release](https://github.com/pgmq/pgmq/releases) using the extension's version for the `tag` and `title`. Auto-generate the release notes and/or add more relevant details as needed.
 
 ### Container Images
 
-Postgres images with PGMQ and all required dependencies are built and published to `quay.io/tembo-pg{PG_VERSION}-pgmq:{TAG}` for all supported Postgres versions and PGMQ releases.
+Postgres images with PGMQ and all required dependencies are built and published to `ghcr.io/pgmq/pg{PG_VERSION}-pgmq:{TAG}` for all supported Postgres versions and PGMQ releases.
 
 ### Extension Packages
 
-The required extension files are publish to and hosted at [pgt.dev](https://pgt.dev/extensions/pgmq) and [PGXN](https://pgxn.org/dist/pgmq/).
+The required extension files are publish to and hosted at [PGXN](https://pgxn.org/dist/pgmq/).
 
 ### Client SDKs
 
-See subdirectories for the [Rust](https://github.com/tembo-io/pgmq/tree/main/core) and [Python](https://github.com/tembo-io/pgmq/tree/main/tembo-pgmq-python) SDK release processes.
+See subdirectories for the [Rust](https://github.com/pgmq/pgmq/tree/main/core) and [Python](https://github.com/pgmq/pgmq/tree/main/tembo-pgmq-python) SDK release processes.

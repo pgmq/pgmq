@@ -16,7 +16,7 @@ then
 	pg_version=${BASH_REMATCH[1]}
 fi
 
-tag="tembo/pgmq:pg${pg_version}-deb${deb_release}-v$(git rev-parse --short HEAD)"
+tag="pgmq/pgmq:pg${pg_version}-deb${deb_release}-v$(git rev-parse --short HEAD)"
 
 if [[ " ${args[@]} " =~ [[:blank:]]+--tag=([[:alnum:]]+)[[:blank:]]+ ]]
 then
