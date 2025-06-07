@@ -16,6 +16,7 @@ A lightweight message queue. Like [AWS SQS](https://aws.amazon.com/sqs/) and [RS
 - Lightweight - No background worker or external dependencies, just Postgres functions packaged in an extension
 - Guaranteed "exactly once" delivery of messages to a consumer within a visibility timeout
 - API parity with [AWS SQS](https://aws.amazon.com/sqs/) and [RSMQ](https://github.com/smrchy/rsmq)
+- FIFO (First-In-First-Out) queues with message group keys for ordered processing
 - Messages stay in the queue until explicitly removed
 - Messages can be archived, instead of deleted, for long-term retention and replayability
 

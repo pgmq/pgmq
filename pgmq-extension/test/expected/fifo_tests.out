@@ -1,0 +1,401 @@
+ create 
+--------
+ 
+(1 row)
+
+ send 
+------
+    1
+(1 row)
+
+ send 
+------
+    2
+(1 row)
+
+ send 
+------
+    3
+(1 row)
+
+ ?column? 
+----------
+ t
+(1 row)
+
+ ?column? 
+----------
+ t
+(1 row)
+
+ msg_id |        message        |          headers          
+--------+-----------------------+---------------------------
+      2 | {"message": "second"} | {"x-pgmq-fifo": "group1"}
+(1 row)
+
+ ?column? 
+----------
+ f
+(1 row)
+
+ ?column? 
+----------
+ t
+(1 row)
+
+ msg_id | message | headers 
+--------+---------+---------
+(0 rows)
+
+ delete 
+--------
+ t
+(1 row)
+
+ ?column? 
+----------
+ f
+(1 row)
+
+ msg_id | message | headers 
+--------+---------+---------
+(0 rows)
+
+ ?column? 
+----------
+(0 rows)
+
+ purge_queue 
+-------------
+           2
+(1 row)
+
+ send 
+------
+    4
+(1 row)
+
+ send 
+------
+    5
+(1 row)
+
+ send 
+------
+    6
+(1 row)
+
+ send 
+------
+    7
+(1 row)
+
+ ?column? 
+----------
+ t
+(1 row)
+
+ ?column? 
+----------
+ t
+(1 row)
+
+ msg_id |          message           |          headers          
+--------+----------------------------+---------------------------
+      6 | {"message": "group1_msg2"} | {"x-pgmq-fifo": "group1"}
+      7 | {"message": "group2_msg2"} | {"x-pgmq-fifo": "group2"}
+(2 rows)
+
+ ?column? 
+----------
+ f
+(1 row)
+
+ ?column? 
+----------
+ t
+(1 row)
+
+ msg_id | message | headers 
+--------+---------+---------
+(0 rows)
+
+ ?column? 
+----------
+ t
+(1 row)
+
+ ?column? 
+----------
+ f
+(1 row)
+
+ msg_id | message | headers 
+--------+---------+---------
+(0 rows)
+
+ ?column? 
+----------
+ f
+(1 row)
+
+ purge_queue 
+-------------
+           2
+(1 row)
+
+ send 
+------
+    8
+(1 row)
+
+ send 
+------
+    9
+(1 row)
+
+ send 
+------
+   10
+(1 row)
+
+ ?column? 
+----------
+ t
+(1 row)
+
+ ?column? 
+----------
+ t
+(1 row)
+
+ msg_id |         message          | headers 
+--------+--------------------------+---------
+      9 | {"message": "no_fifo_2"} | 
+(1 row)
+
+ ?column? 
+----------
+ f
+(1 row)
+
+ ?column? 
+----------
+ t
+(1 row)
+
+ msg_id | message | headers 
+--------+---------+---------
+(0 rows)
+
+ ?column? 
+----------
+ t
+(1 row)
+
+ ?column? 
+----------
+ f
+(1 row)
+
+ msg_id | message | headers 
+--------+---------+---------
+(0 rows)
+
+ ?column? 
+----------
+(0 rows)
+
+ purge_queue 
+-------------
+           1
+(1 row)
+
+ send 
+------
+   11
+(1 row)
+
+ send 
+------
+   12
+(1 row)
+
+ ?column? 
+----------
+ t
+(1 row)
+
+ ?column? 
+----------
+ t
+(1 row)
+
+ msg_id |              message              |             headers              
+--------+-----------------------------------+----------------------------------
+     12 | {"message": "blocked_by_timeout"} | {"x-pgmq-fifo": "timeout_group"}
+(1 row)
+
+ ?column? 
+----------
+(0 rows)
+
+ ?column? 
+----------
+ t
+(1 row)
+
+ msg_id | message | headers 
+--------+---------+---------
+(0 rows)
+
+ pg_sleep 
+----------
+ 
+(1 row)
+
+ ?column? 
+----------
+ f
+(1 row)
+
+ msg_id |              message              |             headers              
+--------+-----------------------------------+----------------------------------
+     12 | {"message": "blocked_by_timeout"} | {"x-pgmq-fifo": "timeout_group"}
+(1 row)
+
+ ?column? 
+----------
+ f
+(1 row)
+
+ purge_queue 
+-------------
+           2
+(1 row)
+
+ send 
+------
+   13
+(1 row)
+
+ send 
+------
+   14
+(1 row)
+
+ send 
+------
+   15
+(1 row)
+
+ ?column? 
+----------
+ t
+(1 row)
+
+ ?column? 
+----------
+ t
+(1 row)
+
+ msg_id |                 message                 |          headers          
+--------+-----------------------------------------+---------------------------
+     15 | {"type": "order", "priority": "medium"} | {"x-pgmq-fifo": "orders"}
+(1 row)
+
+ ?column? 
+----------
+(0 rows)
+
+ delete 
+--------
+ t
+(1 row)
+
+ ?column? 
+----------
+ f
+(1 row)
+
+ msg_id | message | headers 
+--------+---------+---------
+(0 rows)
+
+ ?column? 
+----------
+(0 rows)
+
+ purge_queue 
+-------------
+           2
+(1 row)
+
+ create_fifo_index 
+-------------------
+ 
+(1 row)
+
+ ?column? 
+----------
+ t
+(1 row)
+
+         indexname          
+----------------------------
+ q_fifo_test_queue_fifo_idx
+(1 row)
+
+ send 
+------
+   16
+(1 row)
+
+ ?column? 
+----------
+ t
+(1 row)
+
+ msg_id | message | headers 
+--------+---------+---------
+(0 rows)
+
+ ?column? 
+----------
+(0 rows)
+
+ send 
+------
+   17
+(1 row)
+
+ ?column? 
+----------
+ t
+(1 row)
+
+ send 
+------
+   18
+(1 row)
+
+ ?column? 
+----------
+ t
+(1 row)
+
+ drop_queue 
+------------
+ t
+(1 row)
+
+ ?column? 
+----------
+ t
+(1 row)
+
+              result               
+-----------------------------------
+ FIFO tests completed successfully
+(1 row)
+
