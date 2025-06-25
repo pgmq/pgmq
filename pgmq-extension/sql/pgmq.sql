@@ -14,7 +14,7 @@ END
 $$;
 
 -- Table where queues and metadata about them is stored
-CREATE TABLE pgmq.meta (
+CREATE TABLE IF NOT EXISTS pgmq.meta (
     queue_name VARCHAR UNIQUE NOT NULL,
     is_partitioned BOOLEAN NOT NULL,
     is_unlogged BOOLEAN NOT NULL,
