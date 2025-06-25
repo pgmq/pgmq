@@ -19,6 +19,7 @@ impl Default for MyMessage {
     }
 }
 
+#[ignore]
 #[tokio::test]
 async fn test_sql_lifecycle() {
     let test_num = rand::thread_rng().gen_range(0..100000);

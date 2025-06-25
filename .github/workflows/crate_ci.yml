@@ -56,3 +56,38 @@ jobs:
         run: cargo sqlx prepare --check
       - name: teardown
         run: make test.cleanup
+
+  test_sql_install:
+    name: Test SQL Installation
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install Rust stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Wait for PostgreSQL
+        run: |
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo "Waiting for PostgreSQL..."
+            sleep 2
+          done
+      - name: Run SQL installation test
+        run: cargo test test_sql_lifecycle --release -- --ignored
