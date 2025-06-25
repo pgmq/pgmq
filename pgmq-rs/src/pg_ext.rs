@@ -1,6 +1,6 @@
 use crate::errors::PgmqError;
 use crate::types::{Message, QUEUE_PREFIX};
-use crate::util::{check_input, connect};
+use crate::util::{check_input, connect, install_pgmq};
 use log::info;
 use serde::{Deserialize, Serialize};
 use sqlx::types::chrono::Utc;
@@ -38,6 +38,18 @@ impl PGMQueueExt {
             url: "".to_owned(),
             connection: pool,
         }
+    }
+
+    pub async fn install_sql_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres>>(
+        &self,
+        executor: E,
+        version: Option<&String>,
+    ) -> Result<(), PgmqError> {
+        install_pgmq(executor, version).await
+    }
+
+    pub async fn install_sql(&self, version: Option<&String>) -> Result<(), PgmqError> {
+        self.install_sql_with_cxn(&self.connection, version).await
     }
 
     pub async fn init_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres>>(

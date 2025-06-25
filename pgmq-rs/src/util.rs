@@ -1,8 +1,9 @@
 use std::fmt::Display;
 
 use crate::{errors::PgmqError, types::Message};
+use futures::TryStreamExt;
 use log::LevelFilter;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sqlx::error::Error;
 use sqlx::postgres::PgRow;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
@@ -10,7 +11,6 @@ use sqlx::ConnectOptions;
 use sqlx::Row;
 use sqlx::{Pool, Postgres};
 use url::{ParseError, Url};
-
 // Configure connection options
 pub fn conn_options(url: &str) -> Result<PgConnectOptions, ParseError> {
     // Parse url
@@ -120,4 +120,83 @@ pub fn check_input(input: &str) -> Result<(), PgmqError> {
             name: input.to_owned(),
         }),
     }
+}
+
+async fn get_latest_release_tag() -> Result<String, Box<dyn std::error::Error>> {
+    println!("Getting latest PGMQ release...");
+
+    let client = reqwest::Client::new();
+    let response = client
+        .get("https://api.github.com/repos/pgmq/pgmq/releases/latest")
+        .header("User-Agent", "pgmq-cli")
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        return Err(format!("Failed to fetch latest release: HTTP {}", response.status()).into());
+    }
+
+    let release: GitHubRelease = response.json().await?;
+    println!("Latest release: {}", release.tag_name);
+
+    Ok(release.tag_name)
+}
+
+async fn get_install_sql(version: Option<&String>) -> Result<String, PgmqError> {
+    let version_to_use = match version {
+        Some(v) => v.clone(),
+        None => get_latest_release_tag().await?,
+    };
+
+    let version_tag = if version_to_use.starts_with('v') {
+        version_to_use.clone()
+    } else {
+        format!("v{}", version_to_use)
+    };
+
+    let sql_url = format!(
+        "https://raw.githubusercontent.com/pgmq/pgmq/refs/tags/{}/pgmq-extension/sql/pgmq.sql",
+        version_tag
+    );
+
+    let client = reqwest::Client::new();
+    let response = client.get(&sql_url).send().await?;
+
+    if !response.status().is_success() {
+        return Err(format!("Failed to download SQL file: HTTP {}", response.status()).into());
+    }
+    let sql_content = response.text().await?;
+    Ok(sql_content)
+}
+
+pub async fn install_pgmq<'c, E: sqlx::Executor<'c, Database = Postgres>>(
+    executor: E,
+    version: Option<&String>,
+) -> Result<(), PgmqError> {
+    println!("Installing PGMQ...");
+
+    let sql_content = get_install_sql(version).await?;
+    // Execute the SQL file
+    println!("Executing PGMQ installation SQL...");
+    execute_sql_statements(executor, &sql_content).await?;
+
+    println!("PGMQ installation completed successfully!");
+    Ok(())
+}
+
+async fn execute_sql_statements<'c, E: sqlx::Executor<'c, Database = Postgres>>(
+    executor: E,
+    sql_content: &str,
+) -> Result<(), sqlx::Error> {
+    // execute multiple statements at once
+    let _result: Vec<sqlx::postgres::PgQueryResult> =
+        executor.execute_many(sql_content).try_collect().await?;
+
+    Ok(())
+}
+
+#[derive(Serialize, Deserialize)]
+struct GitHubRelease {
+    tag_name: String,
+    name: String,
 }
