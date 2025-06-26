@@ -1,7 +1,6 @@
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
-use sqlx::{Pool, Postgres, Row};
 use std::env;
 
 #[derive(Serialize, Debug, Deserialize, Eq, PartialEq)]
