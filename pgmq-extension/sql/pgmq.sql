@@ -14,7 +14,7 @@ END
 $$;
 
 -- Table where queues and metadata about them is stored
-CREATE TABLE pgmq.meta (
+CREATE TABLE IF NOT EXISTS pgmq.meta (
     queue_name VARCHAR UNIQUE NOT NULL,
     is_partitioned BOOLEAN NOT NULL,
     is_unlogged BOOLEAN NOT NULL,
@@ -529,6 +529,120 @@ BEGIN
 END
 $$ LANGUAGE plpgsql;
 
+-- detach all pgmq queue objects
+-- note--this will prevent `DROP EXTENSION pgmq CASCADE` from being able to drop the extension objects
+CREATE OR REPLACE FUNCTION pgmq."detach_all"()
+RETURNS TABLE(detached_object TEXT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    queue_record RECORD;
+    detach_cmd TEXT;
+BEGIN
+    -- Only proceed if pgmq extension exists (not applicable when SQL-only)
+    IF NOT pgmq._extension_exists('pgmq') THEN
+        RAISE NOTICE 'pgmq extension does not exist, nothing to detach';
+        RETURN;
+    END IF;
+
+    -- Iterate through all queues and detach their objects (table, archive table, sequence)
+    FOR queue_record IN SELECT queue_name FROM pgmq.meta LOOP
+        BEGIN
+            detach_cmd := format('ALTER EXTENSION pgmq DROP TABLE pgmq.q_%I', queue_record.queue_name);
+            EXECUTE detach_cmd;
+            detached_object := format('TABLE pgmq.q_%s', queue_record.queue_name);
+            RETURN NEXT;
+        EXCEPTION WHEN OTHERS THEN
+            RAISE WARNING 'Failed to detach queue table for %: %', queue_record.queue_name, SQLERRM;
+        END;
+
+        BEGIN
+            detach_cmd := format('ALTER EXTENSION pgmq DROP SEQUENCE pgmq.q_%I_msg_id_seq', queue_record.queue_name);
+            EXECUTE detach_cmd;
+            detached_object := format('SEQUENCE pgmq.q_%s_msg_id_seq', queue_record.queue_name);
+            RETURN NEXT;
+        EXCEPTION WHEN OTHERS THEN
+            RAISE WARNING 'Failed to detach queue sequence for %: %', queue_record.queue_name, SQLERRM;
+        END;
+
+        BEGIN
+            detach_cmd := format('ALTER EXTENSION pgmq DROP TABLE pgmq.a_%I', queue_record.queue_name);
+            EXECUTE detach_cmd;
+            detached_object := format('TABLE pgmq.a_%s', queue_record.queue_name);
+            RETURN NEXT;
+        EXCEPTION WHEN OTHERS THEN
+            RAISE WARNING 'Failed to detach archive table for %: %', queue_record.queue_name, SQLERRM;
+        END;
+    END LOOP;
+
+    BEGIN
+        EXECUTE 'ALTER EXTENSION pgmq DROP TABLE pgmq.meta';
+        detached_object := 'TABLE pgmq.meta';
+        RETURN NEXT;
+    EXCEPTION WHEN OTHERS THEN
+        RAISE WARNING 'Failed to detach meta table: %', SQLERRM;
+    END;
+
+    RETURN;
+END;
+$$;
+
+CREATE OR REPLACE FUNCTION pgmq."attach_all"()
+RETURNS TABLE(attached_object TEXT)
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    queue_record RECORD;
+    attach_cmd TEXT;
+BEGIN
+    -- Only proceed if pgmq extension exists
+    IF NOT pgmq._extension_exists('pgmq') THEN
+        RAISE NOTICE 'pgmq extension does not exist, nothing to attach';
+        RETURN;
+    END IF;
+
+    BEGIN
+        EXECUTE 'ALTER EXTENSION pgmq ADD TABLE pgmq.meta';
+        attached_object := 'TABLE pgmq.meta';
+        RETURN NEXT;
+    EXCEPTION WHEN OTHERS THEN
+        RAISE WARNING 'Failed to attach meta table: %', SQLERRM;
+    END;
+
+    -- Iterate through all queues and attach their objects (table, archive table, sequence)
+    FOR queue_record IN SELECT queue_name FROM pgmq.meta LOOP
+        BEGIN
+            attach_cmd := format('ALTER EXTENSION pgmq ADD TABLE pgmq.q_%I', queue_record.queue_name);
+            EXECUTE attach_cmd;
+            attached_object := format('TABLE pgmq.q_%s', queue_record.queue_name);
+            RETURN NEXT;
+        EXCEPTION WHEN OTHERS THEN
+            RAISE WARNING 'Failed to attach queue table for %: %', queue_record.queue_name, SQLERRM;
+        END;
+
+        BEGIN
+            attach_cmd := format('ALTER EXTENSION pgmq ADD SEQUENCE pgmq.q_%I_msg_id_seq', queue_record.queue_name);
+            EXECUTE attach_cmd;
+            attached_object := format('SEQUENCE pgmq.q_%s_msg_id_seq', queue_record.queue_name);
+            RETURN NEXT;
+        EXCEPTION WHEN OTHERS THEN
+            RAISE WARNING 'Failed to attach queue sequence for %: %', queue_record.queue_name, SQLERRM;
+        END;
+
+        BEGIN
+            attach_cmd := format('ALTER EXTENSION pgmq ADD TABLE pgmq.a_%I', queue_record.queue_name);
+            EXECUTE attach_cmd;
+            attached_object := format('TABLE pgmq.a_%s', queue_record.queue_name);
+            RETURN NEXT;
+        EXCEPTION WHEN OTHERS THEN
+            RAISE WARNING 'Failed to attach archive table for %: %', queue_record.queue_name, SQLERRM;
+        END;
+    END LOOP;
+
+    RETURN;
+END;
+$$;
+
 -- pop a single message
 CREATE FUNCTION pgmq.pop(queue_name TEXT)
 RETURNS SETOF pgmq.message_record AS $$
@@ -802,6 +916,7 @@ BEGIN
     $QUERY$,
     queue_name
   );
+
 END;
 $$ LANGUAGE plpgsql;
 
