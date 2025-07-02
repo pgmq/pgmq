@@ -710,21 +710,20 @@ SELECT pgmq.create('detach_archive_queue');
 
 DROP EXTENSION pgmq CASCADE;
 SELECT tablename FROM pg_tables WHERE schemaname = 'pgmq' AND tablename = 'a_detach_archive_queue';
- tablename 
------------
-(0 rows)
-
--- With detach, archive remains
-CREATE EXTENSION pgmq;
-SELECT pgmq.create('detach_archive_queue');
- create 
---------
- 
+       tablename        
+------------------------
+ a_detach_archive_queue
 (1 row)
 
-SELECT pgmq.detach_archive('detach_archive_queue');
- detach_archive 
-----------------
+-- queues and archive remains
+CREATE EXTENSION pgmq;
+SELECT pgmq.create('detach_archive_queue');
+NOTICE:  relation "q_detach_archive_queue" already exists, skipping
+NOTICE:  relation "a_detach_archive_queue" already exists, skipping
+NOTICE:  relation "q_detach_archive_queue_vt_idx" already exists, skipping
+NOTICE:  relation "archived_at_idx_detach_archive_queue" already exists, skipping
+ create 
+--------
  
 (1 row)
 

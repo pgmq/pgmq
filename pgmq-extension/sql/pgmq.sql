@@ -998,12 +998,6 @@ BEGIN
     atable, a_partition_col
   );
 
-  IF pgmq._extension_exists('pgmq') THEN
-      IF NOT pgmq._belongs_to_pgmq(atable) THEN
-          EXECUTE FORMAT('ALTER EXTENSION pgmq ADD TABLE pgmq.%I', atable);
-      END IF;
-  END IF;
-
   -- https://github.com/pgpartman/pg_partman/blob/master/doc/pg_partman.md
   -- p_parent_table - the existing parent table. MUST be schema qualified, even if in public schema.
   EXECUTE FORMAT(

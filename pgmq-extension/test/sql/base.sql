@@ -284,10 +284,9 @@ SELECT pgmq.create('detach_archive_queue');
 DROP EXTENSION pgmq CASCADE;
 SELECT tablename FROM pg_tables WHERE schemaname = 'pgmq' AND tablename = 'a_detach_archive_queue';
 
--- With detach, archive remains
+-- queues and archive remains
 CREATE EXTENSION pgmq;
 SELECT pgmq.create('detach_archive_queue');
-SELECT pgmq.detach_archive('detach_archive_queue');
 DROP EXTENSION pgmq CASCADE;
 SELECT tablename FROM pg_tables WHERE schemaname = 'pgmq' AND tablename = 'a_detach_archive_queue';
 
