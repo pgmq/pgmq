@@ -425,6 +425,7 @@ END;
 $$;
 
 -- deprecate detach_archive function
+DROP FUNCTION pgmq.detach_archive(TEXT);
 CREATE FUNCTION pgmq."detach_archive"(queue_name TEXT)
 RETURNS VOID AS $$
 DECLARE
