@@ -533,9 +533,6 @@ DECLARE
   atable TEXT := pgmq.format_table_name(queue_name, 'a');
 BEGIN
   RAISE WARNING 'detach_archive(queue_name) is deprecated and will be removed in PGMQ v2.0. Archive tables are no longer member objects.';
-  IF pgmq._extension_exists('pgmq') THEN
-    EXECUTE format('ALTER EXTENSION pgmq DROP TABLE pgmq.%I', atable);
-  END IF;
 END
 $$ LANGUAGE plpgsql;
 

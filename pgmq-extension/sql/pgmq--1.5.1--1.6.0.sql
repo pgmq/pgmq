@@ -378,52 +378,6 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- detach all pgmq objects from extension
-DO $$
-DECLARE
-    queue_record RECORD;
-    detach_cmd TEXT;
-    detached_object TEXT;
-BEGIN
-
-    -- add pgmq.meta as a member object to the extension
-    PERFORM pg_catalog.pg_extension_config_dump('pgmq.meta', '');
-
-    -- iterate through all queues and remove their objects from the extension
-    FOR queue_record IN SELECT queue_name FROM pgmq.meta LOOP
-        -- queue table
-        BEGIN
-            detach_cmd := format('ALTER EXTENSION pgmq DROP TABLE pgmq.%I', 'q_'  || queue_record.queue_name);
-            EXECUTE detach_cmd;
-            detached_object := format('TABLE pgmq.q_%s', queue_record.queue_name);
-            RAISE NOTICE 'Detached: %', detached_object;
-        EXCEPTION WHEN others THEN
-            RAISE WARNING 'Failed to detach queue table for %: %', queue_record.queue_name, SQLERRM;
-        END;
-
-        -- queue sequence
-        BEGIN
-            detach_cmd := format('ALTER EXTENSION pgmq DROP SEQUENCE pgmq.%I', 'q_' || queue_record.queue_name || '_msg_id_seq');
-            EXECUTE detach_cmd;
-            detached_object := format('SEQUENCE pgmq.q_%s_msg_id_seq', queue_record.queue_name);
-            RAISE NOTICE 'Detached: %', detached_object;
-        EXCEPTION WHEN others THEN
-            RAISE WARNING 'Failed to detach queue sequence for %: %', queue_record.queue_name, SQLERRM;
-        END;
-
-        -- archive table
-        BEGIN
-            detach_cmd := format('ALTER EXTENSION pgmq DROP TABLE pgmq.%I', 'a_' || queue_record.queue_name);
-            EXECUTE detach_cmd;
-            detached_object := format('TABLE pgmq.a_%s', queue_record.queue_name);
-            RAISE NOTICE 'Detached: %', detached_object;
-        EXCEPTION WHEN others THEN
-            RAISE WARNING 'Failed to detach archive table for %: %', queue_record.queue_name, SQLERRM;
-        END;
-    END LOOP;
-END;
-$$;
-
 -- deprecate detach_archive function
 DROP FUNCTION pgmq.detach_archive(TEXT);
 CREATE FUNCTION pgmq."detach_archive"(queue_name TEXT)
@@ -432,8 +386,5 @@ DECLARE
   atable TEXT := pgmq.format_table_name(queue_name, 'a');
 BEGIN
   RAISE WARNING 'detach_archive(queue_name) is deprecated and will be removed in PGMQ v2.0. Archive tables are no longer member objects.';
-  IF pgmq._extension_exists('pgmq') THEN
-    EXECUTE format('ALTER EXTENSION pgmq DROP TABLE pgmq.%I', atable);
-  END IF;
 END
 $$ LANGUAGE plpgsql;
