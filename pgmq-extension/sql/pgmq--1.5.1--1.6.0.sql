@@ -385,6 +385,13 @@ DECLARE
     detach_cmd TEXT;
     detached_object TEXT;
 BEGIN
+    -- only apply if pgmq extension is installed
+    IF NOT EXISTS(SELECT 1 FROM pg_extension WHERE extname = 'pgmq') THEN
+        RAISE NOTICE 'pgmq extension is not installed, nothing to detach.';
+        RETURN;
+    END IF;
+    
+    RAISE NOTICE 'pgmq extension found, proceeding with detachment operations.';
 
     -- add pgmq.meta as a member object to the extension
     PERFORM pg_catalog.pg_extension_config_dump('pgmq.meta', '');
