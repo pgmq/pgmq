@@ -1,5 +1,5 @@
 -- used for consistently creating a lock for a specific queue
-CREATE FUNCTION pgmq.acquire_queue_lock(queue_name TEXT) 
+CREATE OR REPLACE FUNCTION pgmq.acquire_queue_lock(queue_name TEXT) 
 RETURNS void AS $$
 BEGIN
   PERFORM pg_advisory_xact_lock(hashtext('pgmq.queue_' || queue_name));
@@ -50,29 +50,6 @@ BEGIN
     ) THEN
         RAISE NOTICE 'pgmq queue `%` does not exist', queue_name;
         RETURN FALSE;
-    END IF;
-
-    IF pgmq._extension_exists('pgmq') THEN
-        EXECUTE FORMAT(
-            $QUERY$
-            ALTER EXTENSION pgmq DROP TABLE pgmq.%I
-            $QUERY$,
-            qtable
-        );
-
-        EXECUTE FORMAT(
-            $QUERY$
-            ALTER EXTENSION pgmq DROP SEQUENCE pgmq.%I
-            $QUERY$,
-            qtable_seq
-        );
-
-        EXECUTE FORMAT(
-            $QUERY$
-            ALTER EXTENSION pgmq DROP TABLE pgmq.%I
-            $QUERY$,
-            atable
-        );
     END IF;
 
     EXECUTE FORMAT(
@@ -155,17 +132,6 @@ BEGIN
     atable
   );
 
-  IF pgmq._extension_exists('pgmq') THEN
-      IF NOT pgmq._belongs_to_pgmq(qtable) THEN
-          EXECUTE FORMAT('ALTER EXTENSION pgmq ADD TABLE pgmq.%I', qtable);
-          EXECUTE FORMAT('ALTER EXTENSION pgmq ADD SEQUENCE pgmq.%I', qtable_seq);
-      END IF;
-
-      IF NOT pgmq._belongs_to_pgmq(atable) THEN
-          EXECUTE FORMAT('ALTER EXTENSION pgmq ADD TABLE pgmq.%I', atable);
-      END IF;
-  END IF;
-
   EXECUTE FORMAT(
     $QUERY$
     CREATE INDEX IF NOT EXISTS %I ON pgmq.%I (vt ASC);
@@ -232,17 +198,6 @@ BEGIN
     atable
   );
 
-  IF pgmq._extension_exists('pgmq') THEN
-      IF NOT pgmq._belongs_to_pgmq(qtable) THEN
-          EXECUTE FORMAT('ALTER EXTENSION pgmq ADD TABLE pgmq.%I', qtable);
-          EXECUTE FORMAT('ALTER EXTENSION pgmq ADD SEQUENCE pgmq.%I', qtable_seq);
-      END IF;
-
-      IF NOT pgmq._belongs_to_pgmq(atable) THEN
-          EXECUTE FORMAT('ALTER EXTENSION pgmq ADD TABLE pgmq.%I', atable);
-      END IF;
-  END IF;
-
   EXECUTE FORMAT(
     $QUERY$
     CREATE INDEX IF NOT EXISTS %I ON pgmq.%I (vt ASC);
@@ -304,13 +259,6 @@ BEGIN
     $QUERY$,
     qtable, partition_col
   );
-
-  IF pgmq._extension_exists('pgmq') THEN
-      IF NOT pgmq._belongs_to_pgmq(qtable) THEN
-          EXECUTE FORMAT('ALTER EXTENSION pgmq ADD TABLE pgmq.%I', qtable);
-          EXECUTE FORMAT('ALTER EXTENSION pgmq ADD SEQUENCE pgmq.%I', qtable_seq);
-      END IF;
-  END IF;
 
   -- https://github.com/pgpartman/pg_partman/blob/master/doc/pg_partman.md
   -- p_parent_table - the existing parent table. MUST be schema qualified, even if in public schema.
@@ -385,12 +333,6 @@ BEGIN
     atable, a_partition_col
   );
 
-  IF pgmq._extension_exists('pgmq') THEN
-      IF NOT pgmq._belongs_to_pgmq(atable) THEN
-          EXECUTE FORMAT('ALTER EXTENSION pgmq ADD TABLE pgmq.%I', atable);
-      END IF;
-  END IF;
-
   -- https://github.com/pgpartman/pg_partman/blob/master/doc/pg_partman.md
   -- p_parent_table - the existing parent table. MUST be schema qualified, even if in public schema.
   EXECUTE FORMAT(
@@ -434,4 +376,68 @@ BEGIN
   );
 
 END;
+$$ LANGUAGE plpgsql;
+
+-- detach queue, sequence, and archive objects from extension and make pgmq.meta pg_dump-able
+DO $$
+DECLARE
+    queue_record RECORD;
+    detach_cmd TEXT;
+    detached_object TEXT;
+BEGIN
+    -- only apply if pgmq extension is installed
+    IF NOT EXISTS(SELECT 1 FROM pg_extension WHERE extname = 'pgmq') THEN
+        RAISE NOTICE 'pgmq extension is not installed, nothing to detach.';
+        RETURN;
+    END IF;
+    
+    RAISE NOTICE 'pgmq extension found, proceeding with detachment operations.';
+
+    -- add pgmq.meta as a member object to the extension
+    PERFORM pg_catalog.pg_extension_config_dump('pgmq.meta', '');
+
+    -- iterate through all queues and remove their objects from the extension
+    FOR queue_record IN SELECT queue_name FROM pgmq.meta LOOP
+        -- queue table
+        BEGIN
+            detach_cmd := format('ALTER EXTENSION pgmq DROP TABLE pgmq.%I', 'q_'  || queue_record.queue_name);
+            EXECUTE detach_cmd;
+            detached_object := format('TABLE pgmq.q_%s', queue_record.queue_name);
+            RAISE NOTICE 'Detached: %', detached_object;
+        EXCEPTION WHEN others THEN
+            RAISE WARNING 'Failed to detach queue table for %: %', queue_record.queue_name, SQLERRM;
+        END;
+
+        -- queue sequence
+        BEGIN
+            detach_cmd := format('ALTER EXTENSION pgmq DROP SEQUENCE pgmq.%I', 'q_' || queue_record.queue_name || '_msg_id_seq');
+            EXECUTE detach_cmd;
+            detached_object := format('SEQUENCE pgmq.q_%s_msg_id_seq', queue_record.queue_name);
+            RAISE NOTICE 'Detached: %', detached_object;
+        EXCEPTION WHEN others THEN
+            RAISE WARNING 'Failed to detach queue sequence for %: %', queue_record.queue_name, SQLERRM;
+        END;
+
+        -- archive table
+        BEGIN
+            detach_cmd := format('ALTER EXTENSION pgmq DROP TABLE pgmq.%I', 'a_' || queue_record.queue_name);
+            EXECUTE detach_cmd;
+            detached_object := format('TABLE pgmq.a_%s', queue_record.queue_name);
+            RAISE NOTICE 'Detached: %', detached_object;
+        EXCEPTION WHEN others THEN
+            RAISE WARNING 'Failed to detach archive table for %: %', queue_record.queue_name, SQLERRM;
+        END;
+    END LOOP;
+END;
+$$;
+
+-- deprecate detach_archive function
+DROP FUNCTION pgmq.detach_archive(TEXT);
+CREATE FUNCTION pgmq."detach_archive"(queue_name TEXT)
+RETURNS VOID AS $$
+DECLARE
+  atable TEXT := pgmq.format_table_name(queue_name, 'a');
+BEGIN
+  RAISE WARNING 'detach_archive(queue_name) is deprecated and is a no-op. It will be removed in PGMQ v2.0. Archive tables are no longer member objects.';
+END
 $$ LANGUAGE plpgsql;

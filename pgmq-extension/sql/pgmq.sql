@@ -14,12 +14,22 @@ END
 $$;
 
 -- Table where queues and metadata about them is stored
-CREATE TABLE pgmq.meta (
+CREATE TABLE IF NOT EXISTS pgmq.meta (
     queue_name VARCHAR UNIQUE NOT NULL,
     is_partitioned BOOLEAN NOT NULL,
     is_unlogged BOOLEAN NOT NULL,
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
 );
+
+-- Allow pgma.meta to be dumped by `pg_dump` when pgmq is installed as an extension
+DO
+$$
+BEGIN
+    IF (SELECT NOT EXISTS( SELECT 1 FROM pg_extension WHERE extname = 'pgmq')) THEN
+      SELECT pg_catalog.pg_extension_config_dump('pgmq.meta', '');
+    END IF;
+END
+$$;
 
 -- Grant permission to pg_monitor to all tables and sequences
 GRANT USAGE ON SCHEMA pgmq TO pg_monitor;
@@ -516,16 +526,13 @@ BEGIN
 END
 $$ LANGUAGE plpgsql;
 
-
 -- unassign archive, so it can be kept when a queue is deleted
 CREATE FUNCTION pgmq."detach_archive"(queue_name TEXT)
 RETURNS VOID AS $$
 DECLARE
   atable TEXT := pgmq.format_table_name(queue_name, 'a');
 BEGIN
-  IF pgmq._extension_exists('pgmq') THEN
-    EXECUTE format('ALTER EXTENSION pgmq DROP TABLE pgmq.%I', atable);
-  END IF;
+  RAISE WARNING 'detach_archive(queue_name) is deprecated and is a no-op. It will be removed in PGMQ v2.0. Archive tables are no longer member objects.';
 END
 $$ LANGUAGE plpgsql;
 
@@ -631,29 +638,6 @@ BEGIN
     ) THEN
         RAISE NOTICE 'pgmq queue `%` does not exist', queue_name;
         RETURN FALSE;
-    END IF;
-
-    IF pgmq._extension_exists('pgmq') THEN
-        EXECUTE FORMAT(
-            $QUERY$
-            ALTER EXTENSION pgmq DROP TABLE pgmq.%I
-            $QUERY$,
-            qtable
-        );
-
-        EXECUTE FORMAT(
-            $QUERY$
-            ALTER EXTENSION pgmq DROP SEQUENCE pgmq.%I
-            $QUERY$,
-            qtable_seq
-        );
-
-        EXECUTE FORMAT(
-            $QUERY$
-            ALTER EXTENSION pgmq DROP TABLE pgmq.%I
-            $QUERY$,
-            atable
-        );
     END IF;
 
     EXECUTE FORMAT(
@@ -768,17 +752,6 @@ BEGIN
     atable
   );
 
-  IF pgmq._extension_exists('pgmq') THEN
-      IF NOT pgmq._belongs_to_pgmq(qtable) THEN
-          EXECUTE FORMAT('ALTER EXTENSION pgmq ADD TABLE pgmq.%I', qtable);
-          EXECUTE FORMAT('ALTER EXTENSION pgmq ADD SEQUENCE pgmq.%I', qtable_seq);
-      END IF;
-
-      IF NOT pgmq._belongs_to_pgmq(atable) THEN
-          EXECUTE FORMAT('ALTER EXTENSION pgmq ADD TABLE pgmq.%I', atable);
-      END IF;
-  END IF;
-
   EXECUTE FORMAT(
     $QUERY$
     CREATE INDEX IF NOT EXISTS %I ON pgmq.%I (vt ASC);
@@ -802,6 +775,7 @@ BEGIN
     $QUERY$,
     queue_name
   );
+
 END;
 $$ LANGUAGE plpgsql;
 
@@ -843,17 +817,6 @@ BEGIN
     $QUERY$,
     atable
   );
-
-  IF pgmq._extension_exists('pgmq') THEN
-      IF NOT pgmq._belongs_to_pgmq(qtable) THEN
-          EXECUTE FORMAT('ALTER EXTENSION pgmq ADD TABLE pgmq.%I', qtable);
-          EXECUTE FORMAT('ALTER EXTENSION pgmq ADD SEQUENCE pgmq.%I', qtable_seq);
-      END IF;
-
-      IF NOT pgmq._belongs_to_pgmq(atable) THEN
-          EXECUTE FORMAT('ALTER EXTENSION pgmq ADD TABLE pgmq.%I', atable);
-      END IF;
-  END IF;
 
   EXECUTE FORMAT(
     $QUERY$
@@ -959,13 +922,6 @@ BEGIN
     qtable, partition_col
   );
 
-  IF pgmq._extension_exists('pgmq') THEN
-      IF NOT pgmq._belongs_to_pgmq(qtable) THEN
-          EXECUTE FORMAT('ALTER EXTENSION pgmq ADD TABLE pgmq.%I', qtable);
-          EXECUTE FORMAT('ALTER EXTENSION pgmq ADD SEQUENCE pgmq.%I', qtable_seq);
-      END IF;
-  END IF;
-
   -- https://github.com/pgpartman/pg_partman/blob/master/doc/pg_partman.md
   -- p_parent_table - the existing parent table. MUST be schema qualified, even if in public schema.
   EXECUTE FORMAT(
@@ -1038,12 +994,6 @@ BEGIN
     $QUERY$,
     atable, a_partition_col
   );
-
-  IF pgmq._extension_exists('pgmq') THEN
-      IF NOT pgmq._belongs_to_pgmq(atable) THEN
-          EXECUTE FORMAT('ALTER EXTENSION pgmq ADD TABLE pgmq.%I', atable);
-      END IF;
-  END IF;
 
   -- https://github.com/pgpartman/pg_partman/blob/master/doc/pg_partman.md
   -- p_parent_table - the existing parent table. MUST be schema qualified, even if in public schema.
