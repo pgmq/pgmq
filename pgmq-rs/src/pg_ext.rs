@@ -127,7 +127,7 @@ impl PGMQueueExt {
             .fetch_one(executor)
             .await?;
         if exists {
-            info!("queue: {} already exists", queue_name);
+            info!("queue: {queue_name} already exists",);
             Ok(false)
         } else {
             sqlx::query!(

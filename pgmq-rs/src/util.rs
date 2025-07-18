@@ -148,16 +148,23 @@ async fn get_install_sql(version: Option<&String>) -> Result<String, PgmqError> 
         None => get_latest_release_tag().await?,
     };
 
-    let version_tag = if version_to_use.starts_with('v') {
-        version_to_use.clone()
-    } else {
-        format!("v{}", version_to_use)
-    };
+    // Determine if it's a git hash by checking if it's a hex string
+    let is_git_hash = version_to_use.chars().all(|c| c.is_ascii_hexdigit());
 
-    let sql_url = format!(
-        "https://raw.githubusercontent.com/pgmq/pgmq/refs/tags/{}/pgmq-extension/sql/pgmq.sql",
-        version_tag
-    );
+    let sql_url = if is_git_hash {
+        format!(
+            "https://raw.githubusercontent.com/pgmq/pgmq/{version_to_use}/pgmq-extension/sql/pgmq.sql",
+        )
+    } else {
+        let version_tag = if version_to_use.starts_with('v') {
+            version_to_use.clone()
+        } else {
+            format!("v{version_to_use}")
+        };
+        format!(
+            "https://raw.githubusercontent.com/pgmq/pgmq/refs/tags/{version_tag}/pgmq-extension/sql/pgmq.sql",
+        )
+    };
 
     let client = reqwest::Client::new();
     let response = client.get(&sql_url).send().await?;

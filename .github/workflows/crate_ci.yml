@@ -77,6 +77,7 @@ jobs:
     env:
       DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
       SQLX_OFFLINE: 1
+      PGMQ_VERSION: $(git rev-parse --short HEAD)
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust stable toolchain
