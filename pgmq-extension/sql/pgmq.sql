@@ -21,12 +21,12 @@ CREATE TABLE IF NOT EXISTS pgmq.meta (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
 );
 
--- Allow pgma.meta to be dumped by `pg_dump` when pgmq is installed as an extension
+-- Allow pgmq.meta to be dumped by `pg_dump` when pgmq is installed as an extension
 DO
 $$
 BEGIN
-    IF (SELECT NOT EXISTS( SELECT 1 FROM pg_extension WHERE extname = 'pgmq')) THEN
-      SELECT pg_catalog.pg_extension_config_dump('pgmq.meta', '');
+    IF EXISTS(SELECT 1 FROM pg_extension WHERE extname = 'pgmq') THEN
+        PERFORM pg_catalog.pg_extension_config_dump('pgmq.meta', '');
     END IF;
 END
 $$;
