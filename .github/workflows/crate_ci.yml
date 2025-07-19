@@ -15,6 +15,7 @@ on:
   push:
     branches:
       - main
+      - ci-cleanup
 
 jobs:
   lint:
@@ -23,10 +24,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - name: Install minimal nightly with clippy and rustfmt
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           profile: minimal
-          toolchain: nightly
+          toolchain: stable
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - name: Cargo format
@@ -38,12 +39,24 @@ jobs:
     name: Run tests
     runs-on: ubuntu-22.04
     needs: lint
+    services:
+      postgres:
+        image: ghcr.io/pgmq/pg17-pgmq:latest
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
     env:
       DATABASE_URL: "postgresql://postgres:postgres@0.0.0.0:5432/postgres"
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust stable toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@v2
@@ -56,3 +69,49 @@ jobs:
         run: cargo sqlx prepare --check
       - name: teardown
         run: make test.cleanup
+
+  publish:
+    name: Publish or validate crate
+    runs-on: ubuntu-latest
+    needs: [lint, tests]
+    if: github.repository == 'pgmq/pgmq'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 2  # Need at least 2 commits to compare
+      - name: Install Rust stable toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: pgmq-rs/
+          key: ${{ runner.os }}-cargo-${{ hashFiles('pgmq-rs/Cargo.lock') }}
+      - name: Check if Cargo.toml changed and publish
+        working-directory: pgmq-rs/
+        run: |
+          # Different logic for PR vs push
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            # For PRs, compare against the base branch
+            if git diff --quiet origin/${{ github.base_ref }} HEAD -- Cargo.toml; then
+              echo "No changes to Cargo.toml, skipping publish"
+              exit 0
+            fi
+          else
+            # For pushes, compare against previous commit
+            if git diff --quiet HEAD~1 HEAD -- Cargo.toml; then
+              echo "No changes to Cargo.toml, skipping publish"
+              exit 0
+            fi
+          fi
+          
+          echo "Cargo.toml changed, proceeding with publish..."
+          
+          # Determine if we should do a dry run or actual publish
+          if [ "${{ github.ref }}" == "refs/heads/main" ]; then
+            echo "On main branch, publishing to crates.io"
+            cargo publish --token ${{ secrets.CARGO_REGISTRY_TOKEN }}
+          else
+            echo "Not on main branch, running dry-run publish"
+            cargo publish --dry-run
+          fi
