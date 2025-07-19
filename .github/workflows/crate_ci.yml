@@ -77,7 +77,7 @@ jobs:
         with:
           fetch-depth: 2  # Need at least 2 commits to compare
       - name: Install Rust stable toolchain
-        uses: actions-rs/toolchain@v1
+        uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable
       - uses: Swatinem/rust-cache@v2
