@@ -102,7 +102,7 @@ jobs:
             fi
           fi
           
-          echo "Cargo.toml changed, proceeding with publish..."
+          echo "Cargo.toml changed, proceeding with publish"
           
           # Determine if we should do a dry run or actual publish
           if [ "${{ github.ref }}" == "refs/heads/main" ]; then
