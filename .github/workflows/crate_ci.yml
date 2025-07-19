@@ -31,7 +31,7 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - name: Cargo format
-        run: cargo +nightly fmt --all --check
+        run: cargo fmt --all --check
       - name: Clippy
         run: cargo clippy
 
