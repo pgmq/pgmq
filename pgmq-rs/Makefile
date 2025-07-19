@@ -22,8 +22,5 @@ test:
 	sqlx migrate run --database-url ${EXTENSION_DB}
 	cargo test
 
-test.cleanup:
-	docker stop pgmq-pg
-
 setup.env:
 	sqlx migrate run --database-url ${DATABASE_URL}

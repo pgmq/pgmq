@@ -67,8 +67,6 @@ jobs:
       - name: Migrations
         # ensure migration cache is up to date
         run: cargo sqlx prepare --check
-      - name: teardown
-        run: make test.cleanup
 
   publish:
     name: Publish or validate crate
