@@ -15,7 +15,6 @@ on:
   push:
     branches:
       - main
-      - ci-cleanup
 
 jobs:
   lint:
