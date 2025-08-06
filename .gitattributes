@@ -1,4 +1,3 @@
 .gitignore export-ignore
 .gitattributes export-ignore
 .github export-ignore
-META.json.in export-ignore
