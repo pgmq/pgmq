@@ -124,7 +124,7 @@ pub fn check_input(input: &str) -> Result<(), PgmqError> {
 }
 
 #[cfg(feature = "cli")]
-async fn get_latest_release_tag() -> Result<String, Box<dyn std::error::Error>> {
+async fn get_latest_release_tag() -> Result<String, PgmqError> {
     log::info!("Getting latest PGMQ release...");
 
     let client = reqwest::Client::new();
