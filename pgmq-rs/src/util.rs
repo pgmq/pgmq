@@ -166,6 +166,8 @@ async fn get_install_sql(version: Option<&String>) -> Result<String, PgmqError> 
         )
     };
 
+    println!("Fetching SQL from: {}", sql_url);
+
     let client = reqwest::Client::new();
     let response = client.get(&sql_url).send().await?;
 
