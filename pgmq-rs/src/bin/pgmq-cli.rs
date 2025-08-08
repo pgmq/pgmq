@@ -1,5 +1,6 @@
 use clap::{Arg, Command};
 
+use log;
 use pgmq::util::install_pgmq;
 use sqlx::PgPool;
 use std::process;
@@ -37,12 +38,12 @@ async fn main() {
                 .expect("Failed to connect to database");
 
             if let Err(e) = install_pgmq(&pool, version).await {
-                eprintln!("Error installing PGMQ: {}", e);
+                log::error!("Error installing PGMQ: {}", e);
                 process::exit(1);
             }
         }
         _ => {
-            eprintln!("No valid subcommand provided. Use --help for usage information.");
+            log::error!("No valid subcommand provided. Use --help for usage information.");
             process::exit(1);
         }
     }

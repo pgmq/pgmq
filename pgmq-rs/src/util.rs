@@ -123,7 +123,7 @@ pub fn check_input(input: &str) -> Result<(), PgmqError> {
 }
 
 async fn get_latest_release_tag() -> Result<String, Box<dyn std::error::Error>> {
-    println!("Getting latest PGMQ release...");
+    log::info!("Getting latest PGMQ release...");
 
     let client = reqwest::Client::new();
     let response = client
@@ -137,7 +137,7 @@ async fn get_latest_release_tag() -> Result<String, Box<dyn std::error::Error>> 
     }
 
     let release: GitHubRelease = response.json().await?;
-    println!("Latest release: {}", release.tag_name);
+    log::info!("Latest release: {}", release.tag_name);
 
     Ok(release.tag_name)
 }
@@ -149,7 +149,9 @@ async fn get_install_sql(version: Option<&String>) -> Result<String, PgmqError> 
     };
 
     // Determine if it's a git hash by checking if it's a hex string
-    let is_git_hash = version_to_use.chars().all(|c| c.is_ascii_hexdigit());
+    let is_git_hash = version_to_use.len() >= 7 && // minimum abbreviated hash
+        version_to_use.len() <= 64 && // maximum full hash
+        version_to_use.chars().all(|c| c.is_ascii_hexdigit());
 
     let sql_url = if is_git_hash {
         format!(
@@ -166,7 +168,7 @@ async fn get_install_sql(version: Option<&String>) -> Result<String, PgmqError> 
         )
     };
 
-    println!("Fetching SQL from: {}", sql_url);
+    log::info!("Fetching SQL from: {sql_url}");
 
     let client = reqwest::Client::new();
     let response = client.get(&sql_url).send().await?;
@@ -182,14 +184,14 @@ pub async fn install_pgmq<'c, E: sqlx::Executor<'c, Database = Postgres>>(
     executor: E,
     version: Option<&String>,
 ) -> Result<(), PgmqError> {
-    println!("Installing PGMQ...");
+    log::info!("Installing PGMQ...");
 
     let sql_content = get_install_sql(version).await?;
     // Execute the SQL file
-    println!("Executing PGMQ installation SQL...");
+    log::info!("Executing PGMQ installation SQL...");
     execute_sql_statements(executor, &sql_content).await?;
 
-    println!("PGMQ installation completed successfully!");
+    log::info!("PGMQ installation completed successfully!");
     Ok(())
 }
 
