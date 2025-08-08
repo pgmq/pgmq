@@ -1,6 +1,7 @@
 use std::fmt::Display;
 
 use crate::{errors::PgmqError, types::Message};
+#[cfg(feature = "cli")]
 use futures::TryStreamExt;
 use log::LevelFilter;
 use serde::{Deserialize, Serialize};
@@ -122,6 +123,7 @@ pub fn check_input(input: &str) -> Result<(), PgmqError> {
     }
 }
 
+#[cfg(feature = "cli")]
 async fn get_latest_release_tag() -> Result<String, Box<dyn std::error::Error>> {
     log::info!("Getting latest PGMQ release...");
 
@@ -142,6 +144,7 @@ async fn get_latest_release_tag() -> Result<String, Box<dyn std::error::Error>> 
     Ok(release.tag_name)
 }
 
+#[cfg(feature = "cli")]
 async fn get_install_sql(version: Option<&String>) -> Result<String, PgmqError> {
     let version_to_use = match version {
         Some(v) => v.clone(),
@@ -180,6 +183,7 @@ async fn get_install_sql(version: Option<&String>) -> Result<String, PgmqError> 
     Ok(sql_content)
 }
 
+#[cfg(feature = "cli")]
 pub async fn install_pgmq<'c, E: sqlx::Executor<'c, Database = Postgres>>(
     executor: E,
     version: Option<&String>,
@@ -195,6 +199,7 @@ pub async fn install_pgmq<'c, E: sqlx::Executor<'c, Database = Postgres>>(
     Ok(())
 }
 
+#[cfg(feature = "cli")]
 async fn execute_sql_statements<'c, E: sqlx::Executor<'c, Database = Postgres>>(
     executor: E,
     sql_content: &str,

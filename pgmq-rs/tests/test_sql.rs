@@ -19,6 +19,7 @@ impl Default for MyMessage {
 }
 
 #[ignore]
+#[cfg(feature = "cli")]
 #[tokio::test]
 async fn test_sql_lifecycle() {
     let test_num = rand::thread_rng().gen_range(0..100000);
@@ -56,7 +57,6 @@ async fn test_sql_lifecycle() {
     let read_none = queue.read::<MyMessage>(&test_queue, 30).await.unwrap();
     assert!(read_none.is_none());
 }
-
 fn replace_db_string(s: &str, replacement: &str) -> String {
     match s.rfind('/') {
         Some(pos) => {

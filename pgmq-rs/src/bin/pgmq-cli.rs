@@ -5,7 +5,7 @@ use pgmq::util::install_pgmq;
 use sqlx::PgPool;
 use std::process;
 
-#[tokio::main]
+#[tokio::main(flavor = "current_thread")]
 async fn main() {
     let matches = Command::new("pgmq-cli")
         .about("PGMQ CLI tool for installing and managing PostgreSQL message queues")

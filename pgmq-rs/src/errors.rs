@@ -21,7 +21,8 @@ pub enum PgmqError {
     #[error("invalid queue name: '{name}'")]
     InvalidQueueName { name: String },
 
-    /// a reqwest error
+    /// a reqwest error (only when the `cli` feature is enabled)
+    #[cfg(feature = "cli")]
     #[error("http request error {0}")]
     HttpError(#[from] reqwest::Error),
 
