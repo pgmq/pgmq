@@ -43,12 +43,12 @@ impl PGMQueueExt {
     }
 
     #[cfg(feature = "cli")]
-    pub async fn install_sql_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres>>(
+    pub async fn install_sql_with_cxn(
         &self,
-        executor: E,
+        pool: &Pool<Postgres>,
         version: Option<&String>,
     ) -> Result<(), PgmqError> {
-        install_pgmq(executor, version).await
+        install_pgmq(pool, version).await
     }
 
     #[cfg(feature = "cli")]

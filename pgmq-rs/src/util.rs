@@ -1,8 +1,7 @@
 use std::fmt::Display;
 
 use crate::{errors::PgmqError, types::Message};
-#[cfg(feature = "cli")]
-use futures::TryStreamExt;
+
 use log::LevelFilter;
 use serde::{Deserialize, Serialize};
 use sqlx::error::Error;
@@ -12,6 +11,11 @@ use sqlx::ConnectOptions;
 use sqlx::Row;
 use sqlx::{Pool, Postgres};
 use url::{ParseError, Url};
+
+#[cfg(feature = "cli")]
+use futures_util::stream::StreamExt;
+#[cfg(feature = "cli")]
+use sqlx::Executor;
 // Configure connection options
 pub fn conn_options(url: &str) -> Result<PgConnectOptions, ParseError> {
     // Parse url
@@ -184,8 +188,8 @@ async fn get_install_sql(version: Option<&String>) -> Result<String, PgmqError> 
 }
 
 #[cfg(feature = "cli")]
-pub async fn install_pgmq<'c, E: sqlx::Executor<'c, Database = Postgres>>(
-    executor: E,
+pub async fn install_pgmq(
+    pool: &Pool<Postgres>,
     version: Option<&String>,
 ) -> Result<(), PgmqError> {
     log::info!("Installing PGMQ...");
@@ -193,21 +197,26 @@ pub async fn install_pgmq<'c, E: sqlx::Executor<'c, Database = Postgres>>(
     let sql_content = get_install_sql(version).await?;
     // Execute the SQL file
     log::info!("Executing PGMQ installation SQL...");
-    execute_sql_statements(executor, &sql_content).await?;
+    execute_sql_statements(pool, &sql_content).await?;
 
     log::info!("PGMQ installation completed successfully!");
     Ok(())
 }
 
 #[cfg(feature = "cli")]
-async fn execute_sql_statements<'c, E: sqlx::Executor<'c, Database = Postgres>>(
-    executor: E,
-    sql_content: &str,
-) -> Result<(), sqlx::Error> {
-    // execute multiple statements at once
-    let _result: Vec<sqlx::postgres::PgQueryResult> =
-        executor.execute_many(sql_content).try_collect().await?;
+async fn execute_sql_statements(pool: &Pool<Postgres>, multi_query: &str) -> Result<(), Error> {
+    let mut tx = pool.begin().await?;
 
+    {
+        let mut stream = tx.fetch_many(multi_query);
+        // Consume the stream, ignore results, but propagate errors
+        while let Some(step) = stream.next().await {
+            // Only check for error
+            step?; // If any query fails, this will return the error immediately
+        }
+    }
+
+    tx.commit().await?;
     Ok(())
 }
 

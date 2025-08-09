@@ -18,7 +18,7 @@ required-features = ["cli"]
 
 [features]
 default = []
-cli = ["clap", "futures", "reqwest", "tokio/rt"]
+cli = ["clap", "futures-util", "reqwest", "tokio/rt"]
 
 [dependencies]
 chrono = { version = "0.4.23", features = ["serde"] }
@@ -32,7 +32,7 @@ url = "2.3.1"
 
 # Optional dependencies for the `cli` feature
 reqwest = { version = "0.11", features = ["json"], optional = true }
-futures = { version = "0.3.31", optional = true }
+futures-util = { version = "0.3.31", optional = true }
 clap = { version = "4.0", features = ["derive"], optional = true }
 
 
