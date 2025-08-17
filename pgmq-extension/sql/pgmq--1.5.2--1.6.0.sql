@@ -16,43 +16,45 @@ BEGIN
     sql := FORMAT(
         $QUERY$
         WITH fifo_groups AS (
-            -- Get the minimum msg_id for each FIFO group that's ready to be processed
+            -- Determine the absolute head (oldest) message id per FIFO group, regardless of visibility
             SELECT 
-                COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group') as fifo_key,
-                MIN(msg_id) as min_msg_id
-            FROM pgmq.%I
-            WHERE vt <= clock_timestamp() 
-            AND CASE
-                WHEN %L != '{}'::jsonb THEN (message @> %2$L)::integer
-                ELSE 1
-            END = 1
+                COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group') AS fifo_key,
+                MIN(msg_id) AS head_msg_id
+            FROM pgmq.%1$I
             GROUP BY COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group')
         ),
-        available_messages AS (
-            -- Get messages that are the next in line for their FIFO group
-            SELECT m.msg_id
-            FROM pgmq.%I m
-            INNER JOIN fifo_groups fg ON 
-                COALESCE(m.headers->>'x-pgmq-fifo', '_default_fifo_group') = fg.fifo_key
-                AND m.msg_id = fg.min_msg_id
-            WHERE m.vt <= clock_timestamp()
+        eligible_groups AS (
+            -- Only consider groups whose head message is currently visible and matches the optional filter
+            -- Also acquire a transaction-level advisory lock on the group to prevent concurrent selection
+            SELECT g.fifo_key, g.head_msg_id
+            FROM fifo_groups g
+            JOIN pgmq.%2$I h ON h.msg_id = g.head_msg_id
+            WHERE h.vt <= clock_timestamp()
             AND CASE
-                WHEN %L != '{}'::jsonb THEN (m.message @> %4$L)::integer
+                WHEN %3$L != '{}'::jsonb THEN (h.message @> %3$L)::integer
                 ELSE 1
             END = 1
+            AND pg_try_advisory_xact_lock(pg_catalog.hashtextextended(g.fifo_key, 0))
+        ),
+        available_messages AS (
+            -- Select the head message for each eligible group
+            SELECT m.msg_id
+            FROM pgmq.%4$I m
+            INNER JOIN eligible_groups eg ON m.msg_id = eg.head_msg_id
             ORDER BY m.msg_id ASC
             LIMIT $1
             FOR UPDATE SKIP LOCKED
         )
-        UPDATE pgmq.%I m
+        UPDATE pgmq.%5$I m
         SET
-            vt = clock_timestamp() + %L,
+            vt = clock_timestamp() + %6$L,
             read_ct = read_ct + 1
         FROM available_messages am
         WHERE m.msg_id = am.msg_id
+          AND m.vt <= clock_timestamp() -- prevent double reads if VT changed concurrently
         RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.vt, m.message, m.headers;
         $QUERY$,
-        qtable, conditional, qtable, conditional, qtable, make_interval(secs => vt)
+        qtable, qtable, conditional, qtable, qtable, make_interval(secs => vt)
     );
     RETURN QUERY EXECUTE sql USING qty;
 END;
@@ -83,43 +85,45 @@ BEGIN
       sql := FORMAT(
           $QUERY$
           WITH fifo_groups AS (
-              -- Get the minimum msg_id for each FIFO group that's ready to be processed
+              -- Determine the absolute head (oldest) message id per FIFO group, regardless of visibility
               SELECT 
-                  COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group') as fifo_key,
-                  MIN(msg_id) as min_msg_id
-              FROM pgmq.%I
-              WHERE vt <= clock_timestamp() 
-              AND CASE
-                  WHEN %L != '{}'::jsonb THEN (message @> %2$L)::integer
-                  ELSE 1
-              END = 1
+                  COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group') AS fifo_key,
+                  MIN(msg_id) AS head_msg_id
+              FROM pgmq.%1$I
               GROUP BY COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group')
           ),
-          available_messages AS (
-              -- Get messages that are the next in line for their FIFO group
-              SELECT m.msg_id
-              FROM pgmq.%I m
-              INNER JOIN fifo_groups fg ON 
-                  COALESCE(m.headers->>'x-pgmq-fifo', '_default_fifo_group') = fg.fifo_key
-                  AND m.msg_id = fg.min_msg_id
-              WHERE m.vt <= clock_timestamp()
+          eligible_groups AS (
+              -- Only consider groups whose head message is currently visible and matches the optional filter
+              -- Also acquire a transaction-level advisory lock on the group to prevent concurrent selection
+              SELECT g.fifo_key, g.head_msg_id
+              FROM fifo_groups g
+              JOIN pgmq.%2$I h ON h.msg_id = g.head_msg_id
+              WHERE h.vt <= clock_timestamp()
               AND CASE
-                  WHEN %L != '{}'::jsonb THEN (m.message @> %4$L)::integer
+                  WHEN %3$L != '{}'::jsonb THEN (h.message @> %3$L)::integer
                   ELSE 1
               END = 1
+              AND pg_try_advisory_xact_lock(pg_catalog.hashtextextended(g.fifo_key, 0))
+          ),
+          available_messages AS (
+              -- Select the head message for each eligible group
+              SELECT m.msg_id
+              FROM pgmq.%4$I m
+              INNER JOIN eligible_groups eg ON m.msg_id = eg.head_msg_id
               ORDER BY m.msg_id ASC
               LIMIT $1
               FOR UPDATE SKIP LOCKED
           )
-          UPDATE pgmq.%I m
+          UPDATE pgmq.%5$I m
           SET
-              vt = clock_timestamp() + %L,
+              vt = clock_timestamp() + %6$L,
               read_ct = read_ct + 1
           FROM available_messages am
           WHERE m.msg_id = am.msg_id
+            AND m.vt <= clock_timestamp() -- prevent double reads if VT changed concurrently
           RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.vt, m.message, m.headers;
           $QUERY$,
-          qtable, conditional, qtable, conditional, qtable, make_interval(secs => vt)
+          qtable, qtable, conditional, qtable, qtable, make_interval(secs => vt)
       );
 
       FOR r IN
@@ -190,47 +194,49 @@ BEGIN
     sql := FORMAT(
         $QUERY$
         WITH fifo_groups AS (
-            -- Get the minimum msg_id for each FIFO group that's ready to be processed
+            -- Determine the absolute head (oldest) message id per FIFO group, regardless of visibility
             SELECT 
-                COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group') as fifo_key,
-                MIN(msg_id) as min_msg_id
-            FROM pgmq.%I
-            WHERE vt <= clock_timestamp() 
-            AND CASE
-                WHEN %L != '{}'::jsonb THEN (message @> %2$L)::integer
-                ELSE 1
-            END = 1
+                COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group') AS fifo_key,
+                MIN(msg_id) AS head_msg_id
+            FROM pgmq.%1$I
             GROUP BY COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group')
         ),
         group_priorities AS (
-            -- Assign priority to groups based on their oldest message
+            -- Consider only groups whose head is visible and matches the filter, and acquire a group lock
             SELECT 
-                fifo_key,
-                min_msg_id,
-                ROW_NUMBER() OVER (ORDER BY min_msg_id) as group_priority
-            FROM fifo_groups
+                g.fifo_key,
+                g.head_msg_id,
+                ROW_NUMBER() OVER (ORDER BY g.head_msg_id) AS group_priority
+            FROM fifo_groups g
+            JOIN pgmq.%2$I h ON h.msg_id = g.head_msg_id
+            WHERE h.vt <= clock_timestamp()
+            AND CASE
+                WHEN %3$L != '{}'::jsonb THEN (h.message @> %3$L)::integer
+                ELSE 1
+            END = 1
+            AND pg_try_advisory_xact_lock(pg_catalog.hashtextextended(g.fifo_key, 0))
         ),
         available_messages AS (
-            -- Get messages prioritizing filling batch from earliest group first
+            -- Get messages prioritizing filling batch from earliest eligible group first
             SELECT 
                 m.msg_id,
                 gp.group_priority,
-                ROW_NUMBER() OVER (PARTITION BY gp.fifo_key ORDER BY m.msg_id) as msg_rank_in_group
-            FROM pgmq.%I m
+                ROW_NUMBER() OVER (PARTITION BY gp.fifo_key ORDER BY m.msg_id) AS msg_rank_in_group
+            FROM pgmq.%4$I m
             INNER JOIN group_priorities gp ON 
                 COALESCE(m.headers->>'x-pgmq-fifo', '_default_fifo_group') = gp.fifo_key
             WHERE m.vt <= clock_timestamp()
             AND CASE
-                WHEN %L != '{}'::jsonb THEN (m.message @> %4$L)::integer
+                WHEN %3$L != '{}'::jsonb THEN (m.message @> %3$L)::integer
                 ELSE 1
             END = 1
-            AND m.msg_id >= gp.min_msg_id  -- Only messages from min_msg_id onwards in each group
+            AND m.msg_id >= gp.head_msg_id  -- Only messages from the group head onwards
         ),
         batch_selection AS (
-            -- Select messages to fill batch, prioritizing earliest group
+            -- Select messages to fill batch, prioritizing earliest eligible group
             SELECT 
                 msg_id,
-                ROW_NUMBER() OVER (ORDER BY group_priority, msg_rank_in_group) as overall_rank
+                ROW_NUMBER() OVER (ORDER BY group_priority, msg_rank_in_group) AS overall_rank
             FROM available_messages
         ),
         selected_messages AS (
@@ -241,15 +247,16 @@ BEGIN
             ORDER BY msg_id
             FOR UPDATE SKIP LOCKED
         )
-        UPDATE pgmq.%I m
+        UPDATE pgmq.%5$I m
         SET
-            vt = clock_timestamp() + %L,
+            vt = clock_timestamp() + %6$L,
             read_ct = read_ct + 1
         FROM selected_messages sm
         WHERE m.msg_id = sm.msg_id
+          AND m.vt <= clock_timestamp() -- prevent double reads if VT changed concurrently
         RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.vt, m.message, m.headers;
         $QUERY$,
-        qtable, conditional, qtable, conditional, qtable, make_interval(secs => vt)
+        qtable, qtable, conditional, qtable, qtable, make_interval(secs => vt)
     );
     RETURN QUERY EXECUTE sql USING qty;
 END;
@@ -280,47 +287,49 @@ BEGIN
       sql := FORMAT(
           $QUERY$
           WITH fifo_groups AS (
-              -- Get the minimum msg_id for each FIFO group that's ready to be processed
+              -- Determine the absolute head (oldest) message id per FIFO group, regardless of visibility
               SELECT 
-                  COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group') as fifo_key,
-                  MIN(msg_id) as min_msg_id
-              FROM pgmq.%I
-              WHERE vt <= clock_timestamp() 
-              AND CASE
-                  WHEN %L != '{}'::jsonb THEN (message @> %2$L)::integer
-                  ELSE 1
-              END = 1
+                  COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group') AS fifo_key,
+                  MIN(msg_id) AS head_msg_id
+              FROM pgmq.%1$I
               GROUP BY COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group')
           ),
           group_priorities AS (
-              -- Assign priority to groups based on their oldest message
+              -- Consider only groups whose head is visible and matches the filter, and acquire a group lock
               SELECT 
-                  fifo_key,
-                  min_msg_id,
-                  ROW_NUMBER() OVER (ORDER BY min_msg_id) as group_priority
-              FROM fifo_groups
+                  g.fifo_key,
+                  g.head_msg_id,
+                  ROW_NUMBER() OVER (ORDER BY g.head_msg_id) AS group_priority
+              FROM fifo_groups g
+              JOIN pgmq.%2$I h ON h.msg_id = g.head_msg_id
+              WHERE h.vt <= clock_timestamp()
+              AND CASE
+                  WHEN %3$L != '{}'::jsonb THEN (h.message @> %3$L)::integer
+                  ELSE 1
+              END = 1
+              AND pg_try_advisory_xact_lock(pg_catalog.hashtextextended(g.fifo_key, 0))
           ),
           available_messages AS (
-              -- Get messages prioritizing filling batch from earliest group first
+              -- Get messages prioritizing filling batch from earliest eligible group first
               SELECT 
                   m.msg_id,
                   gp.group_priority,
-                  ROW_NUMBER() OVER (PARTITION BY gp.fifo_key ORDER BY m.msg_id) as msg_rank_in_group
-              FROM pgmq.%I m
+                  ROW_NUMBER() OVER (PARTITION BY gp.fifo_key ORDER BY m.msg_id) AS msg_rank_in_group
+              FROM pgmq.%4$I m
               INNER JOIN group_priorities gp ON 
                   COALESCE(m.headers->>'x-pgmq-fifo', '_default_fifo_group') = gp.fifo_key
               WHERE m.vt <= clock_timestamp()
               AND CASE
-                  WHEN %L != '{}'::jsonb THEN (m.message @> %4$L)::integer
+                  WHEN %3$L != '{}'::jsonb THEN (m.message @> %3$L)::integer
                   ELSE 1
               END = 1
-              AND m.msg_id >= gp.min_msg_id  -- Only messages from min_msg_id onwards in each group
+              AND m.msg_id >= gp.head_msg_id  -- Only messages from the group head onwards
           ),
           batch_selection AS (
-              -- Select messages to fill batch, prioritizing earliest group
+              -- Select messages to fill batch, prioritizing earliest eligible group
               SELECT 
                   msg_id,
-                  ROW_NUMBER() OVER (ORDER BY group_priority, msg_rank_in_group) as overall_rank
+                  ROW_NUMBER() OVER (ORDER BY group_priority, msg_rank_in_group) AS overall_rank
               FROM available_messages
           ),
           selected_messages AS (
@@ -331,15 +340,16 @@ BEGIN
               ORDER BY msg_id
               FOR UPDATE SKIP LOCKED
           )
-          UPDATE pgmq.%I m
+          UPDATE pgmq.%5$I m
           SET
-              vt = clock_timestamp() + %L,
+              vt = clock_timestamp() + %6$L,
               read_ct = read_ct + 1
           FROM selected_messages sm
           WHERE m.msg_id = sm.msg_id
+            AND m.vt <= clock_timestamp() -- prevent double reads if VT changed concurrently
           RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.vt, m.message, m.headers;
           $QUERY$,
-          qtable, conditional, qtable, conditional, qtable, make_interval(secs => vt)
+          qtable, qtable, conditional, qtable, qtable, make_interval(secs => vt)
       );
 
       FOR r IN
