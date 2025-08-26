@@ -28,6 +28,7 @@ class PGMQueue:
     perform_transaction: bool = False
     verbose: bool = False
     log_filename: Optional[str] = None
+
     pool: asyncpg.pool.Pool = field(init=False)
     logger: logging.Logger = field(init=False)
 
@@ -57,7 +58,7 @@ class PGMQueue:
         else:
             self.logger.setLevel(logging.WARNING)
 
-    async def init(self):
+    async def init(self, init_extension: bool = True):
         self.logger.debug("Creating asyncpg connection pool")
         self.pool = await asyncpg.create_pool(
             user=self.username,
@@ -68,9 +69,11 @@ class PGMQueue:
             min_size=1,
             max_size=self.pool_size,
         )
-        self.logger.debug("Initializing pgmq extension")
-        async with self.pool.acquire() as conn:
-            await conn.execute("create extension if not exists pgmq cascade;")
+
+        if init_extension:
+            self.logger.debug("Initializing pgmq extension")
+            async with self.pool.acquire() as conn:
+                await conn.execute("create extension if not exists pgmq cascade;")
 
     @transaction
     async def create_partitioned_queue(
