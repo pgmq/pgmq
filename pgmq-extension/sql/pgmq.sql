@@ -1129,7 +1129,7 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION pgmq.notify_queue_listeners()
 RETURNS TRIGGER AS $$
 BEGIN
-  PERFORM pg_notify(TG_TABLE_NAME, TG_OP);
+  PERFORM PG_NOTIFY('pgmq.' || TG_TABLE_NAME || '.' || TG_OP, NULL);
   RETURN NEW;
 END;
 $$ LANGUAGE plpgsql;
