@@ -1140,11 +1140,11 @@ BEGIN
   EXECUTE FORMAT(
     $QUERY$
     CREATE CONSTRAINT TRIGGER trigger_notify_queue_insert_listeners
-    AFTER INSERT ON pgmq.%I
+    AFTER INSERT ON %I
     DEFERRABLE FOR EACH ROW
     EXECUTE PROCEDURE pgmq.notify_queue_listeners()
     $QUERY$,
-    ('q_' || queue_name)::regclass
+    ('pgmq.q_' || queue_name)::regclass
   );
 END;
 $$ LANGUAGE plpgsql;
@@ -1154,9 +1154,9 @@ RETURNS void AS $$
 BEGIN
   EXECUTE FORMAT(
     $QUERY$
-    DROP TRIGGER trigger_notify_queue_insert_listeners ON pgmq.%I;
+    DROP TRIGGER trigger_notify_queue_insert_listeners ON %I;
     $QUERY$,
-    ('q_' || queue_name)::regclass
+    ('pgmq.q_' || queue_name)::regclass
   );
 END;
 $$ LANGUAGE plpgsql;
