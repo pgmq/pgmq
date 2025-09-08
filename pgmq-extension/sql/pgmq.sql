@@ -1134,29 +1134,29 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION pgmq.enable_notifications(queue_name TEXT)
+CREATE OR REPLACE FUNCTION pgmq.enable_notify_insert(queue_name TEXT)
 RETURNS void AS $$
 BEGIN
   EXECUTE FORMAT(
     $QUERY$
-    CREATE CONSTRAINT TRIGGER trigger_notify_queue_listeners
-    AFTER INSERT OR UPDATE OR DELETE ON pgmq.%I
+    CREATE CONSTRAINT TRIGGER trigger_notify_queue_insert_listeners
+    AFTER INSERT ON pgmq.%I
     DEFERRABLE FOR EACH ROW
     EXECUTE PROCEDURE pgmq.notify_queue_listeners()
     $QUERY$,
-    'q_' || queue_name
+    ('q_' || queue_name)::regclass
   );
 END;
 $$ LANGUAGE plpgsql;
 
-CREATE OR REPLACE FUNCTION pgmq.disable_notifications(queue_name TEXT)
+CREATE OR REPLACE FUNCTION pgmq.disable_notify_insert(queue_name TEXT)
 RETURNS void AS $$
 BEGIN
   EXECUTE FORMAT(
     $QUERY$
-    DROP TRIGGER trigger_notify_queue_listeners ON pgmq.%I;
+    DROP TRIGGER trigger_notify_queue_insert_listeners ON pgmq.%I;
     $QUERY$,
-    'q_' || queue_name
+    ('q_' || queue_name)::regclass
   );
 END;
 $$ LANGUAGE plpgsql;
