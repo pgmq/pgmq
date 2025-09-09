@@ -710,29 +710,30 @@ SELECT pgmq.create('detach_archive_queue');
 
 DROP EXTENSION pgmq CASCADE;
 SELECT tablename FROM pg_tables WHERE schemaname = 'pgmq' AND tablename = 'a_detach_archive_queue';
- tablename 
------------
-(0 rows)
+       tablename        
+------------------------
+ a_detach_archive_queue
+(1 row)
 
--- With detach, archive remains
+-- queues and archive remains
 CREATE EXTENSION pgmq;
-SELECT pgmq.create('detach_archive_queue');
+SELECT pgmq.create('queue_remains');
  create 
 --------
  
 (1 row)
 
-SELECT pgmq.detach_archive('detach_archive_queue');
- detach_archive 
-----------------
- 
+DROP EXTENSION pgmq CASCADE;
+SELECT tablename FROM pg_tables WHERE schemaname = 'pgmq' AND tablename = 'q_queue_remains';
+    tablename    
+-----------------
+ q_queue_remains
 (1 row)
 
-DROP EXTENSION pgmq CASCADE;
-SELECT tablename FROM pg_tables WHERE schemaname = 'pgmq' AND tablename = 'a_detach_archive_queue';
-       tablename        
-------------------------
- a_detach_archive_queue
+SELECT tablename FROM pg_tables WHERE schemaname = 'pgmq' AND tablename = 'a_queue_remains';
+    tablename    
+-----------------
+ a_queue_remains
 (1 row)
 
 --Truncated Index When queue name is max.

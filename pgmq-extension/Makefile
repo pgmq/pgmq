@@ -23,7 +23,7 @@ sql/$(EXTENSION)--$(EXTVERSION).sql: sql/$(EXTENSION).sql
 	cp $< $@
 
 dist: META.json
-	git archive --format zip --prefix=$(EXTENSION)-$(EXTVERSION)/ -o $(EXTENSION)-$(EXTVERSION).zip --add-file META.json --add-file HEAD sql pgmq.control README.md UPDATING.md Makefile
+	cd .. && git archive --format zip --prefix=$(EXTENSION)-$(EXTVERSION)/ -o pgmq-extension/$(EXTENSION)-$(EXTVERSION).zip --add-file pgmq-extension/META.json HEAD:pgmq-extension
 
 run.postgres:
 	docker run -d --name pgmq-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 ghcr.io/pgmq/pg17-pgmq:latest

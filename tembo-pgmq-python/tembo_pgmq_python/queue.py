@@ -24,6 +24,8 @@ class PGMQueue:
     kwargs: dict = field(default_factory=dict)
     verbose: bool = False
     log_filename: Optional[str] = None
+    init_extension: bool = True
+
     pool: ConnectionPool = field(init=False)
     logger: logging.Logger = field(init=False)
 
@@ -37,7 +39,8 @@ class PGMQueue:
         """
         self.pool = ConnectionPool(conninfo, open=True, **self.kwargs)
         self._initialize_logging()
-        self._initialize_extensions()
+        if self.init_extension:
+            self._initialize_extensions()
 
     def _initialize_logging(self) -> None:
         self.logger = logging.getLogger(__name__)

@@ -292,6 +292,38 @@ class TestPGMQueueWithEnv(BaseTestPGMQueue):
         cls.test_message = {"hello": "world"}
         cls.queue.create_queue(cls.test_queue)
 
+class TestPGMQueueNoExtension:
+
+    @classmethod
+    def setUpClass(cls):
+        """Set up a connection to the PGMQueue without initializing the extension."""
+        cls.queue = PGMQueue(init_extension=False)
+
+        # Test database connection first
+        try:
+            pool = cls.queue.pool
+            with pool.connection() as conn:
+                conn.execute("SELECT 1")
+                print("Connection successful (with env)")
+        except Exception as e:
+            raise Exception(f"Database connection failed: {e}")
+
+        cls.test_queue = "test_queue"
+        cls.test_message = {"hello": "world"}
+
+    def test_no_extension(self):
+        """Test that the pgmq extension is not initialized."""
+        self.assertFalse(self.queue._init_extension)
+
+    def test_no_create_extension_sql_sync(self):
+        """Test that 'create extension' SQL is NOT executed for sync PGMQueue when init_extension is False."""
+        from unittest.mock import patch, MagicMock
+        with patch.object(PGMQueue, "_execute_query") as mock_execute_query:
+            queue = PGMQueue(init_extension=False)
+            # _execute_query should NOT be called with 'create extension' SQL
+            for call in mock_execute_query.call_args_list:
+                args, kwargs = call
+                assert "create extension" not in str(args[0]), "Should not run create extension SQL"
 
 if __name__ == "__main__":
     unittest.main()
