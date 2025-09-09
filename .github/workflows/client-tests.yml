@@ -75,6 +75,7 @@ jobs:
           done
           
           # Install the PGMQ extension
+          PGPASSWORD=${POSTGRES_PASSWORD} psql -h localhost -U postgres -d postgres -f pgmq-extension/sql/pgmq.sql
           PGPASSWORD=${POSTGRES_PASSWORD} psql -h localhost -U postgres -d postgres -c "CREATE EXTENSION IF NOT EXISTS pgmq;"
 
       - name: Run client tests
