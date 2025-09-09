@@ -1,12 +1,3 @@
-#!/usr/bin/env python3
-"""
-Simple pytest test for PGMQ basic operations.
-
-To run:
-    pip install pytest psycopg[binary]
-    DATABASE_URL="postgresql://user:pass@localhost:5432/db" pytest simple_test.py -v
-"""
-
 import json
 import os
 import pytest
