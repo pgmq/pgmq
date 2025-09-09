@@ -11,6 +11,7 @@ RETURNS void AS $$
 DECLARE
   qtable TEXT := pgmq.format_table_name(queue_name, 'q');
 BEGIN
+  PERFORM pgmq.disable_notify_insert(queue_name);
   EXECUTE FORMAT(
     $QUERY$
     CREATE CONSTRAINT TRIGGER trigger_notify_queue_insert_listeners
@@ -30,7 +31,7 @@ DECLARE
 BEGIN
   EXECUTE FORMAT(
     $QUERY$
-    DROP TRIGGER trigger_notify_queue_insert_listeners ON pgmq.%I;
+    DROP TRIGGER IF EXISTS trigger_notify_queue_insert_listeners ON pgmq.%I;
     $QUERY$,
     qtable
   );
