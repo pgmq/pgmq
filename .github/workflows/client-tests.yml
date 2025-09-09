@@ -63,11 +63,7 @@ jobs:
       - name: Install PGMQ extension
         env:
           POSTGRES_PASSWORD: postgres
-        run: |
-          # Install PostgreSQL client tools
-          sudo apt-get update
-          sudo apt-get install -y postgresql-client-${{ matrix.pg }}
-          
+        run: |          
           # Wait for PostgreSQL to be ready
           until pg_isready -h localhost -p 5432 -U postgres; do
             echo "Waiting for PostgreSQL to be ready..."
@@ -75,7 +71,7 @@ jobs:
           done
           
           # Install the PGMQ extension
-          PGPASSWORD=${POSTGRES_PASSWORD} psql -h localhost -U postgres -d postgres -f pgmq-extension/sql/pgmq.sql
+          PGPASSWORD=${POSTGRES_PASSWORD} psql -h localhost -U postgres -d postgres -f ../sql/pgmq.sql
           PGPASSWORD=${POSTGRES_PASSWORD} psql -h localhost -U postgres -d postgres -c "CREATE EXTENSION IF NOT EXISTS pgmq;"
 
       - name: Run client tests
