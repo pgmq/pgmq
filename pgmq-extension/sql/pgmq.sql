@@ -1136,27 +1136,31 @@ $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION pgmq.enable_notify_insert(queue_name TEXT)
 RETURNS void AS $$
+DECLARE
+  qtable TEXT := pgmq.format_table_name(queue_name, 'q');
 BEGIN
   EXECUTE FORMAT(
     $QUERY$
     CREATE CONSTRAINT TRIGGER trigger_notify_queue_insert_listeners
-    AFTER INSERT ON %I
+    AFTER INSERT ON pgmq.%I
     DEFERRABLE FOR EACH ROW
     EXECUTE PROCEDURE pgmq.notify_queue_listeners()
     $QUERY$,
-    ('pgmq.q_' || queue_name)::regclass
+    qtable
   );
 END;
 $$ LANGUAGE plpgsql;
 
 CREATE OR REPLACE FUNCTION pgmq.disable_notify_insert(queue_name TEXT)
 RETURNS void AS $$
+DECLARE
+  qtable TEXT := pgmq.format_table_name(queue_name, 'q');
 BEGIN
   EXECUTE FORMAT(
     $QUERY$
-    DROP TRIGGER trigger_notify_queue_insert_listeners ON %I;
+    DROP TRIGGER trigger_notify_queue_insert_listeners ON pgmq.%I;
     $QUERY$,
-    ('pgmq.q_' || queue_name)::regclass
+    qtable
   );
 END;
 $$ LANGUAGE plpgsql;

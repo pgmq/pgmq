@@ -27,7 +27,7 @@ def db_connection():
     conn.close()
 
 
-def test_pgmq_basic_operations(db_connection):
+def test_pgmq_basic_notification(db_connection):
     """Test basic PGMQ operations with notifications."""
     now = int(time.time())
     queue_name = f"test_queue_{now}"

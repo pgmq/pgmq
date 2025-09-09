@@ -15,7 +15,7 @@ on:
   push:
     branches:
       - main
-      - client-tests
+      - client-notification-tests
     paths:
       - "pgmq-extension/**"
       - ".github/workflows/client-tests.yml"
