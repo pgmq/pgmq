@@ -32,10 +32,6 @@ def test_pgmq_basic_operations(db_connection):
     now = int(time.time())
     queue_name = f"test_queue_{now}"
 
-    # Create extension if not exists
-    with db_connection.cursor() as cur:
-        cur.execute("CREATE EXTENSION IF NOT EXISTS pgmq")
-
     # Create queue
     with db_connection.cursor() as cur:
         cur.execute("SELECT pgmq.create(%s)", (queue_name,))
