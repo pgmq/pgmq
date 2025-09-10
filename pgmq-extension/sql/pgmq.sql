@@ -536,8 +536,8 @@ BEGIN
 END
 $$ LANGUAGE plpgsql;
 
--- pop a single message
-CREATE FUNCTION pgmq.pop(queue_name TEXT)
+-- pop: implementation
+CREATE FUNCTION pgmq.pop(queue_name TEXT, qty INTEGER DEFAULT 1)
 RETURNS SETOF pgmq.message_record AS $$
 DECLARE
     sql TEXT;
@@ -552,16 +552,16 @@ BEGIN
                 FROM pgmq.%I
                 WHERE vt <= clock_timestamp()
                 ORDER BY msg_id ASC
-                LIMIT 1
+                LIMIT $1
                 FOR UPDATE SKIP LOCKED
             )
         DELETE from pgmq.%I
-        WHERE msg_id = (select msg_id from cte)
+        WHERE msg_id IN (select msg_id from cte)
         RETURNING *;
         $QUERY$,
         qtable, qtable
     );
-    RETURN QUERY EXECUTE sql;
+    RETURN QUERY EXECUTE sql USING qty;
 END;
 $$ LANGUAGE plpgsql;
 
