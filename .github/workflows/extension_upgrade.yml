@@ -70,8 +70,8 @@ jobs:
           psql $DATABASE_URL -c "DROP EXTENSION IF EXISTS pg_partman CASCADE;"
           psql $DATABASE_URL -c "CREATE EXTENSION pg_partman;"
           psql $DATABASE_URL -c "CREATE EXTENSION pgmq;"
-          psql $DATABASE_URL -c "select * from pgmq.create('test_queue_1')"
-          psql $DATABASE_URL -c "select * from pgmq.create_partitioned('test_partitioned_queue_1');"
+          psql $DATABASE_URL -c "select * from pgmq.create('test_upgrade_queue')"
+          psql $DATABASE_URL -c "select * from pgmq.create_partitioned('test_upgrade_queue_partitioned');"
       - name: Checkout branch's version
         env:
           CI_BRANCH: ${{ steps.current-version.outputs.CI_BRANCH }}
