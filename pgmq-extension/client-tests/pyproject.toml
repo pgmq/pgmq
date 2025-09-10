@@ -1,7 +1,7 @@
 [project]
 name = "client-tests"
 version = "0.1.0"
-description = "Add your description here"
+description = "Client side tests for pgmq"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
