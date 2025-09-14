@@ -2,7 +2,7 @@
 
 A lightweight message queue. Like [AWS SQS](https://aws.amazon.com/sqs/) and [RSMQ](https://github.com/smrchy/rsmq) but on Postgres.
 
-[![OSSRank](https://shields.io/endpoint?url=https://ossrank.com/shield/3809)](https://ossrank.com/p/3809)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-13%20%7C%2014%20%7C%2015%20%7C%2016%20%7C%2017-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 [![PGXN version](https://badge.fury.io/pg/pgmq.svg)](https://pgxn.org/dist/pgmq/)
 
 **Documentation**: https://pgmq.github.io/pgmq/
