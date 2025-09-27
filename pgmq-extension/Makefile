@@ -26,7 +26,7 @@ dist: META.json
 	cd .. && git archive --format zip --prefix=$(EXTENSION)-$(EXTVERSION)/ -o pgmq-extension/$(EXTENSION)-$(EXTVERSION).zip --add-file pgmq-extension/META.json HEAD:pgmq-extension
 
 run.postgres:
-	docker run -d --name pgmq-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 ghcr.io/pgmq/pg17-pgmq:latest
+	docker run -d --name pgmq-pg -e POSTGRES_PASSWORD=postgres -p 5432:5432 ghcr.io/pgmq/pg18-pgmq:latest
 
 pgxn-zip: dist
 
