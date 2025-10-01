@@ -329,7 +329,7 @@ BEGIN
     sql := FORMAT(
         $QUERY$
         WITH fifo_groups AS (
-            -- Get the minimum msg_id for each FIFO group that's ready to be processed
+            -- Find the minimum msg_id for each FIFO group that's ready to be processed
             SELECT 
                 COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group') as fifo_key,
                 MIN(msg_id) as min_msg_id
@@ -341,13 +341,30 @@ BEGIN
             END = 1
             GROUP BY COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group')
         ),
+        locked_groups AS (
+            -- Lock the first available message in each FIFO group
+            SELECT 
+                m.msg_id,
+                fg.fifo_key
+            FROM pgmq.%I m
+            INNER JOIN fifo_groups fg ON 
+                COALESCE(m.headers->>'x-pgmq-fifo', '_default_fifo_group') = fg.fifo_key
+                AND m.msg_id = fg.min_msg_id
+            WHERE m.vt <= clock_timestamp()
+            AND CASE
+                WHEN %L != '{}'::jsonb THEN (m.message @> %4$L)::integer
+                ELSE 1
+            END = 1
+            ORDER BY m.msg_id ASC
+            FOR UPDATE SKIP LOCKED
+        ),
         group_priorities AS (
             -- Assign priority to groups based on their oldest message
             SELECT 
                 fifo_key,
-                min_msg_id,
-                ROW_NUMBER() OVER (ORDER BY min_msg_id) as group_priority
-            FROM fifo_groups
+                msg_id as min_msg_id,
+                ROW_NUMBER() OVER (ORDER BY msg_id) as group_priority
+            FROM locked_groups
         ),
         available_messages AS (
             -- Get messages prioritizing filling batch from earliest group first
@@ -360,10 +377,19 @@ BEGIN
                 COALESCE(m.headers->>'x-pgmq-fifo', '_default_fifo_group') = gp.fifo_key
             WHERE m.vt <= clock_timestamp()
             AND CASE
-                WHEN %L != '{}'::jsonb THEN (m.message @> %4$L)::integer
+                WHEN %L != '{}'::jsonb THEN (m.message @> %6$L)::integer
                 ELSE 1
             END = 1
             AND m.msg_id >= gp.min_msg_id  -- Only messages from min_msg_id onwards in each group
+            AND NOT EXISTS (
+                -- Ensure no earlier message in this group is currently being processed
+                SELECT 1
+                FROM pgmq.%I m2
+                WHERE COALESCE(m2.headers->>'x-pgmq-fifo', '_default_fifo_group') = 
+                      COALESCE(m.headers->>'x-pgmq-fifo', '_default_fifo_group')
+                AND m2.vt > clock_timestamp()
+                AND m2.msg_id < m.msg_id
+            )
         ),
         batch_selection AS (
             -- Select messages to fill batch, prioritizing earliest group
@@ -388,7 +414,7 @@ BEGIN
         WHERE m.msg_id = sm.msg_id
         RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.vt, m.message, m.headers;
         $QUERY$,
-        qtable, conditional, qtable, conditional, qtable, make_interval(secs => vt)
+        qtable, conditional, qtable, conditional, qtable, conditional, qtable, qtable, make_interval(secs => vt)
     );
     RETURN QUERY EXECUTE sql USING qty;
 END;
@@ -420,7 +446,7 @@ BEGIN
       sql := FORMAT(
           $QUERY$
           WITH fifo_groups AS (
-              -- Get the minimum msg_id for each FIFO group that's ready to be processed
+              -- Find the minimum msg_id for each FIFO group that's ready to be processed
               SELECT 
                   COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group') as fifo_key,
                   MIN(msg_id) as min_msg_id
@@ -432,13 +458,30 @@ BEGIN
               END = 1
               GROUP BY COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group')
           ),
+          locked_groups AS (
+              -- Lock the first available message in each FIFO group
+              SELECT 
+                  m.msg_id,
+                  fg.fifo_key
+              FROM pgmq.%I m
+              INNER JOIN fifo_groups fg ON 
+                  COALESCE(m.headers->>'x-pgmq-fifo', '_default_fifo_group') = fg.fifo_key
+                  AND m.msg_id = fg.min_msg_id
+              WHERE m.vt <= clock_timestamp()
+              AND CASE
+                  WHEN %L != '{}'::jsonb THEN (m.message @> %4$L)::integer
+                  ELSE 1
+              END = 1
+              ORDER BY m.msg_id ASC
+              FOR UPDATE SKIP LOCKED
+          ),
           group_priorities AS (
               -- Assign priority to groups based on their oldest message
               SELECT 
                   fifo_key,
-                  min_msg_id,
-                  ROW_NUMBER() OVER (ORDER BY min_msg_id) as group_priority
-              FROM fifo_groups
+                  msg_id as min_msg_id,
+                  ROW_NUMBER() OVER (ORDER BY msg_id) as group_priority
+              FROM locked_groups
           ),
           available_messages AS (
               -- Get messages prioritizing filling batch from earliest group first
@@ -451,10 +494,19 @@ BEGIN
                   COALESCE(m.headers->>'x-pgmq-fifo', '_default_fifo_group') = gp.fifo_key
               WHERE m.vt <= clock_timestamp()
               AND CASE
-                  WHEN %L != '{}'::jsonb THEN (m.message @> %4$L)::integer
+                  WHEN %L != '{}'::jsonb THEN (m.message @> %6$L)::integer
                   ELSE 1
               END = 1
               AND m.msg_id >= gp.min_msg_id  -- Only messages from min_msg_id onwards in each group
+              AND NOT EXISTS (
+                  -- Ensure no earlier message in this group is currently being processed
+                  SELECT 1
+                  FROM pgmq.%I m2
+                  WHERE COALESCE(m2.headers->>'x-pgmq-fifo', '_default_fifo_group') = 
+                        COALESCE(m.headers->>'x-pgmq-fifo', '_default_fifo_group')
+                  AND m2.vt > clock_timestamp()
+                  AND m2.msg_id < m.msg_id
+              )
           ),
           batch_selection AS (
               -- Select messages to fill batch, prioritizing earliest group
@@ -479,7 +531,7 @@ BEGIN
           WHERE m.msg_id = sm.msg_id
           RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.vt, m.message, m.headers;
           $QUERY$,
-          qtable, conditional, qtable, conditional, qtable, make_interval(secs => vt)
+          qtable, conditional, qtable, conditional, qtable, conditional, qtable, qtable, make_interval(secs => vt)
       );
 
       FOR r IN

@@ -215,6 +215,107 @@ SELECT COUNT(*) = 1 FROM pgmq.read_fifo('fifo_test_queue', 10, 5);
 SELECT * FROM pgmq.send('fifo_test_queue', '{"message": "null_fifo"}'::jsonb, '{"x-pgmq-fifo": null}'::jsonb);
 SELECT COUNT(*) = 1 FROM pgmq.read_fifo('fifo_test_queue', 10, 5);
 
+-- Clean up for race condition tests
+SELECT * FROM pgmq.purge_queue('fifo_test_queue');
+
+-- ========================================
+-- RACE CONDITION TESTS
+-- ========================================
+
+-- test_fifo_race_condition_scenario1
+-- Test 9: Race Condition Scenario 1 - Prevent duplicate message reads
+-- This tests the scenario where two concurrent transactions could read the same message
+-- because row locks only happen in a later step after CTE evaluation
+SELECT * FROM pgmq.send('fifo_test_queue', '{"message": "race_test_1"}'::jsonb, '{"x-pgmq-fifo": "race_group"}'::jsonb);
+SELECT * FROM pgmq.send('fifo_test_queue', '{"message": "race_test_2"}'::jsonb, '{"x-pgmq-fifo": "race_group"}'::jsonb);
+
+-- Set expected message IDs for race condition tests
+\set race_msg_id1 19
+\set race_msg_id2 20
+
+-- Verify we have 2 messages in queue
+SELECT COUNT(*) = 2 FROM pgmq.q_fifo_test_queue;
+
+-- Read first message - this should lock and update visibility timeout
+SELECT COUNT(*) = 1 FROM pgmq.read_fifo('fifo_test_queue', 10, 1);
+SELECT msg_id = :race_msg_id1 FROM pgmq.read_fifo('fifo_test_queue', 10, 1);
+
+-- Immediately try to read again - should NOT get the same message again
+-- This verifies our implementation prevents the duplicate read scenario
+SELECT COUNT(*) = 0 FROM pgmq.read_fifo('fifo_test_queue', 10, 1);
+
+-- Verify the message we got has updated visibility timeout (read_ct should be 1)
+SELECT read_ct = 1 FROM pgmq.q_fifo_test_queue WHERE msg_id = :race_msg_id1;
+
+-- Clean up for next race condition test
+SELECT * FROM pgmq.purge_queue('fifo_test_queue');
+
+-- test_fifo_race_condition_scenario2  
+-- Test 10: Race Condition Scenario 2 - Prevent out-of-order reads within group
+-- This tests the scenario where T2 could read message 2 while T1 is processing message 1
+-- within the same FIFO group, violating ordering guarantees
+SELECT * FROM pgmq.send('fifo_test_queue', '{"message": "order_test_1"}'::jsonb, '{"x-pgmq-fifo": "order_group"}'::jsonb);
+SELECT * FROM pgmq.send('fifo_test_queue', '{"message": "order_test_2"}'::jsonb, '{"x-pgmq-fifo": "order_group"}'::jsonb);
+SELECT * FROM pgmq.send('fifo_test_queue', '{"message": "order_test_3"}'::jsonb, '{"x-pgmq-fifo": "order_group"}'::jsonb);
+
+-- Set expected message IDs for ordering test  
+\set order_msg_id1 21
+\set order_msg_id2 22
+\set order_msg_id3 23
+
+-- Verify we have 3 messages in queue
+SELECT COUNT(*) = 3 FROM pgmq.q_fifo_test_queue;
+
+-- Read first message with visibility timeout
+SELECT COUNT(*) = 1 FROM pgmq.read_fifo('fifo_test_queue', 30, 1);
+SELECT msg_id = :order_msg_id1 FROM pgmq.read_fifo('fifo_test_queue', 30, 1);
+
+-- Try to read again while first message is still being processed  
+-- Should return 0 messages, NOT the second message
+-- This verifies strict FIFO ordering within the group
+SELECT COUNT(*) = 0 FROM pgmq.read_fifo('fifo_test_queue', 10, 5);
+SELECT msg_id, message, headers FROM pgmq.read_fifo('fifo_test_queue', 10, 5);
+
+-- Force expire the first message visibility timeout for next test
+UPDATE pgmq.q_fifo_test_queue SET vt = clock_timestamp() - interval '1 second' WHERE msg_id = :order_msg_id1;
+
+-- Now we should be able to read the first message again (since it timed out)
+SELECT COUNT(*) = 1 FROM pgmq.read_fifo('fifo_test_queue', 10, 1);
+SELECT msg_id = :order_msg_id1 FROM pgmq.read_fifo('fifo_test_queue', 10, 1);
+
+-- Delete first message to allow second to be processed
+SELECT * FROM pgmq.delete('fifo_test_queue', :order_msg_id1);
+
+-- Now should get the second message in order
+SELECT COUNT(*) = 1 FROM pgmq.read_fifo('fifo_test_queue', 10, 1);
+SELECT msg_id = :order_msg_id2 FROM pgmq.read_fifo('fifo_test_queue', 10, 1);
+
+-- Clean up for concurrent group test
+SELECT * FROM pgmq.purge_queue('fifo_test_queue');
+
+-- test_fifo_concurrent_groups_no_blocking
+-- Test 11: Verify different FIFO groups can be processed concurrently
+-- This ensures our race condition fixes don't prevent legitimate parallel processing
+SELECT * FROM pgmq.send('fifo_test_queue', '{"message": "groupA_1"}'::jsonb, '{"x-pgmq-fifo": "concurrent_A"}'::jsonb);
+SELECT * FROM pgmq.send('fifo_test_queue', '{"message": "groupA_2"}'::jsonb, '{"x-pgmq-fifo": "concurrent_A"}'::jsonb);
+SELECT * FROM pgmq.send('fifo_test_queue', '{"message": "groupB_1"}'::jsonb, '{"x-pgmq-fifo": "concurrent_B"}'::jsonb);
+SELECT * FROM pgmq.send('fifo_test_queue', '{"message": "groupB_2"}'::jsonb, '{"x-pgmq-fifo": "concurrent_B"}'::jsonb);
+
+-- Set expected message IDs for concurrent group test
+\set concurrent_msg_A1 24
+\set concurrent_msg_A2 25
+\set concurrent_msg_B1 26  
+\set concurrent_msg_B2 27
+
+-- Should be able to read first message from both groups simultaneously
+SELECT COUNT(*) = 2 FROM pgmq.read_fifo('fifo_test_queue', 30, 5);
+SELECT ARRAY(
+    SELECT msg_id FROM pgmq.read_fifo('fifo_test_queue', 30, 5) ORDER BY msg_id
+) = ARRAY[:concurrent_msg_A1, :concurrent_msg_B1]::bigint[];
+
+-- While first messages are being processed, should NOT get second messages
+SELECT COUNT(*) = 0 FROM pgmq.read_fifo('fifo_test_queue', 10, 5);
+
 -- Clean up for SQS-style tests
 SELECT * FROM pgmq.purge_queue('fifo_test_queue');
 
@@ -223,7 +324,7 @@ SELECT * FROM pgmq.purge_queue('fifo_test_queue');
 -- ========================================
 
 -- test_fifo_sqs_style_basic_batch_filling
--- Test 9: Basic SQS-style batch filling behavior
+-- Test 12: Basic SQS-style batch filling behavior
 -- Create multiple groups with different message counts
 SELECT * FROM pgmq.send('fifo_test_queue', '{"group": "A", "message": 1}'::jsonb, '{"x-pgmq-fifo": "group_A"}'::jsonb);
 SELECT * FROM pgmq.send('fifo_test_queue', '{"group": "A", "message": 2}'::jsonb, '{"x-pgmq-fifo": "group_A"}'::jsonb);
@@ -233,12 +334,12 @@ SELECT * FROM pgmq.send('fifo_test_queue', '{"group": "B", "message": 2}'::jsonb
 SELECT * FROM pgmq.send('fifo_test_queue', '{"group": "C", "message": 1}'::jsonb, '{"x-pgmq-fifo": "group_C"}'::jsonb);
 
 -- Set expected message IDs for SQS-style tests
-\set sqs_msg_id1 19
-\set sqs_msg_id2 20
-\set sqs_msg_id3 21
-\set sqs_msg_id4 22
-\set sqs_msg_id5 23
-\set sqs_msg_id6 24
+\set sqs_msg_id1 28
+\set sqs_msg_id2 29
+\set sqs_msg_id3 30
+\set sqs_msg_id4 31
+\set sqs_msg_id5 32
+\set sqs_msg_id6 33
 
 -- Verify we have 6 messages in queue
 SELECT COUNT(*) = 6 FROM pgmq.q_fifo_test_queue;
@@ -264,10 +365,10 @@ SELECT * FROM pgmq.send('fifo_test_queue', '{"message": "group2_msg1"}'::jsonb, 
 SELECT * FROM pgmq.send('fifo_test_queue', '{"message": "group2_msg2"}'::jsonb, '{"x-pgmq-fifo": "group2"}'::jsonb);
 
 -- Set expected message IDs
-\set sqs_msg_id7 25
-\set sqs_msg_id8 26
-\set sqs_msg_id9 27
-\set sqs_msg_id10 28
+\set sqs_msg_id7 32
+\set sqs_msg_id8 33
+\set sqs_msg_id9 34
+\set sqs_msg_id10 35
 
 -- Regular FIFO should return 1 message per group (2 total)
 SELECT COUNT(*) = 2 FROM pgmq.read_fifo('fifo_test_queue', 10, 10);
@@ -295,10 +396,10 @@ SELECT * FROM pgmq.send('fifo_test_queue', '{"message": "fifo1"}'::jsonb, '{"x-p
 SELECT * FROM pgmq.send('fifo_test_queue', '{"message": "fifo2"}'::jsonb, '{"x-pgmq-fifo": "group1"}'::jsonb);
 
 -- Set expected message IDs
-\set sqs_msg_id11 29
-\set sqs_msg_id12 30
-\set sqs_msg_id13 31
-\set sqs_msg_id14 32
+\set sqs_msg_id11 36
+\set sqs_msg_id12 37
+\set sqs_msg_id13 38
+\set sqs_msg_id14 39
 
 -- SQS-style should handle mixed groups correctly
 SELECT COUNT(*) = 4 FROM pgmq.read_fifo_sqs_style('fifo_test_queue', 10, 10);
@@ -315,10 +416,10 @@ SELECT * FROM pgmq.send('fifo_test_queue', '{"type": "notification", "priority":
 SELECT * FROM pgmq.send('fifo_test_queue', '{"type": "order", "priority": "low"}'::jsonb, '{"x-pgmq-fifo": "orders"}'::jsonb);
 
 -- Set expected message IDs
-\set sqs_msg_id15 33
-\set sqs_msg_id16 34
-\set sqs_msg_id17 35
-\set sqs_msg_id18 36
+\set sqs_msg_id15 40
+\set sqs_msg_id16 41
+\set sqs_msg_id17 42
+\set sqs_msg_id18 43
 
 -- Should return only order messages using SQS-style
 SELECT COUNT(*) = 3 FROM pgmq.read_fifo_sqs_style('fifo_test_queue', 10, 10, '{"type": "order"}'::jsonb);
@@ -339,9 +440,9 @@ SELECT * FROM pgmq.send('fifo_test_queue', '{"message": "timeout2"}'::jsonb, '{"
 SELECT * FROM pgmq.send('fifo_test_queue', '{"message": "timeout3"}'::jsonb, '{"x-pgmq-fifo": "timeout_group"}'::jsonb);
 
 -- Set expected message IDs
-\set sqs_msg_id19 37
-\set sqs_msg_id20 38
-\set sqs_msg_id21 39
+\set sqs_msg_id19 44
+\set sqs_msg_id20 45
+\set sqs_msg_id21 46
 
 -- Read with short visibility timeout - should get all 3 messages
 SELECT COUNT(*) = 3 FROM pgmq.read_fifo_sqs_style('fifo_test_queue', 1, 10);
@@ -368,8 +469,8 @@ SELECT * FROM pgmq.send('fifo_test_queue', '{"message": "poll_test1"}'::jsonb, '
 SELECT * FROM pgmq.send('fifo_test_queue', '{"message": "poll_test2"}'::jsonb, '{"x-pgmq-fifo": "poll_group"}'::jsonb);
 
 -- Set expected message IDs
-\set sqs_msg_id22 40
-\set sqs_msg_id23 41
+\set sqs_msg_id22 47
+\set sqs_msg_id23 48
 
 -- Test SQS-style polling with immediate availability
 SELECT COUNT(*) = 2 FROM pgmq.read_fifo_sqs_style_with_poll('fifo_test_queue', 10, 10, 1, 100);
