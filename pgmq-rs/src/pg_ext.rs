@@ -1,5 +1,7 @@
 use crate::errors::PgmqError;
 use crate::types::{Message, QUEUE_PREFIX};
+#[cfg(feature = "cli")]
+use crate::util::install_pgmq;
 use crate::util::{check_input, connect};
 use log::info;
 use serde::{Deserialize, Serialize};
@@ -38,6 +40,20 @@ impl PGMQueueExt {
             url: "".to_owned(),
             connection: pool,
         }
+    }
+
+    #[cfg(feature = "cli")]
+    pub async fn install_sql_with_cxn(
+        &self,
+        pool: &Pool<Postgres>,
+        version: Option<&String>,
+    ) -> Result<(), PgmqError> {
+        install_pgmq(pool, version).await
+    }
+
+    #[cfg(feature = "cli")]
+    pub async fn install_sql(&self, version: Option<&String>) -> Result<(), PgmqError> {
+        self.install_sql_with_cxn(&self.connection, version).await
     }
 
     pub async fn init_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres>>(
@@ -115,7 +131,7 @@ impl PGMQueueExt {
             .fetch_one(executor)
             .await?;
         if exists {
-            info!("queue: {} already exists", queue_name);
+            info!("queue: {queue_name} already exists",);
             Ok(false)
         } else {
             sqlx::query!(

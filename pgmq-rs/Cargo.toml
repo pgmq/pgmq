@@ -1,6 +1,6 @@
 [package]
 name = "pgmq"
-version = "0.30.1"
+version = "0.31.0"
 edition = "2021"
 authors = ["PGMQ Maintainers"]
 description = "A distributed message queue for Rust applications, on Postgres."
@@ -11,15 +11,30 @@ license = "PostgreSQL"
 readme = "README.md"
 repository = "https://github.com/pgmq/pgmq"
 
+[[bin]]
+name = "pgmq-cli"
+path = "src/bin/pgmq-cli.rs"
+required-features = ["cli"]
+
+[features]
+default = []
+cli = ["clap", "futures-util", "reqwest", "tokio/rt"]
+
 [dependencies]
 chrono = { version = "0.4.23", features = ["serde"] }
 serde = { version = "1.0.152" }
 serde_json = { version = "1.0.91", features = ["raw_value"] }
 sqlx = { version = "0.8.1", features = ["runtime-tokio", "postgres", "chrono", "json"] }
 thiserror = "1.0.38"
-tokio = { version = "1", features = ["macros"] }
+tokio = { version = "1", default-features = false, features = ["macros", "time"] }
 log = "0.4.17"
 url = "2.3.1"
+
+# Optional dependencies for the `cli` feature
+reqwest = { version = "0.11", features = ["json"], optional = true }
+futures-util = { version = "0.3.31", optional = true }
+clap = { version = "4.0", features = ["derive"], optional = true }
+
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }

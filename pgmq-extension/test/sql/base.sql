@@ -284,12 +284,12 @@ SELECT pgmq.create('detach_archive_queue');
 DROP EXTENSION pgmq CASCADE;
 SELECT tablename FROM pg_tables WHERE schemaname = 'pgmq' AND tablename = 'a_detach_archive_queue';
 
--- With detach, archive remains
+-- queues and archive remains
 CREATE EXTENSION pgmq;
-SELECT pgmq.create('detach_archive_queue');
-SELECT pgmq.detach_archive('detach_archive_queue');
+SELECT pgmq.create('queue_remains');
 DROP EXTENSION pgmq CASCADE;
-SELECT tablename FROM pg_tables WHERE schemaname = 'pgmq' AND tablename = 'a_detach_archive_queue';
+SELECT tablename FROM pg_tables WHERE schemaname = 'pgmq' AND tablename = 'q_queue_remains';
+SELECT tablename FROM pg_tables WHERE schemaname = 'pgmq' AND tablename = 'a_queue_remains';
 
 --Truncated Index When queue name is max.
 CREATE EXTENSION pgmq;

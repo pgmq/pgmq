@@ -16,16 +16,11 @@ update.readme:
 run.postgres:
 	docker run --rm -d --name pgmq-pg -e POSTGRES_PASSWORD=${POSTGRES_PASSWORD} -p 5432:5432 ghcr.io/pgmq/pg17-pgmq:latest
 
-test: run.postgres
-	sleep 4;
-	echo "Running all tests..."
+test:
 	sqlx migrate run --database-url ${DATABASE_URL}
 	psql ${DATABASE_URL} -c "CREATE DATABASE pgmq_ext_test;"
 	sqlx migrate run --database-url ${EXTENSION_DB}
 	cargo test
-
-test.cleanup:
-	docker stop pgmq-pg
 
 setup.env:
 	sqlx migrate run --database-url ${DATABASE_URL}

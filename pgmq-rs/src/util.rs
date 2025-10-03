@@ -1,8 +1,9 @@
 use std::fmt::Display;
 
 use crate::{errors::PgmqError, types::Message};
+
 use log::LevelFilter;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use sqlx::error::Error;
 use sqlx::postgres::PgRow;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
@@ -11,6 +12,10 @@ use sqlx::Row;
 use sqlx::{Pool, Postgres};
 use url::{ParseError, Url};
 
+#[cfg(feature = "cli")]
+use futures_util::stream::StreamExt;
+#[cfg(feature = "cli")]
+use sqlx::Executor;
 // Configure connection options
 pub fn conn_options(url: &str) -> Result<PgConnectOptions, ParseError> {
     // Parse url
@@ -120,4 +125,103 @@ pub fn check_input(input: &str) -> Result<(), PgmqError> {
             name: input.to_owned(),
         }),
     }
+}
+
+#[cfg(feature = "cli")]
+async fn get_latest_release_tag() -> Result<String, PgmqError> {
+    log::info!("Getting latest PGMQ release...");
+
+    let client = reqwest::Client::new();
+    let response = client
+        .get("https://api.github.com/repos/pgmq/pgmq/releases/latest")
+        .header("User-Agent", "pgmq-cli")
+        .send()
+        .await?;
+
+    if !response.status().is_success() {
+        return Err(format!("Failed to fetch latest release: HTTP {}", response.status()).into());
+    }
+
+    let release: GitHubRelease = response.json().await?;
+    log::info!("Latest release: {}", release.tag_name);
+
+    Ok(release.tag_name)
+}
+
+#[cfg(feature = "cli")]
+async fn get_install_sql(version: Option<&String>) -> Result<String, PgmqError> {
+    let version_to_use = match version {
+        Some(v) => v.clone(),
+        None => get_latest_release_tag().await?,
+    };
+
+    // Determine if it's a git hash by checking if it's a hex string
+    let is_git_hash = version_to_use.len() >= 7 && // minimum abbreviated hash
+        version_to_use.len() <= 64 && // maximum full hash
+        version_to_use.chars().all(|c| c.is_ascii_hexdigit());
+
+    let sql_url = if is_git_hash {
+        format!(
+            "https://raw.githubusercontent.com/pgmq/pgmq/{version_to_use}/pgmq-extension/sql/pgmq.sql",
+        )
+    } else {
+        let version_tag = if version_to_use.starts_with('v') {
+            version_to_use.clone()
+        } else {
+            format!("v{version_to_use}")
+        };
+        format!(
+            "https://raw.githubusercontent.com/pgmq/pgmq/refs/tags/{version_tag}/pgmq-extension/sql/pgmq.sql",
+        )
+    };
+
+    log::info!("Fetching SQL from: {sql_url}");
+
+    let client = reqwest::Client::new();
+    let response = client.get(&sql_url).send().await?;
+
+    if !response.status().is_success() {
+        return Err(format!("Failed to download SQL file: HTTP {}", response.status()).into());
+    }
+    let sql_content = response.text().await?;
+    Ok(sql_content)
+}
+
+#[cfg(feature = "cli")]
+pub async fn install_pgmq(
+    pool: &Pool<Postgres>,
+    version: Option<&String>,
+) -> Result<(), PgmqError> {
+    log::info!("Installing PGMQ...");
+
+    let sql_content = get_install_sql(version).await?;
+    // Execute the SQL file
+    log::info!("Executing PGMQ installation SQL...");
+    execute_sql_statements(pool, &sql_content).await?;
+
+    log::info!("PGMQ installation completed successfully!");
+    Ok(())
+}
+
+#[cfg(feature = "cli")]
+async fn execute_sql_statements(pool: &Pool<Postgres>, multi_query: &str) -> Result<(), Error> {
+    let mut tx = pool.begin().await?;
+
+    {
+        let mut stream = tx.fetch_many(multi_query);
+        // Consume the stream, ignore results, but propagate errors
+        while let Some(step) = stream.next().await {
+            // Only check for error
+            step?; // If any query fails, this will return the error immediately
+        }
+    }
+
+    tx.commit().await?;
+    Ok(())
+}
+
+#[derive(Serialize, Deserialize)]
+struct GitHubRelease {
+    tag_name: String,
+    name: String,
 }
