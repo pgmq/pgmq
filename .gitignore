@@ -20,3 +20,5 @@ pgmq-extension/results/
 pgmq-extension/regression.*
 pgmq-extension/output_iso/
 .env
+.venv/*
+.python-version
