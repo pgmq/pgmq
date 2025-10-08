@@ -1,0 +1,78 @@
+name: Client Tests
+
+defaults:
+  run:
+    shell: bash
+    working-directory: ./pgmq-extension/client-tests
+
+on:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "pgmq-extension/**"
+      - ".github/workflows/client-tests.yml"
+  push:
+    branches:
+      - main
+    paths:
+      - "pgmq-extension/**"
+      - ".github/workflows/client-tests.yml"
+
+jobs:
+  test:
+    name: Test with PostgreSQL ${{ matrix.pg }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: [3.13]
+        pg: [13, 14, 15, 16, 17, 18]
+    
+    services:
+      postgres:
+        image: postgres:${{ matrix.pg }}
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+        with:
+          version: "latest"
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Install PGMQ extension
+        env:
+          POSTGRES_PASSWORD: postgres
+        run: |          
+          # Wait for PostgreSQL to be ready
+          until pg_isready -h localhost -p 5432 -U postgres; do
+            echo "Waiting for PostgreSQL to be ready..."
+            sleep 2
+          done
+          
+          # Install the PGMQ extension
+          PGPASSWORD=${POSTGRES_PASSWORD} psql -h localhost -U postgres -d postgres -f ../sql/pgmq.sql
+
+      - name: Run client tests
+        env:
+          DATABASE_URL: postgresql://postgres:postgres@localhost:5432/postgres
+        run: uv run pytest test.py -v
