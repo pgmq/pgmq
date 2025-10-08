@@ -26,6 +26,15 @@ BEGIN
                 WHEN %L != '{}'::jsonb THEN (message @> %2$L)::integer
                 ELSE 1
             END = 1
+            AND NOT EXISTS (
+                -- Ensure no message in this group is currently being processed
+                SELECT 1
+                FROM pgmq.%I m2
+                WHERE COALESCE(m2.headers->>'x-pgmq-fifo', '_default_fifo_group') = 
+                      COALESCE(pgmq.%I.headers->>'x-pgmq-fifo', '_default_fifo_group')
+                AND m2.vt > clock_timestamp()
+                AND m2.msg_id < pgmq.%I.msg_id
+            )
             GROUP BY COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group')
         ),
         available_messages AS (
@@ -37,7 +46,7 @@ BEGIN
                 AND m.msg_id = fg.min_msg_id
             WHERE m.vt <= clock_timestamp()
             AND CASE
-                WHEN %L != '{}'::jsonb THEN (m.message @> %4$L)::integer
+                WHEN %L != '{}'::jsonb THEN (m.message @> %2$L)::integer
                 ELSE 1
             END = 1
             ORDER BY m.msg_id ASC
@@ -46,13 +55,13 @@ BEGIN
         )
         UPDATE pgmq.%I m
         SET
-            vt = clock_timestamp() + %L,
+            vt = clock_timestamp() + %9$L,
             read_ct = read_ct + 1
         FROM available_messages am
         WHERE m.msg_id = am.msg_id
         RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.vt, m.message, m.headers;
         $QUERY$,
-        qtable, conditional, qtable, conditional, qtable, make_interval(secs => vt)
+        qtable, conditional, qtable, qtable, qtable, qtable, conditional, qtable, make_interval(secs => vt)
     );
     RETURN QUERY EXECUTE sql USING qty;
 END;
@@ -93,6 +102,15 @@ BEGIN
                   WHEN %L != '{}'::jsonb THEN (message @> %2$L)::integer
                   ELSE 1
               END = 1
+              AND NOT EXISTS (
+                  -- Ensure no message in this group is currently being processed
+                  SELECT 1
+                  FROM pgmq.%I m2
+                  WHERE COALESCE(m2.headers->>'x-pgmq-fifo', '_default_fifo_group') = 
+                        COALESCE(pgmq.%I.headers->>'x-pgmq-fifo', '_default_fifo_group')
+                  AND m2.vt > clock_timestamp()
+                  AND m2.msg_id < pgmq.%I.msg_id
+              )
               GROUP BY COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group')
           ),
           available_messages AS (
@@ -104,7 +122,7 @@ BEGIN
                   AND m.msg_id = fg.min_msg_id
               WHERE m.vt <= clock_timestamp()
               AND CASE
-                  WHEN %L != '{}'::jsonb THEN (m.message @> %4$L)::integer
+                  WHEN %L != '{}'::jsonb THEN (m.message @> %2$L)::integer
                   ELSE 1
               END = 1
               ORDER BY m.msg_id ASC
@@ -113,13 +131,13 @@ BEGIN
           )
           UPDATE pgmq.%I m
           SET
-              vt = clock_timestamp() + %L,
+              vt = clock_timestamp() + %9$L,
               read_ct = read_ct + 1
           FROM available_messages am
           WHERE m.msg_id = am.msg_id
           RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.vt, m.message, m.headers;
           $QUERY$,
-          qtable, conditional, qtable, conditional, qtable, make_interval(secs => vt)
+          qtable, conditional, qtable, qtable, qtable, qtable, conditional, qtable, make_interval(secs => vt)
       );
 
       FOR r IN
