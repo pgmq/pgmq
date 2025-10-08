@@ -48,16 +48,14 @@ SELECT COUNT(*) = 1 FROM pgmq.read_fifo('fifo_test_queue', 10, 5);
 (1 row)
 
 SELECT msg_id, message, headers FROM pgmq.read_fifo('fifo_test_queue', 10, 5);
- msg_id |        message        |          headers          
---------+-----------------------+---------------------------
-      2 | {"message": "second"} | {"x-pgmq-fifo": "group1"}
-(1 row)
+ msg_id | message | headers 
+--------+---------+---------
+(0 rows)
 
 SELECT msg_id = :msg_id1 FROM pgmq.read_fifo('fifo_test_queue', 10, 5);
  ?column? 
 ----------
- f
-(1 row)
+(0 rows)
 
 -- Should return no messages (first message still being processed)
 SELECT COUNT(*) = 0 FROM pgmq.read_fifo('fifo_test_queue', 10, 5);
@@ -82,7 +80,7 @@ SELECT * FROM pgmq.delete('fifo_test_queue', :msg_id1);
 SELECT COUNT(*) = 1 FROM pgmq.read_fifo('fifo_test_queue', 10, 5);
  ?column? 
 ----------
- f
+ t
 (1 row)
 
 SELECT msg_id, message, headers FROM pgmq.read_fifo('fifo_test_queue', 10, 5);
@@ -148,11 +146,9 @@ SELECT COUNT(*) = 2 FROM pgmq.read_fifo('fifo_test_queue', 10, 5);
 (1 row)
 
 SELECT msg_id, message, headers FROM pgmq.read_fifo('fifo_test_queue', 10, 5) ORDER BY msg_id;
- msg_id |          message           |          headers          
---------+----------------------------+---------------------------
-      6 | {"message": "group1_msg2"} | {"x-pgmq-fifo": "group1"}
-      7 | {"message": "group2_msg2"} | {"x-pgmq-fifo": "group2"}
-(2 rows)
+ msg_id | message | headers 
+--------+---------+---------
+(0 rows)
 
 SELECT ARRAY(
     SELECT msg_id FROM pgmq.read_fifo('fifo_test_queue', 10, 5) ORDER BY msg_id
@@ -187,7 +183,7 @@ SELECT ARRAY(
 SELECT COUNT(*) = 2 FROM pgmq.read_fifo('fifo_test_queue', 10, 5);
  ?column? 
 ----------
- f
+ t
 (1 row)
 
 SELECT msg_id, message, headers FROM pgmq.read_fifo('fifo_test_queue', 10, 5) ORDER BY msg_id;
@@ -249,10 +245,9 @@ SELECT COUNT(*) = 2 FROM pgmq.read_fifo('fifo_test_queue', 10, 5);
 (1 row)
 
 SELECT msg_id, message, headers FROM pgmq.read_fifo('fifo_test_queue', 10, 5) ORDER BY msg_id;
- msg_id |         message          | headers 
---------+--------------------------+---------
-      9 | {"message": "no_fifo_2"} | 
-(1 row)
+ msg_id | message | headers 
+--------+---------+---------
+(0 rows)
 
 SELECT ARRAY(
     SELECT msg_id FROM pgmq.read_fifo('fifo_test_queue', 10, 5) ORDER BY msg_id
@@ -287,7 +282,7 @@ SELECT ARRAY(
 SELECT COUNT(*) = 1 FROM pgmq.read_fifo('fifo_test_queue', 10, 5);
  ?column? 
 ----------
- f
+ t
 (1 row)
 
 SELECT msg_id, message, headers FROM pgmq.read_fifo('fifo_test_queue', 10, 5);
@@ -339,10 +334,9 @@ SELECT COUNT(*) = 1 FROM pgmq.read_fifo('fifo_test_queue', 1, 5);
 (1 row)
 
 SELECT msg_id, message, headers FROM pgmq.read_fifo('fifo_test_queue', 1, 5);
- msg_id |              message              |             headers              
---------+-----------------------------------+----------------------------------
-     12 | {"message": "blocked_by_timeout"} | {"x-pgmq-fifo": "timeout_group"}
-(1 row)
+ msg_id | message | headers 
+--------+---------+---------
+(0 rows)
 
 SELECT msg_id = :msg_id11 FROM pgmq.read_fifo('fifo_test_queue', 1, 5);
  ?column? 
@@ -376,10 +370,9 @@ SELECT COUNT(*) = 2 FROM pgmq.read_fifo('fifo_test_queue', 10, 5);
 (1 row)
 
 SELECT msg_id, message, headers FROM pgmq.read_fifo('fifo_test_queue', 10, 5) ORDER BY msg_id;
- msg_id |              message              |             headers              
---------+-----------------------------------+----------------------------------
-     12 | {"message": "blocked_by_timeout"} | {"x-pgmq-fifo": "timeout_group"}
-(1 row)
+ msg_id | message | headers 
+--------+---------+---------
+(0 rows)
 
 SELECT ARRAY(
     SELECT msg_id FROM pgmq.read_fifo('fifo_test_queue', 10, 5) ORDER BY msg_id
@@ -435,10 +428,9 @@ SELECT COUNT(*) = 1 FROM pgmq.read_fifo('fifo_test_queue', 10, 5, '{"type": "ord
 (1 row)
 
 SELECT msg_id, message, headers FROM pgmq.read_fifo('fifo_test_queue', 10, 5, '{"type": "order"}'::jsonb) ORDER BY msg_id;
- msg_id |                 message                 |          headers          
---------+-----------------------------------------+---------------------------
-     15 | {"type": "order", "priority": "medium"} | {"x-pgmq-fifo": "orders"}
-(1 row)
+ msg_id | message | headers 
+--------+---------+---------
+(0 rows)
 
 SELECT msg_id = :msg_id13 FROM pgmq.read_fifo('fifo_test_queue', 10, 5, '{"type": "order"}'::jsonb);
  ?column? 
@@ -456,7 +448,7 @@ SELECT * FROM pgmq.delete('fifo_test_queue', :msg_id13);
 SELECT COUNT(*) = 1 FROM pgmq.read_fifo('fifo_test_queue', 10, 5, '{"type": "order"}'::jsonb);
  ?column? 
 ----------
- f
+ t
 (1 row)
 
 SELECT msg_id, message, headers FROM pgmq.read_fifo('fifo_test_queue', 10, 5, '{"type": "order"}'::jsonb) ORDER BY msg_id;
@@ -598,8 +590,7 @@ SELECT COUNT(*) = 1 FROM pgmq.read_fifo('fifo_test_queue', 10, 1);
 SELECT msg_id = :race_msg_id1 FROM pgmq.read_fifo('fifo_test_queue', 10, 1);
  ?column? 
 ----------
- f
-(1 row)
+(0 rows)
 
 -- Immediately try to read again - should NOT get the same message again
 -- This verifies our implementation prevents the duplicate read scenario
@@ -666,8 +657,7 @@ SELECT COUNT(*) = 1 FROM pgmq.read_fifo('fifo_test_queue', 30, 1);
 SELECT msg_id = :order_msg_id1 FROM pgmq.read_fifo('fifo_test_queue', 30, 1);
  ?column? 
 ----------
- f
-(1 row)
+(0 rows)
 
 -- Try to read again while first message is still being processed  
 -- Should return 0 messages, NOT the second message
@@ -675,7 +665,7 @@ SELECT msg_id = :order_msg_id1 FROM pgmq.read_fifo('fifo_test_queue', 30, 1);
 SELECT COUNT(*) = 0 FROM pgmq.read_fifo('fifo_test_queue', 10, 5);
  ?column? 
 ----------
- f
+ t
 (1 row)
 
 SELECT msg_id, message, headers FROM pgmq.read_fifo('fifo_test_queue', 10, 5);
@@ -708,7 +698,7 @@ SELECT * FROM pgmq.delete('fifo_test_queue', :order_msg_id1);
 SELECT COUNT(*) = 1 FROM pgmq.read_fifo('fifo_test_queue', 10, 1);
  ?column? 
 ----------
- f
+ t
 (1 row)
 
 SELECT msg_id = :order_msg_id2 FROM pgmq.read_fifo('fifo_test_queue', 10, 1);
