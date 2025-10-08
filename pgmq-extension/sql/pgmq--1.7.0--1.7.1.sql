@@ -242,12 +242,21 @@ BEGIN
                 ELSE 1
             END = 1
             AND m.msg_id >= gp.min_msg_id  -- Only messages from min_msg_id onwards in each group
+            AND NOT EXISTS (
+                -- Ensure no earlier message in this group is currently being processed
+                SELECT 1
+                FROM pgmq.%I m2
+                WHERE COALESCE(m2.headers->>'x-pgmq-fifo', '_default_fifo_group') = 
+                      COALESCE(m.headers->>'x-pgmq-fifo', '_default_fifo_group')
+                AND m2.vt > clock_timestamp()
+                AND m2.msg_id < m.msg_id
+            )
         ),
         batch_selection AS (
-            -- Select messages to fill batch, prioritizing earliest eligible group
+            -- Select messages to fill batch, prioritizing earliest group
             SELECT 
                 msg_id,
-                ROW_NUMBER() OVER (ORDER BY group_priority, msg_rank_in_group) AS overall_rank
+                ROW_NUMBER() OVER (ORDER BY group_priority, msg_rank_in_group) as overall_rank
             FROM available_messages
         ),
         selected_messages AS (
@@ -349,12 +358,21 @@ BEGIN
                   ELSE 1
               END = 1
               AND m.msg_id >= gp.min_msg_id  -- Only messages from min_msg_id onwards in each group
+              AND NOT EXISTS (
+                  -- Ensure no earlier message in this group is currently being processed
+                  SELECT 1
+                  FROM pgmq.%I m2
+                  WHERE COALESCE(m2.headers->>'x-pgmq-fifo', '_default_fifo_group') = 
+                        COALESCE(m.headers->>'x-pgmq-fifo', '_default_fifo_group')
+                  AND m2.vt > clock_timestamp()
+                  AND m2.msg_id < m.msg_id
+              )
           ),
           batch_selection AS (
-              -- Select messages to fill batch, prioritizing earliest eligible group
+              -- Select messages to fill batch, prioritizing earliest group
               SELECT 
                   msg_id,
-                  ROW_NUMBER() OVER (ORDER BY group_priority, msg_rank_in_group) AS overall_rank
+                  ROW_NUMBER() OVER (ORDER BY group_priority, msg_rank_in_group) as overall_rank
               FROM available_messages
           ),
           selected_messages AS (
