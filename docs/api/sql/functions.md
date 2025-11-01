@@ -202,13 +202,13 @@ select * from pgmq.read_with_poll('my_queue', 1, 1, 5, 100);
 
 ---
 
-### read_fifo
+### read_fifo_rr
 
-Read messages from a queue while respecting FIFO (First-In-First-Out) ordering within message groups. Messages with the same FIFO group ID (specified in the `x-pgmq-fifo` header) will be processed in strict order. Messages without FIFO headers are treated as belonging to a default group.
+Read messages from a queue while respecting FIFO (First-In-First-Out) ordering within message groups. Messages with the same FIFO group ID (specified in the `x-pgmq-group` header) will be processed in strict order. Messages without FIFO headers are treated as belonging to a default group.
 
 <pre>
  <code>
-pgmq.read_fifo(
+pgmq.read_fifo_rr(
     queue_name text,
     vt integer,
     qty integer,
@@ -227,8 +227,8 @@ RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
 | qty         | integer  | The number of messages to read from the queue. Defaults to 1 |
 | conditional | jsonb    | Filters the messages by their json content. Defaults to '{}' - no filtering |
 
-**FIFO Behavior:**
-- Messages with the same `x-pgmq-fifo` header value are processed in strict order
+**FIFO Behavior (Round Robin across groups):**
+- Messages with the same `x-pgmq-group` header value are processed in strict order
 - Only the oldest unprocessed message from each FIFO group can be read
 - Messages from different FIFO groups can be processed in parallel
 - Messages without FIFO headers are treated as a single default group
@@ -239,28 +239,28 @@ Send messages with FIFO grouping:
 
 ```sql
 -- Send messages to the same FIFO group
-select pgmq.send('my_queue', '{"order": 1}', '{"x-pgmq-fifo": "user123"}');
-select pgmq.send('my_queue', '{"order": 2}', '{"x-pgmq-fifo": "user123"}');
-select pgmq.send('my_queue', '{"order": 1}', '{"x-pgmq-fifo": "user456"}');
+select pgmq.send('my_queue', '{"order": 1}', '{"x-pgmq-group": "user123"}');
+select pgmq.send('my_queue', '{"order": 2}', '{"x-pgmq-group": "user123"}');
+select pgmq.send('my_queue', '{"order": 1}', '{"x-pgmq-group": "user456"}');
 
--- Read with FIFO ordering - will return first message from each group
-select * from pgmq.read_fifo('my_queue', 10, 5);
+-- Read with FIFO RR ordering - interleaves by group layers
+select * from pgmq.read_fifo_rr('my_queue', 10, 5);
  msg_id | read_ct |          enqueued_at          |              vt               |     message     |           headers
 --------+---------+-------------------------------+-------------------------------+-----------------+---------------------------
-      1 |       1 | 2023-10-28 19:14:47.356595-05 | 2023-10-28 19:17:08.608922-05 | {"order": 1}   | {"x-pgmq-fifo": "user123"}
-      3 |       1 | 2023-10-28 19:14:47.356595-05 | 2023-10-28 19:17:08.608974-05 | {"order": 1}   | {"x-pgmq-fifo": "user456"}
+      1 |       1 | 2023-10-28 19:14:47.356595-05 | 2023-10-28 19:17:08.608922-05 | {"order": 1}   | {"x-pgmq-group": "user123"}
+      3 |       1 | 2023-10-28 19:14:47.356595-05 | 2023-10-28 19:17:08.608974-05 | {"order": 1}   | {"x-pgmq-group": "user456"}
 ```
 
 ---
 
-### read_fifo_with_poll
+### read_fifo_rr_with_poll
 
 Same as read_fifo(). Also provides convenient long-poll functionality for FIFO queues.
  When there are no messages available that respect FIFO ordering, the function call will wait for `max_poll_seconds` in duration before returning.
 
 <pre>
  <code>
- pgmq.read_fifo_with_poll(
+ pgmq.read_fifo_rr_with_poll(
     queue_name text,
     vt integer,
     qty integer,
@@ -286,10 +286,10 @@ RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
 Example:
 
 ```sql
-select * from pgmq.read_fifo_with_poll('my_queue', 10, 1, 5, 100);
+select * from pgmq.read_fifo_rr_with_poll('my_queue', 10, 1, 5, 100);
  msg_id | read_ct |          enqueued_at          |              vt               |      message    |           headers
 --------+---------+-------------------------------+-------------------------------+-----------------+---------------------------
-      1 |       1 | 2023-10-28 19:09:09.177756-05 | 2023-10-28 19:27:00.337929-05 | {"order": 1}   | {"x-pgmq-fifo": "user123"}
+      1 |       1 | 2023-10-28 19:09:09.177756-05 | 2023-10-28 19:27:00.337929-05 | {"order": 1}   | {"x-pgmq-group": "user123"}
 ```
 
 ---

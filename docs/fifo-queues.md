@@ -18,34 +18,45 @@ FIFO queues in PGMQ work by using message headers to specify group identifiers. 
 
 ### Message Group IDs
 
-FIFO ordering is controlled by the `x-pgmq-fifo` header value:
+FIFO ordering is controlled by the `x-pgmq-group` header value:
 
 ```sql
 -- Send messages to the same FIFO group
-SELECT pgmq.send('my_queue', '{"order": 1}', '{"x-pgmq-fifo": "user123"}');
-SELECT pgmq.send('my_queue', '{"order": 2}', '{"x-pgmq-fifo": "user123"}');
+SELECT pgmq.send('my_queue', '{"order": 1}', '{"x-pgmq-group": "user123"}');
+SELECT pgmq.send('my_queue', '{"order": 2}', '{"x-pgmq-group": "user123"}');
 
 -- Send message to different FIFO group
-SELECT pgmq.send('my_queue', '{"order": 1}', '{"x-pgmq-fifo": "user456"}');
+SELECT pgmq.send('my_queue', '{"order": 1}', '{"x-pgmq-group": "user456"}');
 ```
 
 ### Reading FIFO Messages
 
-Use `pgmq.read_fifo()` instead of `pgmq.read()` to respect FIFO ordering:
+PGMQ provides two FIFO reading strategies. Choose the one that best fits your workload:
+
+- `pgmq.read_fifo_rr(...)` (Round-Robin, layered interleaving): Fairly interleaves messages across groups. Great for multi-tenant and user-centric workloads.
+- `pgmq.read_fifo(...)` (SQS-style throughput): Fills batches from the oldest eligible group first, returning multiple messages from the same group for throughput.
 
 ```sql
--- Read with FIFO ordering
+-- Fair distribution across groups (round-robin, layered)
+SELECT * FROM pgmq.read_fifo_rr('my_queue', 30, 5);
+
+-- Throughput-optimized, SQS-style batch filling
 SELECT * FROM pgmq.read_fifo('my_queue', 30, 5);
 ```
 
-This will return:
-- The oldest unprocessed message from each FIFO group
-- Up to the requested quantity of messages
-- Messages from different groups in parallel
+Round-robin (RR) will:
+- Interleave across groups in layers, preserving order within each group
+- Return up to the requested quantity across groups
+- Prevent starvation of smaller/less-active groups
+
+SQS-style will:
+- Fill the batch from the earliest eligible group first
+- Return multiple messages from the same group when available
+- Move to other groups only if needed to fill the batch
 
 ### Default Group Behavior
 
-Messages without the `x-pgmq-fifo` header are treated as belonging to a single default group:
+Messages without the `x-pgmq-group` header are treated as belonging to a single default group:
 
 ```sql
 -- These messages will be processed in FIFO order relative to each other
@@ -57,7 +68,7 @@ SELECT pgmq.send('my_queue', '{"message": "second"}');
 
 ### Reading Functions
 
-#### `pgmq.read_fifo(queue_name, vt, qty, conditional)`
+#### `pgmq.read_fifo_rr(queue_name, vt, qty, conditional)`
 
 Read messages while respecting FIFO ordering within groups.
 
@@ -67,13 +78,13 @@ Read messages while respecting FIFO ordering within groups.
 - `qty` (integer): Maximum number of messages to read
 - `conditional` (jsonb): Optional message filtering
 
-#### `pgmq.read_fifo_with_poll(queue_name, vt, qty, max_poll_seconds, poll_interval_ms, conditional)`
+#### `pgmq.read_fifo_rr_with_poll(queue_name, vt, qty, max_poll_seconds, poll_interval_ms, conditional)`
 
-Same as `read_fifo()` but with polling support for real-time processing.
+Same as `read_fifo_rr()` but with polling support for real-time processing.
 
-#### `pgmq.read_fifo_sqs_style(queue_name, vt, qty, conditional)`
+#### `pgmq.read_fifo(queue_name, vt, qty, conditional)`
 
-Read messages with AWS SQS FIFO-style batch retrieval behavior. Unlike `read_fifo()` which returns at most one message per group, this function attempts to return as many messages as possible from the same message group to maximize throughput for related messages.
+Read messages with AWS SQS FIFO-style batch retrieval behavior. Unlike `read_fifo_rr()` which interleaves fairly across groups, this function attempts to return as many messages as possible from the same message group to maximize throughput for related messages.
 
 **Behavior:**
 - Prioritizes filling the batch from the earliest message group first
@@ -81,7 +92,7 @@ Read messages with AWS SQS FIFO-style batch retrieval behavior. Unlike `read_fif
 - Only moves to other groups if the batch cannot be filled from the first group
 - Maintains strict FIFO ordering within each group
 
-#### `pgmq.read_fifo_sqs_style_with_poll(queue_name, vt, qty, max_poll_seconds, poll_interval_ms, conditional)`
+#### `pgmq.read_fifo_with_poll(queue_name, vt, qty, max_poll_seconds, poll_interval_ms, conditional)`
 
 Same as `read_fifo_sqs_style()` but with polling support for real-time processing.
 
@@ -103,11 +114,11 @@ Ensure messages for each user are processed in order:
 
 ```sql
 -- User 1 messages
-SELECT pgmq.send('user_events', '{"action": "login"}', '{"x-pgmq-fifo": "user_123"}');
-SELECT pgmq.send('user_events', '{"action": "purchase"}', '{"x-pgmq-fifo": "user_123"}');
+SELECT pgmq.send('user_events', '{"action": "login"}', '{"x-pgmq-group": "user_123"}');
+SELECT pgmq.send('user_events', '{"action": "purchase"}', '{"x-pgmq-group": "user_123"}');
 
 -- User 2 messages (can be processed in parallel)
-SELECT pgmq.send('user_events', '{"action": "login"}', '{"x-pgmq-fifo": "user_456"}');
+SELECT pgmq.send('user_events', '{"action": "login"}', '{"x-pgmq-group": "user_456"}');
 ```
 
 ### 2. Order Processing
@@ -116,9 +127,9 @@ Maintain order integrity for financial transactions:
 
 ```sql
 -- Order lifecycle events
-SELECT pgmq.send('orders', '{"order_id": "ord_1", "action": "create"}', '{"x-pgmq-fifo": "ord_1"}');
-SELECT pgmq.send('orders', '{"order_id": "ord_1", "action": "payment"}', '{"x-pgmq-fifo": "ord_1"}');
-SELECT pgmq.send('orders', '{"order_id": "ord_1", "action": "fulfill"}', '{"x-pgmq-fifo": "ord_1"}');
+SELECT pgmq.send('orders', '{"order_id": "ord_1", "action": "create"}', '{"x-pgmq-group": "ord_1"}');
+SELECT pgmq.send('orders', '{"order_id": "ord_1", "action": "payment"}', '{"x-pgmq-group": "ord_1"}');
+SELECT pgmq.send('orders', '{"order_id": "ord_1", "action": "fulfill"}', '{"x-pgmq-group": "ord_1"}');
 ```
 
 ### 3. Document Processing
@@ -127,8 +138,8 @@ Process document versions in sequence:
 
 ```sql
 -- Document updates
-SELECT pgmq.send('docs', '{"doc_id": "doc_1", "version": 1}', '{"x-pgmq-fifo": "doc_1"}');
-SELECT pgmq.send('docs', '{"doc_id": "doc_1", "version": 2}', '{"x-pgmq-fifo": "doc_1"}');
+SELECT pgmq.send('docs', '{"doc_id": "doc_1", "version": 1}', '{"x-pgmq-group": "doc_1"}');
+SELECT pgmq.send('docs', '{"doc_id": "doc_1", "version": 2}', '{"x-pgmq-group": "doc_1"}');
 ```
 
 ## Performance Considerations
@@ -190,7 +201,7 @@ SELECT pgmq.archive('my_queue', 123);
 FIFO functionality is backward compatible:
 
 1. **Existing code continues to work**: `pgmq.read()` functions unchanged
-2. **Gradual adoption**: Start using `pgmq.read_fifo()` for new consumers
+2. **Gradual adoption**: Start using `pgmq.read_fifo_rr()` or `pgmq.read_fifo()` for new consumers
 3. **Mixed usage**: Some consumers can use FIFO, others regular reads
 4. **Performance**: Add FIFO indexes when ready to optimize
 
@@ -198,14 +209,14 @@ FIFO functionality is backward compatible:
 
 PGMQ provides two different FIFO reading strategies to suit different use cases:
 
-### Fair Distribution (`pgmq.read_fifo()`)
+### Fair Distribution (`pgmq.read_fifo_rr()`)
 
-Returns at most one message per FIFO group per call:
+Interleaves messages across FIFO groups in layers:
 
 ```sql
 -- With groups A (5 messages), B (3 messages), C (2 messages)
-SELECT * FROM pgmq.read_fifo('queue', 30, 10);
--- Returns: 3 messages (1 from each group)
+SELECT * FROM pgmq.read_fifo_rr('queue', 30, 10);
+-- Returns (layered interleaving): A1, B1, C1, A2, B2, C2, A3, B3, A4, ...
 ```
 
 **Best for:**
@@ -213,16 +224,16 @@ SELECT * FROM pgmq.read_fifo('queue', 30, 10);
 - Preventing starvation of groups with fewer messages
 - Load balancing across different workflows
 
-### Throughput Optimization (`pgmq.read_fifo_sqs_style()`)
+### Throughput Optimization (`pgmq.read_fifo()`)
 
 Attempts to fill the batch from the earliest group first:
 
 ```sql
 -- With groups A (5 messages), B (3 messages), C (2 messages)
-SELECT * FROM pgmq.read_fifo_sqs_style('queue', 30, 10);
+SELECT * FROM pgmq.read_fifo('queue', 30, 10);
 -- Returns: 10 messages (5 from A + 3 from B + 2 from C)
 
-SELECT * FROM pgmq.read_fifo_sqs_style('queue', 30, 3);
+SELECT * FROM pgmq.read_fifo('queue', 30, 3);
 -- Returns: 3 messages (all from group A)
 ```
 
@@ -235,19 +246,19 @@ SELECT * FROM pgmq.read_fifo_sqs_style('queue', 30, 3);
 
 | Scenario | Recommended Function | Reason |
 |----------|---------------------|---------|
-| Multi-tenant processing | `read_fifo()` | Ensures fair resource allocation |
-| Order processing pipeline | `read_fifo_sqs_style()` | Related orders processed together |
-| User activity streams | `read_fifo()` | Prevents one active user from blocking others |
-| Document workflows | `read_fifo_sqs_style()` | Process all versions of a document together |
-| Financial transactions | `read_fifo_sqs_style()` | Batch related transactions for efficiency |
+| Multi-tenant processing | `read_fifo_rr()` | Ensures fair resource allocation |
+| Order processing pipeline | `read_fifo()` | Related orders processed together |
+| User activity streams | `read_fifo_rr()` | Prevents one active user from blocking others |
+| Document workflows | `read_fifo()` | Process all versions of a document together |
+| Financial transactions | `read_fifo()` | Batch related transactions for efficiency |
 
 ## Comparison with AWS SQS FIFO
 
-| Feature | PGMQ FIFO | PGMQ SQS-Style | AWS SQS FIFO |
-|---------|-----------|----------------|--------------|
+| Feature | PGMQ FIFO (RR) | PGMQ read_fifo | AWS SQS FIFO |
+|---------|-----------------|----------------|--------------|
 | Group-based ordering | ✅ | ✅ | ✅ |
 | Parallel group processing | ✅ | ✅ | ✅ |
-| Batch retrieval strategy | Fair (1 per group) | Throughput-optimized | Throughput-optimized |
+| Batch retrieval strategy | Fair (layered interleaving) | Throughput-optimized | Throughput-optimized |
 | Message deduplication | ❌ | ❌ | ✅ |
 | Throughput limits | No limits | No limits | 300 TPS per group |
 | Exactly-once delivery | ❌ | ❌ | ✅ |

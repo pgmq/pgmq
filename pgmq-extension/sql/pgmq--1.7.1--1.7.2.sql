@@ -1,8 +1,8 @@
 -- FIFO queue support with message group keys
 -- This migration adds support for FIFO queues using headers to specify message group IDs
 
--- Create the read_fifo function that respects FIFO ordering within message groups
-CREATE FUNCTION pgmq.read_fifo(
+-- Create read_fifo_rr function that respects FIFO ordering within groups
+CREATE OR REPLACE FUNCTION pgmq.read_fifo_rr(
     queue_name TEXT,
     vt INTEGER,
     qty INTEGER,
@@ -16,59 +16,73 @@ BEGIN
     sql := FORMAT(
         $QUERY$
         WITH fifo_groups AS (
-            -- Get the minimum msg_id for each FIFO group that's ready to be processed
+            -- Determine the absolute head (oldest) message id per FIFO group, regardless of visibility
             SELECT 
-                COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group') as fifo_key,
-                MIN(msg_id) as min_msg_id
-            FROM pgmq.%I
-            WHERE vt <= clock_timestamp() 
-            AND CASE
-                WHEN %L != '{}'::jsonb THEN (message @> %2$L)::integer
-                ELSE 1
-            END = 1
-            AND NOT EXISTS (
-                -- Ensure no message in this group is currently being processed
-                SELECT 1
-                FROM pgmq.%I m2
-                WHERE COALESCE(m2.headers->>'x-pgmq-fifo', '_default_fifo_group') = 
-                      COALESCE(pgmq.%I.headers->>'x-pgmq-fifo', '_default_fifo_group')
-                AND m2.vt > clock_timestamp()
-                AND m2.msg_id < pgmq.%I.msg_id
-            )
-            GROUP BY COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group')
+                COALESCE(headers->>'x-pgmq-group', '_default_fifo_group') AS fifo_key,
+                MIN(msg_id) AS head_msg_id
+            FROM pgmq.%1$I
+            GROUP BY COALESCE(headers->>'x-pgmq-group', '_default_fifo_group')
+        ),
+        eligible_groups AS (
+            -- Only groups whose head message is currently visible and matches the optional filter
+            -- Acquire a transaction-level advisory lock per group to prevent concurrent selection
+            SELECT 
+                g.fifo_key,
+                g.head_msg_id,
+                ROW_NUMBER() OVER (ORDER BY g.head_msg_id) AS group_priority
+            FROM fifo_groups g
+            JOIN pgmq.%2$I h ON h.msg_id = g.head_msg_id
+            WHERE h.vt <= clock_timestamp()
+              AND CASE
+                    WHEN %3$L != '{}'::jsonb THEN (h.message @> %3$L)::integer
+                    ELSE 1
+                  END = 1
+              AND pg_try_advisory_xact_lock(pg_catalog.hashtextextended(g.fifo_key, 0))
         ),
         available_messages AS (
-            -- Get messages that are the next in line for their FIFO group
-            SELECT m.msg_id
-            FROM pgmq.%I m
-            INNER JOIN fifo_groups fg ON 
-                COALESCE(m.headers->>'x-pgmq-fifo', '_default_fifo_group') = fg.fifo_key
-                AND m.msg_id = fg.min_msg_id
+            -- All currently visible messages starting at the head for each eligible group
+            SELECT 
+                m.msg_id,
+                eg.group_priority,
+                ROW_NUMBER() OVER (
+                    PARTITION BY eg.fifo_key 
+                    ORDER BY m.msg_id
+                ) AS msg_rank_in_group
+            FROM pgmq.%4$I m
+            JOIN eligible_groups eg 
+              ON COALESCE(m.headers->>'x-pgmq-group', '_default_fifo_group') = eg.fifo_key
             WHERE m.vt <= clock_timestamp()
-            AND CASE
-                WHEN %L != '{}'::jsonb THEN (m.message @> %2$L)::integer
-                ELSE 1
-            END = 1
-            ORDER BY m.msg_id ASC
+              AND CASE
+                    WHEN %3$L != '{}'::jsonb THEN (m.message @> %3$L)::integer
+                    ELSE 1
+                  END = 1
+              AND m.msg_id >= eg.head_msg_id
+        ),
+        selected_messages AS (
+            -- Layered round-robin: take rank 1 of all groups by group_priority, then rank 2, etc.
+            SELECT msg_id
+            FROM available_messages
+            ORDER BY msg_rank_in_group, group_priority
             LIMIT $1
             FOR UPDATE SKIP LOCKED
         )
-        UPDATE pgmq.%I m
+        UPDATE pgmq.%5$I m
         SET
-            vt = clock_timestamp() + %9$L,
+            vt = clock_timestamp() + %6$L,
             read_ct = read_ct + 1
-        FROM available_messages am
-        WHERE m.msg_id = am.msg_id
+        FROM selected_messages sm
+        WHERE m.msg_id = sm.msg_id
+          AND m.vt <= clock_timestamp()
         RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.vt, m.message, m.headers;
         $QUERY$,
-        qtable, conditional, qtable, qtable, qtable, qtable, conditional, qtable, make_interval(secs => vt)
+        qtable, qtable, conditional, qtable, qtable, make_interval(secs => vt)
     );
     RETURN QUERY EXECUTE sql USING qty;
 END;
 $$ LANGUAGE plpgsql;
 
 -- Create read_fifo_with_poll function for polling support
-CREATE FUNCTION pgmq.read_fifo_with_poll(
+CREATE OR REPLACE FUNCTION pgmq.read_fifo_rr_with_poll(
     queue_name TEXT,
     vt INTEGER,
     qty INTEGER,
@@ -92,52 +106,66 @@ BEGIN
       sql := FORMAT(
           $QUERY$
           WITH fifo_groups AS (
-              -- Get the minimum msg_id for each FIFO group that's ready to be processed
+              -- Determine the absolute head (oldest) message id per FIFO group, regardless of visibility
               SELECT 
-                  COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group') as fifo_key,
-                  MIN(msg_id) as min_msg_id
-              FROM pgmq.%I
-              WHERE vt <= clock_timestamp() 
-              AND CASE
-                  WHEN %L != '{}'::jsonb THEN (message @> %2$L)::integer
-                  ELSE 1
-              END = 1
-              AND NOT EXISTS (
-                  -- Ensure no message in this group is currently being processed
-                  SELECT 1
-                  FROM pgmq.%I m2
-                  WHERE COALESCE(m2.headers->>'x-pgmq-fifo', '_default_fifo_group') = 
-                        COALESCE(pgmq.%I.headers->>'x-pgmq-fifo', '_default_fifo_group')
-                  AND m2.vt > clock_timestamp()
-                  AND m2.msg_id < pgmq.%I.msg_id
-              )
-              GROUP BY COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group')
+                  COALESCE(headers->>'x-pgmq-group', '_default_fifo_group') AS fifo_key,
+                  MIN(msg_id) AS head_msg_id
+              FROM pgmq.%1$I
+              GROUP BY COALESCE(headers->>'x-pgmq-group', '_default_fifo_group')
+          ),
+          eligible_groups AS (
+              -- Only groups whose head message is currently visible and matches the optional filter
+              -- Acquire a transaction-level advisory lock per group to prevent concurrent selection
+              SELECT 
+                  g.fifo_key,
+                  g.head_msg_id,
+                  ROW_NUMBER() OVER (ORDER BY g.head_msg_id) AS group_priority
+              FROM fifo_groups g
+              JOIN pgmq.%2$I h ON h.msg_id = g.head_msg_id
+              WHERE h.vt <= clock_timestamp()
+                AND CASE
+                      WHEN %3$L != '{}'::jsonb THEN (h.message @> %3$L)::integer
+                      ELSE 1
+                    END = 1
+                AND pg_try_advisory_xact_lock(pg_catalog.hashtextextended(g.fifo_key, 0))
           ),
           available_messages AS (
-              -- Get messages that are the next in line for their FIFO group
-              SELECT m.msg_id
-              FROM pgmq.%I m
-              INNER JOIN fifo_groups fg ON 
-                  COALESCE(m.headers->>'x-pgmq-fifo', '_default_fifo_group') = fg.fifo_key
-                  AND m.msg_id = fg.min_msg_id
+              -- All currently visible messages starting at the head for each eligible group
+              SELECT 
+                  m.msg_id,
+                  eg.group_priority,
+                  ROW_NUMBER() OVER (
+                      PARTITION BY eg.fifo_key 
+                      ORDER BY m.msg_id
+                  ) AS msg_rank_in_group
+              FROM pgmq.%4$I m
+              JOIN eligible_groups eg 
+                ON COALESCE(m.headers->>'x-pgmq-group', '_default_fifo_group') = eg.fifo_key
               WHERE m.vt <= clock_timestamp()
-              AND CASE
-                  WHEN %L != '{}'::jsonb THEN (m.message @> %2$L)::integer
-                  ELSE 1
-              END = 1
-              ORDER BY m.msg_id ASC
+                AND CASE
+                      WHEN %3$L != '{}'::jsonb THEN (m.message @> %3$L)::integer
+                      ELSE 1
+                    END = 1
+                AND m.msg_id >= eg.head_msg_id
+          ),
+          selected_messages AS (
+              -- Layered round-robin: take rank 1 of all groups by group_priority, then rank 2, etc.
+              SELECT msg_id
+              FROM available_messages
+              ORDER BY msg_rank_in_group, group_priority
               LIMIT $1
               FOR UPDATE SKIP LOCKED
           )
-          UPDATE pgmq.%I m
+          UPDATE pgmq.%5$I m
           SET
-              vt = clock_timestamp() + %9$L,
+              vt = clock_timestamp() + %6$L,
               read_ct = read_ct + 1
-          FROM available_messages am
-          WHERE m.msg_id = am.msg_id
+          FROM selected_messages sm
+          WHERE m.msg_id = sm.msg_id
+            AND m.vt <= clock_timestamp()
           RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.vt, m.message, m.headers;
           $QUERY$,
-          qtable, conditional, qtable, qtable, qtable, qtable, conditional, qtable, make_interval(secs => vt)
+          qtable, qtable, conditional, qtable, qtable, make_interval(secs => vt)
       );
 
       FOR r IN
@@ -173,7 +201,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Helper function to create FIFO indexes on existing queues
-CREATE FUNCTION pgmq.create_fifo_index(queue_name TEXT)
+CREATE OR REPLACE FUNCTION pgmq.create_fifo_index(queue_name TEXT)
 RETURNS void AS $$
 BEGIN
     PERFORM pgmq._create_fifo_index_if_not_exists(queue_name);
@@ -181,7 +209,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- Helper function to create FIFO indexes on all existing queues
-CREATE FUNCTION pgmq.create_fifo_indexes_all()
+CREATE OR REPLACE FUNCTION pgmq.create_fifo_indexes_all()
 RETURNS void AS $$
 DECLARE
     queue_record RECORD;
@@ -192,9 +220,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create read_fifo_sqs_style function that mimics AWS SQS FIFO batch retrieval behavior
+-- Create read_fifo function that mimics AWS SQS FIFO batch retrieval behavior
 -- This function attempts to return as many messages as possible from the same message group
-CREATE FUNCTION pgmq.read_fifo_sqs_style(
+CREATE OR REPLACE FUNCTION pgmq.read_fifo(
     queue_name TEXT,
     vt INTEGER,
     qty INTEGER,
@@ -210,7 +238,7 @@ BEGIN
         WITH fifo_groups AS (
             -- Find the minimum msg_id for each FIFO group that's ready to be processed
             SELECT 
-                COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group') as fifo_key,
+                COALESCE(headers->>'x-pgmq-group', '_default_fifo_group') as fifo_key,
                 MIN(msg_id) as min_msg_id
             FROM pgmq.%I
             WHERE vt <= clock_timestamp() 
@@ -218,7 +246,7 @@ BEGIN
                 WHEN %L != '{}'::jsonb THEN (message @> %2$L)::integer
                 ELSE 1
             END = 1
-            GROUP BY COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group')
+            GROUP BY COALESCE(headers->>'x-pgmq-group', '_default_fifo_group')
         ),
         locked_groups AS (
             -- Lock the first available message in each FIFO group
@@ -227,7 +255,7 @@ BEGIN
                 fg.fifo_key
             FROM pgmq.%I m
             INNER JOIN fifo_groups fg ON 
-                COALESCE(m.headers->>'x-pgmq-fifo', '_default_fifo_group') = fg.fifo_key
+                COALESCE(m.headers->>'x-pgmq-group', '_default_fifo_group') = fg.fifo_key
                 AND m.msg_id = fg.min_msg_id
             WHERE m.vt <= clock_timestamp()
             AND CASE
@@ -253,7 +281,7 @@ BEGIN
                 ROW_NUMBER() OVER (PARTITION BY gp.fifo_key ORDER BY m.msg_id) as msg_rank_in_group
             FROM pgmq.%I m
             INNER JOIN group_priorities gp ON 
-                COALESCE(m.headers->>'x-pgmq-fifo', '_default_fifo_group') = gp.fifo_key
+                COALESCE(m.headers->>'x-pgmq-group', '_default_fifo_group') = gp.fifo_key
             WHERE m.vt <= clock_timestamp()
             AND CASE
                 WHEN %L != '{}'::jsonb THEN (m.message @> %6$L)::integer
@@ -264,8 +292,8 @@ BEGIN
                 -- Ensure no earlier message in this group is currently being processed
                 SELECT 1
                 FROM pgmq.%I m2
-                WHERE COALESCE(m2.headers->>'x-pgmq-fifo', '_default_fifo_group') = 
-                      COALESCE(m.headers->>'x-pgmq-fifo', '_default_fifo_group')
+                WHERE COALESCE(m2.headers->>'x-pgmq-group', '_default_fifo_group') = 
+                      COALESCE(m.headers->>'x-pgmq-group', '_default_fifo_group')
                 AND m2.vt > clock_timestamp()
                 AND m2.msg_id < m.msg_id
             )
@@ -299,8 +327,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create read_fifo_sqs_style_with_poll function for polling support
-CREATE FUNCTION pgmq.read_fifo_sqs_style_with_poll(
+-- Create read_fifo_with_poll function for polling support
+CREATE OR REPLACE FUNCTION pgmq.read_fifo_with_poll(
     queue_name TEXT,
     vt INTEGER,
     qty INTEGER,
@@ -326,7 +354,7 @@ BEGIN
           WITH fifo_groups AS (
               -- Find the minimum msg_id for each FIFO group that's ready to be processed
               SELECT 
-                  COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group') as fifo_key,
+                  COALESCE(headers->>'x-pgmq-group', '_default_fifo_group') as fifo_key,
                   MIN(msg_id) as min_msg_id
               FROM pgmq.%I
               WHERE vt <= clock_timestamp() 
@@ -334,7 +362,7 @@ BEGIN
                   WHEN %L != '{}'::jsonb THEN (message @> %2$L)::integer
                   ELSE 1
               END = 1
-              GROUP BY COALESCE(headers->>'x-pgmq-fifo', '_default_fifo_group')
+              GROUP BY COALESCE(headers->>'x-pgmq-group', '_default_fifo_group')
           ),
           locked_groups AS (
               -- Lock the first available message in each FIFO group
@@ -343,7 +371,7 @@ BEGIN
                   fg.fifo_key
               FROM pgmq.%I m
               INNER JOIN fifo_groups fg ON 
-                  COALESCE(m.headers->>'x-pgmq-fifo', '_default_fifo_group') = fg.fifo_key
+                  COALESCE(m.headers->>'x-pgmq-group', '_default_fifo_group') = fg.fifo_key
                   AND m.msg_id = fg.min_msg_id
               WHERE m.vt <= clock_timestamp()
               AND CASE
@@ -369,7 +397,7 @@ BEGIN
                   ROW_NUMBER() OVER (PARTITION BY gp.fifo_key ORDER BY m.msg_id) as msg_rank_in_group
               FROM pgmq.%I m
               INNER JOIN group_priorities gp ON 
-                  COALESCE(m.headers->>'x-pgmq-fifo', '_default_fifo_group') = gp.fifo_key
+                  COALESCE(m.headers->>'x-pgmq-group', '_default_fifo_group') = gp.fifo_key
               WHERE m.vt <= clock_timestamp()
               AND CASE
                   WHEN %L != '{}'::jsonb THEN (m.message @> %6$L)::integer
@@ -380,8 +408,8 @@ BEGIN
                   -- Ensure no earlier message in this group is currently being processed
                   SELECT 1
                   FROM pgmq.%I m2
-                  WHERE COALESCE(m2.headers->>'x-pgmq-fifo', '_default_fifo_group') = 
-                        COALESCE(m.headers->>'x-pgmq-fifo', '_default_fifo_group')
+                  WHERE COALESCE(m2.headers->>'x-pgmq-group', '_default_fifo_group') = 
+                        COALESCE(m.headers->>'x-pgmq-group', '_default_fifo_group')
                   AND m2.vt > clock_timestamp()
                   AND m2.msg_id < m.msg_id
               )

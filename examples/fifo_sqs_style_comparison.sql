@@ -1,5 +1,5 @@
 -- PGMQ FIFO SQS-Style Comparison Example
--- This example demonstrates the difference between pgmq.read_fifo() and pgmq.read_fifo_sqs_style()
+-- This example demonstrates the difference between pgmq.read_fifo_rr() and pgmq.read_fifo()
 
 -- Create a test queue
 SELECT pgmq.create('fifo_comparison_test');
@@ -10,72 +10,72 @@ SELECT pgmq.create_fifo_index('fifo_comparison_test');
 -- Setup test data: Multiple messages per group
 -- Group A: 5 messages
 SELECT pgmq.send('fifo_comparison_test', 
-    '{"group": "A", "message_num": 1, "data": "First message for group A"}',
-    '{"x-pgmq-fifo": "group_A"}'
+    '{"group": "A", "message_num": 1, "data": "First message for group A"}'::jsonb,
+    '{"x-pgmq-group": "group_A"}'::jsonb
 );
 
 SELECT pgmq.send('fifo_comparison_test', 
-    '{"group": "A", "message_num": 2, "data": "Second message for group A"}',
-    '{"x-pgmq-fifo": "group_A"}'
+    '{"group": "A", "message_num": 2, "data": "Second message for group A"}'::jsonb,
+    '{"x-pgmq-group": "group_A"}'::jsonb
 );
 
 SELECT pgmq.send('fifo_comparison_test', 
-    '{"group": "A", "message_num": 3, "data": "Third message for group A"}',
-    '{"x-pgmq-fifo": "group_A"}'
+    '{"group": "A", "message_num": 3, "data": "Third message for group A"}'::jsonb,
+    '{"x-pgmq-group": "group_A"}'::jsonb
 );
 
 SELECT pgmq.send('fifo_comparison_test', 
-    '{"group": "A", "message_num": 4, "data": "Fourth message for group A"}',
-    '{"x-pgmq-fifo": "group_A"}'
+    '{"group": "A", "message_num": 4, "data": "Fourth message for group A"}'::jsonb,
+    '{"x-pgmq-group": "group_A"}'::jsonb
 );
 
 SELECT pgmq.send('fifo_comparison_test', 
-    '{"group": "A", "message_num": 5, "data": "Fifth message for group A"}',
-    '{"x-pgmq-fifo": "group_A"}'
+    '{"group": "A", "message_num": 5, "data": "Fifth message for group A"}'::jsonb,
+    '{"x-pgmq-group": "group_A"}'::jsonb
 );
 
 -- Group B: 3 messages
 SELECT pgmq.send('fifo_comparison_test', 
-    '{"group": "B", "message_num": 1, "data": "First message for group B"}',
-    '{"x-pgmq-fifo": "group_B"}'
+    '{"group": "B", "message_num": 1, "data": "First message for group B"}'::jsonb,
+    '{"x-pgmq-group": "group_B"}'::jsonb
 );
 
 SELECT pgmq.send('fifo_comparison_test', 
-    '{"group": "B", "message_num": 2, "data": "Second message for group B"}',
-    '{"x-pgmq-fifo": "group_B"}'
+    '{"group": "B", "message_num": 2, "data": "Second message for group B"}'::jsonb,
+    '{"x-pgmq-group": "group_B"}'::jsonb
 );
 
 SELECT pgmq.send('fifo_comparison_test', 
-    '{"group": "B", "message_num": 3, "data": "Third message for group B"}',
-    '{"x-pgmq-fifo": "group_B"}'
+    '{"group": "B", "message_num": 3, "data": "Third message for group B"}'::jsonb,
+    '{"x-pgmq-group": "group_B"}'::jsonb
 );
 
 -- Group C: 2 messages
 SELECT pgmq.send('fifo_comparison_test', 
-    '{"group": "C", "message_num": 1, "data": "First message for group C"}',
-    '{"x-pgmq-fifo": "group_C"}'
+    '{"group": "C", "message_num": 1, "data": "First message for group C"}'::jsonb,
+    '{"x-pgmq-group": "group_C"}'::jsonb
 );
 
 SELECT pgmq.send('fifo_comparison_test', 
-    '{"group": "C", "message_num": 2, "data": "Second message for group C"}',
-    '{"x-pgmq-fifo": "group_C"}'
+    '{"group": "C", "message_num": 2, "data": "Second message for group C"}'::jsonb,
+    '{"x-pgmq-group": "group_C"}'::jsonb
 );
 
--- Test 1: Original pgmq.read_fifo() behavior
+-- Test 1: Round-robin fairness with read_fifo_rr()
 -- Should return 1 message per group (3 total messages)
 SELECT 
-    'Original FIFO' as test_type,
+    'Round-Robin' as test_type,
     msg_id,
     message->>'group' as group_id,
     message->>'message_num' as message_num,
-    headers->>'x-pgmq-fifo' as fifo_group
-FROM pgmq.read_fifo('fifo_comparison_test', 30, 10)
+    headers->>'x-pgmq-group' as fifo_group
+FROM pgmq.read_fifo_rr('fifo_comparison_test', 30, 10)
 ORDER BY msg_id;
 
 -- Reset visibility timeout for all messages to test again
 UPDATE pgmq.q_fifo_comparison_test SET vt = clock_timestamp() - interval '1 second';
 
--- Test 2: New pgmq.read_fifo_sqs_style() behavior
+-- Test 2: SQS-Style read_fifo() behavior
 -- Should attempt to return as many messages as possible from the same group
 -- Expected: Up to 10 messages, prioritizing group A (which has 5), then B, then C
 SELECT 
@@ -83,8 +83,8 @@ SELECT
     msg_id,
     message->>'group' as group_id,
     message->>'message_num' as message_num,
-    headers->>'x-pgmq-fifo' as fifo_group
-FROM pgmq.read_fifo_sqs_style('fifo_comparison_test', 30, 10)
+    headers->>'x-pgmq-group' as fifo_group
+FROM pgmq.read_fifo('fifo_comparison_test', 30, 10)
 ORDER BY msg_id;
 
 -- Reset again for next test
@@ -97,8 +97,8 @@ SELECT
     msg_id,
     message->>'group' as group_id,
     message->>'message_num' as message_num,
-    headers->>'x-pgmq-fifo' as fifo_group
-FROM pgmq.read_fifo_sqs_style('fifo_comparison_test', 30, 3)
+    headers->>'x-pgmq-group' as fifo_group
+FROM pgmq.read_fifo('fifo_comparison_test', 30, 3)
 ORDER BY msg_id;
 
 -- Reset again
@@ -111,8 +111,8 @@ SELECT
     msg_id,
     message->>'group' as group_id,
     message->>'message_num' as message_num,
-    headers->>'x-pgmq-fifo' as fifo_group
-FROM pgmq.read_fifo_sqs_style('fifo_comparison_test', 30, 7)
+    headers->>'x-pgmq-group' as fifo_group
+FROM pgmq.read_fifo('fifo_comparison_test', 30, 7)
 ORDER BY msg_id;
 
 -- Test 5: Demonstrate behavior after processing some messages
@@ -128,18 +128,18 @@ SELECT
     msg_id,
     message->>'group' as group_id,
     message->>'message_num' as message_num,
-    headers->>'x-pgmq-fifo' as fifo_group
-FROM pgmq.read_fifo_sqs_style('fifo_comparison_test', 30, 10)
+    headers->>'x-pgmq-group' as fifo_group
+FROM pgmq.read_fifo('fifo_comparison_test', 30, 10)
 ORDER BY msg_id;
 
 -- Test 6: Test with mixed groups (some with FIFO header, some without)
 -- Add messages without FIFO header (will go to default group)
 SELECT pgmq.send('fifo_comparison_test', 
-    '{"group": "default", "message_num": 1, "data": "Default group message 1"}'
+    '{"group": "default", "message_num": 1, "data": "Default group message 1"}'::jsonb
 );
 
 SELECT pgmq.send('fifo_comparison_test', 
-    '{"group": "default", "message_num": 2, "data": "Default group message 2"}'
+    '{"group": "default", "message_num": 2, "data": "Default group message 2"}'::jsonb
 );
 
 -- Reset visibility
@@ -151,18 +151,18 @@ SELECT
     msg_id,
     message->>'group' as group_id,
     message->>'message_num' as message_num,
-    COALESCE(headers->>'x-pgmq-fifo', 'default') as fifo_group
-FROM pgmq.read_fifo_sqs_style('fifo_comparison_test', 30, 10)
+    COALESCE(headers->>'x-pgmq-group', 'default') as fifo_group
+FROM pgmq.read_fifo('fifo_comparison_test', 30, 10)
 ORDER BY msg_id;
 
 -- Summary of expected behavior differences:
 -- 
--- Original pgmq.read_fifo():
--- - Returns at most 1 message per FIFO group
--- - Provides "fair" distribution across groups
+-- pgmq.read_fifo_rr():
+-- - Returns at most 1 message per FIFO group per batch layer
+-- - Provides fair distribution across groups (layered interleaving)
 -- - Good for ensuring all groups get processed
 --
--- New pgmq.read_fifo_sqs_style():
+-- pgmq.read_fifo():
 -- - Attempts to fill batch from earliest group first
 -- - Maximizes throughput for related messages
 -- - Mimics AWS SQS FIFO batch retrieval behavior
