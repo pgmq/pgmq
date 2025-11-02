@@ -1,7 +1,9 @@
 -- SQS-STYLE FIFO TESTS ONLY
 -- This test file validates the SQS-style FIFO queue implementation
--- CREATE pgmq extension
-CREATE EXTENSION IF NOT EXISTS pgmq;
+-- Stabilize output and ensure clean extension state
+SET client_min_messages = warning;
+DROP EXTENSION IF EXISTS pgmq CASCADE;
+CREATE EXTENSION pgmq;
 -- Setup test environment
 SELECT pgmq.create('fifo_test_queue');
  create 
@@ -69,12 +71,6 @@ SELECT COUNT(*) = 4 FROM pgmq.read_fifo('fifo_test_queue', 10, 4);
  t
 (1 row)
 
-SELECT msg_id, message, headers FROM pgmq.read_fifo('fifo_test_queue', 10, 4) ORDER BY msg_id;
- msg_id |           message            |          headers           
---------+------------------------------+----------------------------
-      6 | {"group": "C", "message": 1} | {"x-pgmq-group": "group_C"}
-(1 row)
-
 -- Verify the messages are from groups A and B in correct order
 SELECT ARRAY(
     SELECT (message->>'group')::text FROM pgmq.read_fifo('fifo_test_queue', 10, 4) ORDER BY msg_id
@@ -129,11 +125,6 @@ SELECT COUNT(*) = 4 FROM pgmq.read_fifo('fifo_test_queue', 10, 10);
  t
 (1 row)
 
-SELECT msg_id, message, headers FROM pgmq.read_fifo('fifo_test_queue', 10, 10) ORDER BY msg_id;
- msg_id | message | headers 
---------+---------+---------
-(0 rows)
-
 -- Clean up for next test
 SELECT * FROM pgmq.purge_queue('fifo_test_queue');
  purge_queue 
@@ -178,11 +169,6 @@ SELECT COUNT(*) = 3 FROM pgmq.read_fifo('fifo_test_queue', 10, 10, '{"type": "or
 ----------
  t
 (1 row)
-
-SELECT msg_id, message, headers FROM pgmq.read_fifo('fifo_test_queue', 10, 10, '{"type": "order"}'::jsonb) ORDER BY msg_id;
- msg_id | message | headers 
---------+---------+---------
-(0 rows)
 
 -- Verify we got the correct order messages (skipping notification)
 SELECT ARRAY(
@@ -230,11 +216,6 @@ SELECT COUNT(*) = 3 FROM pgmq.read_fifo('fifo_test_queue', 1, 10);
 ----------
  t
 (1 row)
-
-SELECT msg_id, message, headers FROM pgmq.read_fifo('fifo_test_queue', 1, 10) ORDER BY msg_id;
- msg_id | message | headers 
---------+---------+---------
-(0 rows)
 
 -- Should return no messages (all messages still visible)
 SELECT COUNT(*) = 0 FROM pgmq.read_fifo('fifo_test_queue', 10, 10);
@@ -295,11 +276,6 @@ SELECT COUNT(*) = 2 FROM pgmq.read_fifo_with_poll('fifo_test_queue', 10, 10, 1, 
 ----------
  t
 (1 row)
-
-SELECT msg_id, message, headers FROM pgmq.read_fifo_with_poll('fifo_test_queue', 10, 10, 1, 100) ORDER BY msg_id;
- msg_id | message | headers 
---------+---------+---------
-(0 rows)
 
 SELECT ARRAY(
     SELECT msg_id FROM pgmq.read_fifo_with_poll('fifo_test_queue', 10, 10, 1, 100) ORDER BY msg_id

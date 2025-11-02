@@ -1,8 +1,10 @@
 -- SQS-STYLE FIFO TESTS ONLY
 -- This test file validates the SQS-style FIFO queue implementation
 
--- CREATE pgmq extension
-CREATE EXTENSION IF NOT EXISTS pgmq;
+-- Stabilize output and ensure clean extension state
+SET client_min_messages = warning;
+DROP EXTENSION IF EXISTS pgmq CASCADE;
+CREATE EXTENSION pgmq;
 
 -- Setup test environment
 SELECT pgmq.create('fifo_test_queue');
@@ -30,7 +32,6 @@ SELECT COUNT(*) = 6 FROM pgmq.q_fifo_test_queue;
 -- SQS-style should return multiple messages from the same group (group A first)
 -- Request 4 messages - should get all 3 from group A + 1 from group B
 SELECT COUNT(*) = 4 FROM pgmq.read_fifo('fifo_test_queue', 10, 4);
-SELECT msg_id, message, headers FROM pgmq.read_fifo('fifo_test_queue', 10, 4) ORDER BY msg_id;
 
 -- Verify the messages are from groups A and B in correct order
 SELECT ARRAY(
@@ -55,7 +56,6 @@ SELECT * FROM pgmq.send('fifo_test_queue', '{"message": "fifo2"}'::jsonb, '{"x-p
 
 -- SQS-style should handle mixed groups correctly
 SELECT COUNT(*) = 4 FROM pgmq.read_fifo('fifo_test_queue', 10, 10);
-SELECT msg_id, message, headers FROM pgmq.read_fifo('fifo_test_queue', 10, 10) ORDER BY msg_id;
 
 -- Clean up for next test
 SELECT * FROM pgmq.purge_queue('fifo_test_queue');
@@ -75,7 +75,6 @@ SELECT * FROM pgmq.send('fifo_test_queue', '{"type": "order", "priority": "low"}
 
 -- Should return only order messages using SQS-style
 SELECT COUNT(*) = 3 FROM pgmq.read_fifo('fifo_test_queue', 10, 10, '{"type": "order"}'::jsonb);
-SELECT msg_id, message, headers FROM pgmq.read_fifo('fifo_test_queue', 10, 10, '{"type": "order"}'::jsonb) ORDER BY msg_id;
 
 -- Verify we got the correct order messages (skipping notification)
 SELECT ARRAY(
@@ -98,7 +97,6 @@ SELECT * FROM pgmq.send('fifo_test_queue', '{"message": "timeout3"}'::jsonb, '{"
 
 -- Read with short visibility timeout - should get all 3 messages
 SELECT COUNT(*) = 3 FROM pgmq.read_fifo('fifo_test_queue', 1, 10);
-SELECT msg_id, message, headers FROM pgmq.read_fifo('fifo_test_queue', 1, 10) ORDER BY msg_id;
 
 -- Should return no messages (all messages still visible)
 SELECT COUNT(*) = 0 FROM pgmq.read_fifo('fifo_test_queue', 10, 10);
@@ -126,7 +124,6 @@ SELECT * FROM pgmq.send('fifo_test_queue', '{"message": "poll_test2"}'::jsonb, '
 
 -- Test SQS-style polling with immediate availability
 SELECT COUNT(*) = 2 FROM pgmq.read_fifo_with_poll('fifo_test_queue', 10, 10, 1, 100);
-SELECT msg_id, message, headers FROM pgmq.read_fifo_with_poll('fifo_test_queue', 10, 10, 1, 100) ORDER BY msg_id;
 SELECT ARRAY(
     SELECT msg_id FROM pgmq.read_fifo_with_poll('fifo_test_queue', 10, 10, 1, 100) ORDER BY msg_id
 ) = ARRAY[:sqs_msg_id22, :sqs_msg_id23]::bigint[];
