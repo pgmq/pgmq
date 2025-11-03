@@ -4,14 +4,17 @@
 
 ### send
 
-Send a single message to a queue.
+Send a single message to a queue with optional headers and delay.
+
+**Signatures:**
 
 ```text
-pgmq.send(
-    queue_name text,
-    msg jsonb,
-    delay integer DEFAULT 0
-)
+pgmq.send(queue_name text, msg jsonb)
+pgmq.send(queue_name text, msg jsonb, headers jsonb)
+pgmq.send(queue_name text, msg jsonb, delay integer)
+pgmq.send(queue_name text, msg jsonb, delay timestamp with time zone)
+pgmq.send(queue_name text, msg jsonb, headers jsonb, delay integer)
+pgmq.send(queue_name text, msg jsonb, headers jsonb, delay timestamp with time zone)
 
 RETURNS SETOF bigint
 ```
@@ -22,52 +25,81 @@ RETURNS SETOF bigint
 | :---        |    :----   |          :--- |
 | queue_name      | text       | The name of the queue   |
 | msg   | jsonb        | The message to send to the queue      |
-| delay   | integer/timestampz        | Time in seconds before the message becomes visible, or a timestamp of when it becomes visible. Defaults to 0.      |
+| headers   | jsonb        | Optional message headers/metadata      |
+| delay   | integer        | Time in seconds before the message becomes visible      |
+| delay   | timestamp with time zone        | Timestamp when the message becomes visible      |
 
-Example:
+**Returns:** The ID of the message that was added to the queue.
+
+Examples:
 
 ```sql
+-- Send a message
 select * from pgmq.send('my_queue', '{"hello": "world"}');
  send
 ------
-    4
+    1
+
+-- Send a message with headers
+select * from pgmq.send('my_queue', '{"hello": "world"}', '{"trace_id": "abc123"}');
+ send
+------
+    2
 
 -- Message with a delay of 5 seconds
 select * from pgmq.send('my_queue', '{"hello": "world"}', 5);
  send
 ------
-    5
+    3
 
 -- Message readable from tomorrow
 select * from pgmq.send('my_queue', '{"hello": "world"}', CURRENT_TIMESTAMP + INTERVAL '1 day');
  send
 ------
-    6
+    4
+
+-- Message with headers and delay
+select * from pgmq.send('my_queue', '{"hello": "world"}', '{"priority": "high"}', 10);
+ send
+------
+    5
 ```
 
 ---
 
 ### send_batch
 
-Send 1 or more messages to a queue.
+Send 1 or more messages to a queue with optional headers and delay.
+
+**Signatures:**
 
 ```text
-pgmq.send_batch(
-    queue_name text,
-    msgs jsonb[],
-    delay integer DEFAULT 0
-)
+pgmq.send_batch(queue_name text, msgs jsonb[])
+pgmq.send_batch(queue_name text, msgs jsonb[], headers jsonb[])
+pgmq.send_batch(queue_name text, msgs jsonb[], delay integer)
+pgmq.send_batch(queue_name text, msgs jsonb[], delay timestamp with time zone)
+pgmq.send_batch(queue_name text, msgs jsonb[], headers jsonb[], delay integer)
+pgmq.send_batch(queue_name text, msgs jsonb[], headers jsonb[], delay timestamp with time zone)
+
 RETURNS SETOF bigint
 ```
+
 **Parameters:**
 
 | Parameter      | Type | Description     |
 | :---        |    :----   |          :--- |
 | queue_name      | text       | The name of the queue   |
 | msgs   | jsonb[]       | Array of messages to send to the queue      |
-| delay   | integer/timestampz        | Time in seconds before the messages becomes visible, or a timestamp of when it becomes visible. Defaults to 0.      |
+| headers   | jsonb[]       | Array of headers for each message (must match msgs length, or can be omitted)      |
+| delay   | integer        | Time in seconds before the messages become visible      |
+| delay   | timestamp with time zone        | Timestamp when the messages become visible      |
+
+**Returns:** The IDs of the messages that were added to the queue.
+
+Examples:
 
 ```sql
+-- Send multiple messages
 select * from pgmq.send_batch('my_queue',
     ARRAY[
         '{"hello": "world_0"}',
@@ -79,20 +111,17 @@ select * from pgmq.send_batch('my_queue',
           1
           2
 
--- Message with a delay of 5 seconds
+-- Send with headers for each message
 select * from pgmq.send_batch('my_queue',
-    ARRAY[
-        '{"hello": "world_0"}',
-        '{"hello": "world_1"}'
-    ]::jsonb[],
-    5
+    ARRAY['{"hello": "world_0"}', '{"hello": "world_1"}']::jsonb[],
+    ARRAY['{"trace_id": "abc"}', '{"trace_id": "def"}']::jsonb[]
 );
  send_batch
 ------------
           3
           4
 
--- Message readable from tomorrow
+-- Messages with a delay of 5 seconds
 select * from pgmq.send_batch('my_queue',
     ARRAY[
         '{"hello": "world_0"}',
@@ -102,8 +131,21 @@ select * from pgmq.send_batch('my_queue',
 );
  send_batch
 ------------
+          5
           6
+
+-- Messages readable from tomorrow
+select * from pgmq.send_batch('my_queue',
+    ARRAY[
+        '{"hello": "world_0"}',
+        '{"hello": "world_1"}'
+    ]::jsonb[],
+    CURRENT_TIMESTAMP + INTERVAL '1 day'
+);
+ send_batch
+------------
           7
+          8
 ```
 
 ---
@@ -132,7 +174,7 @@ RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
 | :---        |  :----   |  :--- |
 | queue_name  | text     | The name of the queue   |
 | vt          | integer  | Time in seconds that the message become invisible after reading |
-| qty         | integer  | The number of messages to read from the queue. Defaults to 1 |
+| qty         | integer  | The number of messages to read from the queue |
 | conditional | jsonb    | Filters the messages by their json content. Defaults to '{}' - no filtering. **This feature is experimental, and the API is subject to change in future releases**  |
 
 Examples:
@@ -141,10 +183,10 @@ Read messages from a queue
 
 ```sql
 select * from pgmq.read('my_queue', 10, 2);
- msg_id | read_ct |          enqueued_at          |              vt               |       message
---------+---------+-------------------------------+-------------------------------+----------------------
-      1 |       1 | 2023-10-28 19:14:47.356595-05 | 2023-10-28 19:17:08.608922-05 | {"hello": "world_0"}
-      2 |       1 | 2023-10-28 19:14:47.356595-05 | 2023-10-28 19:17:08.608974-05 | {"hello": "world_1"}
+ msg_id | read_ct |          enqueued_at          |              vt               |       message        | headers
+--------+---------+-------------------------------+-------------------------------+----------------------+---------
+      1 |       1 | 2023-10-28 19:14:47.356595-05 | 2023-10-28 19:17:08.608922-05 | {"hello": "world_0"} |
+      2 |       1 | 2023-10-28 19:14:47.356595-05 | 2023-10-28 19:17:08.608974-05 | {"hello": "world_1"} |
 (2 rows)
 ```
 
@@ -152,9 +194,9 @@ Read a message from a queue with message filtering
 
 ```sql
 select * from pgmq.read('my_queue', 10, 2, '{"hello": "world_1"}');
- msg_id | read_ct |          enqueued_at          |              vt               |       message
---------+---------+-------------------------------+-------------------------------+----------------------
-      2 |       1 | 2023-10-28 19:14:47.356595-05 | 2023-10-28 19:17:08.608974-05 | {"hello": "world_1"}
+ msg_id | read_ct |          enqueued_at          |              vt               |       message        | headers
+--------+---------+-------------------------------+-------------------------------+----------------------+---------
+      2 |       1 | 2023-10-28 19:14:47.356595-05 | 2023-10-28 19:17:08.608974-05 | {"hello": "world_1"} |
 (1 row)
 ```
 
@@ -186,7 +228,7 @@ RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
 | :---        |    :----   |          :--- |
 | queue_name      | text       | The name of the queue   |
 | vt   | integer       | Time in seconds that the message become invisible after reading.      |
-| qty   | integer        | The number of messages to read from the queue. Defaults to 1.      |
+| qty   | integer        | The number of messages to read from the queue      |
 | max_poll_seconds   | integer        | Time in seconds to wait for new messages to reach the queue. Defaults to 5.      |
 | poll_interval_ms   | integer        | Milliseconds between the internal poll operations. Defaults to 100.      |
 | conditional | jsonb    | Filters the messages by their json content. Defaults to '{}' - no filtering. **This feature is experimental, and the API is subject to change in future releases** |
@@ -195,22 +237,22 @@ Example:
 
 ```sql
 select * from pgmq.read_with_poll('my_queue', 1, 1, 5, 100);
- msg_id | read_ct |          enqueued_at          |              vt               |      message
---------+---------+-------------------------------+-------------------------------+--------------------
-      1 |       1 | 2023-10-28 19:09:09.177756-05 | 2023-10-28 19:27:00.337929-05 | {"hello": "world"}
+ msg_id | read_ct |          enqueued_at          |              vt               |      message       | headers
+--------+---------+-------------------------------+-------------------------------+--------------------+---------
+      1 |       1 | 2023-10-28 19:09:09.177756-05 | 2023-10-28 19:27:00.337929-05 | {"hello": "world"} |
 ```
 
 ---
 
 ### pop
 
-Reads a single message from a queue and deletes it upon read.
+Reads one or more messages from a queue and deletes them upon read.
 
 Note: utilization of pop() results in at-most-once delivery semantics if the consuming application does not guarantee processing of the message.
 
 <pre>
  <code>
-pgmq.pop(queue_name text)
+pgmq.pop(queue_name text, qty integer DEFAULT 1)
 RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
  </code>
 </pre>
@@ -220,14 +262,15 @@ RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
 | Parameter      | Type | Description     |
 | :---        |    :----   |          :--- |
 | queue_name      | text       | The name of the queue   |
+| qty      | integer       | The number of messages to pop from the queue. Defaults to 1.   |
 
 Example:
 
 ```sql
 pgmq=# select * from pgmq.pop('my_queue');
- msg_id | read_ct |          enqueued_at          |              vt               |      message
---------+---------+-------------------------------+-------------------------------+--------------------
-      1 |       2 | 2023-10-28 19:09:09.177756-05 | 2023-10-28 19:27:00.337929-05 | {"hello": "world"}
+ msg_id | read_ct |          enqueued_at          |              vt               |      message       | headers
+--------+---------+-------------------------------+-------------------------------+--------------------+---------
+      1 |       2 | 2023-10-28 19:09:09.177756-05 | 2023-10-28 19:27:00.337929-05 | {"hello": "world"} |
 ```
 
 ---
@@ -306,7 +349,7 @@ Permanently deletes all messages in a queue. Returns the number of messages that
 
 ```text
 pgmq.purge_queue(queue_name text)
-RETURN bigint
+RETURNS bigint
 ```
 
 **Parameters:**
@@ -344,8 +387,10 @@ RETURNS boolean
 | queue_name      | text       | The name of the queue   |
 | msg_id      | bigint       | Message ID of the message to archive   |
 
-Returns
+**Returns:**
 Boolean value indicating success or failure of the operation.
+
+**Note:** Archived messages are stored in the archive table with an additional `archived_at` timestamp field indicating when the message was archived.
 
 Example; remove message with ID 1 from queue `my_queue` and archive it:
 
@@ -413,7 +458,7 @@ RETURNS VOID
 
 | Parameter      | Type | Description     |
 | :---        |    :----   |          :--- |
-| queue_name      | text       | The name of the queue   |
+| queue_name      | text       | The name of the queue (max 47 characters)   |
 
 Example:
 
@@ -425,13 +470,38 @@ select from pgmq.create('my_queue');
 
 ---
 
+### create_non_partitioned
+
+Create a non-partitioned queue. This is the same as `create()`, but more explicit about the queue type.
+
+```text
+pgmq.create_non_partitioned(queue_name text)
+RETURNS void
+```
+
+**Parameters:**
+
+| Parameter      | Type | Description     |
+| :---        |    :----   |          :--- |
+| queue_name      | text       | The name of the queue (max 47 characters)   |
+
+Example:
+
+```sql
+select from pgmq.create_non_partitioned('my_queue');
+ create_non_partitioned
+------------------------
+```
+
+---
+
 ### create_partitioned
 
-Create a partitioned queue.
+Create a partitioned queue. Requires the `pg_partman` extension to be installed.
 
 ```text
 pgmq.create_partitioned (
-    queue-ue_name text,
+    queue_name text,
     partition_interval text DEFAULT '10000'::text,
     retention_interval text DEFAULT '100000'::text
 )
@@ -442,9 +512,9 @@ RETURNS void
 
 | Parameter      | Type | Description     |
 | :---        |    :----   |          :--- |
-| queue_name      | text       | The name of the queue   |
-| partition_interval      | text       | The name of the queue   |
-| retention_interval      | text       | The name of the queue   |
+| queue_name      | text       | The name of the queue (max 47 characters)   |
+| partition_interval      | text       | Partition size - numeric value for msg_id-based partitioning (e.g., '10000'), or time interval for timestamp-based partitioning (e.g., '1 day'). Defaults to '10000'.   |
+| retention_interval      | text       | How long/how many messages to retain before deleting old partitions. Same format as partition_interval. Defaults to '100000'.   |
 
 Example:
 
@@ -488,13 +558,51 @@ select pgmq.create_unlogged('my_unlogged');
 
 ---
 
+### convert_archive_partitioned
+
+Convert an existing non-partitioned archive table to a partitioned one. Requires the `pg_partman` extension to be installed. This is useful for migrating queues to partitioned archives after they have been created.
+
+```text
+pgmq.convert_archive_partitioned(
+    table_name text,
+    partition_interval text DEFAULT '10000'::text,
+    retention_interval text DEFAULT '100000'::text,
+    leading_partition integer DEFAULT 10
+)
+RETURNS void
+```
+
+**Parameters:**
+
+| Parameter      | Type | Description     |
+| :---        |    :----   |          :--- |
+| table_name      | text       | The name of the queue whose archive should be partitioned   |
+| partition_interval      | text       | Partition size - numeric value for msg_id-based partitioning (e.g., '10000'), or time interval for timestamp-based partitioning (e.g., '1 day'). Defaults to '10000'.   |
+| retention_interval      | text       | How long/how many messages to retain before deleting old partitions. Same format as partition_interval. Defaults to '100000'.   |
+| leading_partition      | integer       | Number of partitions to create in advance. Defaults to 10.   |
+
+**Note:** This function renames the existing archive table to `<table_name>_old` and creates a new partitioned table. You may need to migrate data from the old table to the new one.
+
+Example:
+
+```sql
+select from pgmq.convert_archive_partitioned('my_queue', '10000', '100000');
+ convert_archive_partitioned
+-----------------------------
+```
+
+---
+
 ### detach_archive
+
+**⚠️ DEPRECATED:** This function is deprecated and is now a no-op (does nothing). It will be removed in PGMQ v2.0. Archive tables are no longer member objects of the extension.
 
 Drop the queue's archive table as a member of the PGMQ extension. Useful for preventing the queue's archive table from being drop when `DROP EXTENSION pgmq` is executed.
  This does not prevent the further archives() from appending to the archive table.
 
 ```text
 pgmq.detach_archive(queue_name text)
+RETURNS void
 ```
 
 **Parameters:**
@@ -528,6 +636,8 @@ RETURNS boolean
 | :---        |    :----   |          :--- |
 | queue_name      | text       | The name of the queue   |
 
+**Note:** There is a deprecated 2-parameter version `drop_queue(queue_name, partitioned)` that will be removed in PGMQ v2.0. Use the single-parameter version instead, which automatically detects whether the queue is partitioned.
+
 Example:
 
 ```sql
@@ -547,9 +657,9 @@ Sets the visibility timeout of a message to a specified time duration in the fut
 pgmq.set_vt(
     queue_name text,
     msg_id bigint,
-    vt_offset integer
+    vt integer
 )
-RETURNS pgmq.message_record
+RETURNS SETOF pgmq.message_record
 ```
 
 **Parameters:**
@@ -558,7 +668,7 @@ RETURNS pgmq.message_record
 | :---        |    :----   |          :--- |
 | queue_name  | text         | The name of the queue   |
 | msg_id      | bigint       | ID of the message to set visibility time  |
-| vt_offset   | integer      | Duration from now, in seconds, that the message's VT should be set to   |
+| vt   | integer      | Duration from now, in seconds, that the message's VT should be set to   |
 
 Example:
 
@@ -566,9 +676,9 @@ Set the visibility timeout of message 1 to 30 seconds from now.
 
 ```sql
 select * from pgmq.set_vt('my_queue', 11, 30);
- msg_id | read_ct |          enqueued_at          |              vt               |       message
---------+---------+-------------------------------+-------------------------------+----------------------
-     1 |       0 | 2023-10-28 19:42:21.778741-05 | 2023-10-28 19:59:34.286462-05 | {"hello": "world_0"}
+ msg_id | read_ct |          enqueued_at          |              vt               |       message        | headers
+--------+---------+-------------------------------+-------------------------------+----------------------+---------
+     1 |       0 | 2023-10-28 19:42:21.778741-05 | 2023-10-28 19:59:34.286462-05 | {"hello": "world_0"} |
 ```
 
 ---
@@ -579,12 +689,7 @@ List all the queues that currently exist.
 
 ```sql
 pgmq.list_queues()
-RETURNS TABLE(
-    queue_name text,
-    created_at timestamp with time zone,
-    is_partitioned boolean,
-    is_unlogged boolean
-)
+RETURNS SETOF pgmq.queue_record
 ```
 
 Example:
@@ -605,15 +710,8 @@ select * from pgmq.list_queues();
 Get metrics for a specific queue.
 
 ```text
-pgmq.metrics(queue_name: text)
-RETURNS TABLE(
-    queue_name text,
-    queue_length bigint,
-    newest_msg_age_sec integer,
-    oldest_msg_age_sec integer,
-    total_messages bigint,
-    scrape_time timestamp with time zone
-)
+pgmq.metrics(queue_name text)
+RETURNS pgmq.metrics_result
 ```
 
 **Parameters:**
@@ -632,6 +730,7 @@ RETURNS TABLE(
 | oldest_msg_age_sec   | integer \| null    | Age of the oldest message in the queue, in seconds   |
 | total_messages   | bigint      | Total number of messages that have passed through the queue over all time   |
 | scrape_time   | timestamp with time zone      | The current timestamp   |
+| queue_visible_length | bigint | Number of messages currently visible (vt <= now) |
 
 Example:
 
@@ -650,14 +749,7 @@ Get metrics for all existing queues.
 
 ```text
 pgmq.metrics_all()
-RETURNS TABLE(
-    queue_name text,
-    queue_length bigint,
-    newest_msg_age_sec integer,
-    oldest_msg_age_sec integer,
-    total_messages bigint,
-    scrape_time timestamp with time zone
-)
+RETURNS SETOF pgmq.metrics_result
 ```
 
 **Returns:**
@@ -670,6 +762,7 @@ RETURNS TABLE(
 | oldest_msg_age_sec   | integer \| null    | Age of the oldest message in the queue, in seconds   |
 | total_messages   | bigint      | Total number of messages that have passed through the queue over all time   |
 | scrape_time   | timestamp with time zone      | The current timestamp   |
+| queue_visible_length | bigint | Number of messages currently visible (vt <= now) |
 
 ```sql
 select * from pgmq.metrics_all();
@@ -678,4 +771,59 @@ select * from pgmq.metrics_all();
  my_queue             |           16 |               2563 |               2565 |             35 | 2023-10-28 20:25:07.016413-05
  my_partitioned_queue |            1 |                 11 |                 11 |              1 | 2023-10-28 20:25:07.016413-05
  my_unlogged          |            1 |                  3 |                  3 |              1 | 2023-10-28 20:25:07.016413-05
+```
+
+---
+
+### enable_notify_insert
+
+Enable PostgreSQL NOTIFY triggers for a queue. When enabled, a notification is sent on the channel `pgmq.<queue_table>.INSERT` every time a message is inserted. This allows applications to use `LISTEN` to be notified immediately when new messages arrive, instead of polling.
+
+```text
+pgmq.enable_notify_insert(queue_name text)
+RETURNS void
+```
+
+**Parameters:**
+
+| Parameter      | Type | Description     |
+| :---        |    :----   |          :--- |
+| queue_name      | text       | The name of the queue   |
+
+**Note:** The notification channel will be named `pgmq.q_<queue_name>.INSERT` where `q_<queue_name>` is the internal table name.
+
+Example:
+
+```sql
+select pgmq.enable_notify_insert('my_queue');
+ enable_notify_insert
+----------------------
+
+-- In another session, listen for notifications:
+-- LISTEN "pgmq.q_my_queue.INSERT";
+```
+
+---
+
+### disable_notify_insert
+
+Disable PostgreSQL NOTIFY triggers for a queue that were enabled with `enable_notify_insert()`.
+
+```text
+pgmq.disable_notify_insert(queue_name text)
+RETURNS void
+```
+
+**Parameters:**
+
+| Parameter      | Type | Description     |
+| :---        |    :----   |          :--- |
+| queue_name      | text       | The name of the queue   |
+
+Example:
+
+```sql
+select pgmq.disable_notify_insert('my_queue');
+ disable_notify_insert
+-----------------------
 ```
