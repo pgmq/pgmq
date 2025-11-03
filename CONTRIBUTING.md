@@ -194,15 +194,15 @@ make installcheck
 
 ### Syncing Documentation with Source Code
 
-When making changes to `pgmq-extension/sql/pgmq.sql`, the documentation must be updated to stay in sync. A comprehensive guide is available in `.claude/commands/sync-docs-and-readme.md` to help with this process.
+When making changes to `pgmq-extension/sql/pgmq.sql`, the documentation must be updated to stay in sync. A comprehensive guide is available in `.claude/commands/pgmq/update-docs.md` to help with this process.
 
 **With Claude Code:**
 ```bash
-/sync-docs-and-readme
+/pgmq:update-docs
 ```
 
 **With other AI assistants (ChatGPT, Copilot, etc.):**
-Copy-paste the contents of `.claude/commands/sync-docs-and-readme.md` to your AI assistant.
+Copy-paste the contents of `.claude/commands/pgmq/update-docs.md` to your AI assistant.
 
 This command provides:
 - Step-by-step verification process
@@ -217,7 +217,7 @@ The documentation files that need to be kept in sync:
 
 **Important:**
 1. Always review the generated documentation changes by hand to ensure accuracy
-2. After updating the docs, run `/sync-docs-and-readme` again to verify all changes are correct and no issues were introduced
+2. After updating the docs, run `/pgmq:update-docs` again to verify all changes are correct and no issues were introduced
 
 Note: The root `README.md` is a symlink to `pgmq-extension/README.md`, so only edit the latter.
 
