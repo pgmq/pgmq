@@ -158,10 +158,10 @@ SELECT * FROM pgmq.read(
 ```
 
 ```text
- msg_id | read_ct |          enqueued_at          |              vt               |     message
---------+---------+-------------------------------+-------------------------------+-----------------
-      1 |       1 | 2023-08-16 08:37:54.567283-05 | 2023-08-16 08:38:29.989841-05 | {"foo": "bar1"}
-      2 |       1 | 2023-08-16 08:37:54.572933-05 | 2023-08-16 08:38:29.989841-05 | {"foo": "bar2"}
+ msg_id | read_ct |          enqueued_at          |              vt               |     message      | headers
+--------+---------+-------------------------------+-------------------------------+------------------+---------
+      1 |       1 | 2023-08-16 08:37:54.567283-05 | 2023-08-16 08:38:29.989841-05 | {"foo": "bar1"}  |
+      2 |       1 | 2023-08-16 08:37:54.572933-05 | 2023-08-16 08:38:29.989841-05 | {"foo": "bar2"}  |
 ```
 
 If the queue is empty, or if all messages are currently invisible, no rows will be returned.
@@ -175,8 +175,8 @@ SELECT * FROM pgmq.read(
 ```
 
 ```text
- msg_id | read_ct | enqueued_at | vt | message
---------+---------+-------------+----+---------
+ msg_id | read_ct | enqueued_at | vt | message | headers
+--------+---------+-------------+----+---------+---------
 ```
 
 ### Pop a message
@@ -187,9 +187,9 @@ SELECT * FROM pgmq.pop('my_queue');
 ```
 
 ```text
- msg_id | read_ct |          enqueued_at          |              vt               |     message
---------+---------+-------------------------------+-------------------------------+-----------------
-      1 |       1 | 2023-08-16 08:37:54.567283-05 | 2023-08-16 08:38:29.989841-05 | {"foo": "bar1"}
+ msg_id | read_ct |          enqueued_at          |              vt               |     message      | headers
+--------+---------+-------------------------------+-------------------------------+------------------+---------
+      1 |       1 | 2023-08-16 08:37:54.567283-05 | 2023-08-16 08:38:29.989841-05 | {"foo": "bar1"}  |
 ```
 
 ### Archive a message
@@ -257,12 +257,12 @@ SELECT * FROM pgmq.a_my_queue;
 ```
 
 ```text
- msg_id | read_ct |          enqueued_at          |          archived_at          |              vt               |     message     
---------+---------+-------------------------------+-------------------------------+-------------------------------+-----------------
-      2 |       0 | 2024-08-06 16:03:41.531556+00 | 2024-08-06 16:03:52.811063+00 | 2024-08-06 16:03:46.532246+00 | {"foo": "bar2"}
-      3 |       0 | 2024-08-06 16:03:58.586444+00 | 2024-08-06 16:04:02.85799+00  | 2024-08-06 16:03:58.587272+00 | {"foo": "bar3"}
-      4 |       0 | 2024-08-06 16:03:58.586444+00 | 2024-08-06 16:04:02.85799+00  | 2024-08-06 16:03:58.587508+00 | {"foo": "bar4"}
-      5 |       0 | 2024-08-06 16:03:58.586444+00 | 2024-08-06 16:04:02.85799+00  | 2024-08-06 16:03:58.587543+00 | {"foo": "bar5"}
+ msg_id | read_ct |          enqueued_at          |          archived_at          |              vt               |     message      | headers
+--------+---------+-------------------------------+-------------------------------+-------------------------------+------------------+---------
+      2 |       0 | 2024-08-06 16:03:41.531556+00 | 2024-08-06 16:03:52.811063+00 | 2024-08-06 16:03:46.532246+00 | {"foo": "bar2"}  |
+      3 |       0 | 2024-08-06 16:03:58.586444+00 | 2024-08-06 16:04:02.85799+00  | 2024-08-06 16:03:58.587272+00 | {"foo": "bar3"}  |
+      4 |       0 | 2024-08-06 16:03:58.586444+00 | 2024-08-06 16:04:02.85799+00  | 2024-08-06 16:03:58.587508+00 | {"foo": "bar4"}  |
+      5 |       0 | 2024-08-06 16:03:58.586444+00 | 2024-08-06 16:04:02.85799+00  | 2024-08-06 16:03:58.587543+00 | {"foo": "bar5"}  |
 ```
 
 ### Delete a message
@@ -321,9 +321,9 @@ Partitions behavior is configured at the time queues are created, via `pgmq.crea
 
 `queue_name: text`: The name of the queue. Queues are Postgres tables prepended with `q_`. For example, `q_my_queue`. The archive is instead prefixed by `a_`, for example `a_my_queue`.
 
-`partition_interval: text` - The interval at which partitions are created. This can be either any valid Postgres `Duration` supported by pg_partman, or an integer value. When it is a duration, queues are partitioned by the time at which messages are sent to the table (`enqueued_at`). A value of `'daily'` would create a new partition each day. When it is an integer value, queues are partitioned by the `msg_id`. A value of `'100'` will create a new partition every 100 messages. The value must agree with `retention_interval` (time based or numeric). The default value is `daily`. For archive table, when interval is an integer value, then it will be partitioned by `msg_id`. In case of duration it will be partitioned on `archived_at` unlike queue table.
+`partition_interval: text` - The interval at which partitions are created. This can be either any valid Postgres `Duration` supported by pg_partman, or an integer value. When it is a duration, queues are partitioned by the time at which messages are sent to the table (`enqueued_at`). A value of `'daily'` would create a new partition each day. When it is an integer value, queues are partitioned by the `msg_id`. A value of `'100'` will create a new partition every 100 messages. The value must agree with `retention_interval` (time based or numeric). The default value is `'10000'`. For archive table, when interval is an integer value, then it will be partitioned by `msg_id`. In case of duration it will be partitioned on `archived_at` unlike queue table.
 
-`retention_interval: text` - The interval for retaining partitions. This can be either any valid Postgres `Duration` supported by pg_partman, or an integer value. When it is a duration, partitions containing data greater than the duration will be dropped. When it is an integer value, any messages that have a `msg_id` less than `max(msg_id) - retention_interval` will be dropped. For example, if the max `msg_id` is 100 and the `retention_interval` is 60, any partitions with `msg_id` values less than 40 will be dropped. The value must agree with `partition_interval` (time based or numeric). The default is `'5 days'`. Note: `retention_interval` does not apply to messages that have been deleted via `pgmq.delete()` or archived with `pgmq.archive()`. `pgmq.delete()` removes messages forever and `pgmq.archive()` moves messages to the corresponding archive table forever (for example, `a_my_queue`).
+`retention_interval: text` - The interval for retaining partitions. This can be either any valid Postgres `Duration` supported by pg_partman, or an integer value. When it is a duration, partitions containing data greater than the duration will be dropped. When it is an integer value, any messages that have a `msg_id` less than `max(msg_id) - retention_interval` will be dropped. For example, if the max `msg_id` is 100 and the `retention_interval` is 60, any partitions with `msg_id` values less than 40 will be dropped. The value must agree with `partition_interval` (time based or numeric). The default is `'100000'`. Note: `retention_interval` does not apply to messages that have been deleted via `pgmq.delete()` or archived with `pgmq.archive()`. `pgmq.delete()` removes messages forever and `pgmq.archive()` moves messages to the corresponding archive table forever (for example, `a_my_queue`).
 
 In order for automatic partition maintenance to take place, several settings must be added to the `postgresql.conf` file, which is typically located in the postgres `DATADIR`.
 `pg_partman_bgw.interval`
