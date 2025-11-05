@@ -70,9 +70,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- read_fifo_rr_with_poll
+-- read_grouped_rr_with_poll
 -- reads messages using round-robin layering across groups, with polling support
-CREATE FUNCTION pgmq.read_fifo_rr_with_poll(
+CREATE FUNCTION pgmq.read_grouped_rr_with_poll(
     queue_name TEXT,
     vt INTEGER,
     qty INTEGER,
@@ -172,9 +172,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- read_fifo_round_robin
+-- read_grouped_round_robin
 -- reads messages while preserving FIFO within groups and interleaving across groups (layered round-robin)
-CREATE FUNCTION pgmq.read_fifo_rr(
+CREATE FUNCTION pgmq.read_grouped_rr(
     queue_name TEXT,
     vt INTEGER,
     qty INTEGER,
@@ -306,10 +306,10 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- read_fifo
+-- read_grouped
 -- reads messages with AWS SQS FIFO-style batch retrieval behavior
 -- attempts to return as many messages as possible from the same message group
-CREATE FUNCTION pgmq.read_fifo(
+CREATE FUNCTION pgmq.read_grouped(
     queue_name TEXT,
     vt INTEGER,
     qty INTEGER,
@@ -414,9 +414,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- read_fifo_with_poll
+-- read_grouped_with_poll
 -- reads messages with AWS SQS FIFO-style batch retrieval behavior, with polling support
-CREATE FUNCTION pgmq.read_fifo_with_poll(
+CREATE FUNCTION pgmq.read_grouped_with_poll(
     queue_name TEXT,
     vt INTEGER,
     qty INTEGER,

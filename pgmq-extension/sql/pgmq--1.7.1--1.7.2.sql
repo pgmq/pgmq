@@ -1,8 +1,8 @@
 -- FIFO queue support with message group keys
 -- This migration adds support for FIFO queues using headers to specify message group IDs
 
--- Create read_fifo_rr function that respects FIFO ordering within groups
-CREATE OR REPLACE FUNCTION pgmq.read_fifo_rr(
+-- Create read_grouped_rr function that respects FIFO ordering within groups
+CREATE OR REPLACE FUNCTION pgmq.read_grouped_rr(
     queue_name TEXT,
     vt INTEGER,
     qty INTEGER,
@@ -81,8 +81,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create read_fifo_with_poll function for polling support
-CREATE OR REPLACE FUNCTION pgmq.read_fifo_rr_with_poll(
+-- Create read_grouped_with_poll function for polling support
+CREATE OR REPLACE FUNCTION pgmq.read_grouped_rr_with_poll(
     queue_name TEXT,
     vt INTEGER,
     qty INTEGER,
@@ -220,9 +220,9 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create read_fifo function that mimics AWS SQS FIFO batch retrieval behavior
+-- Create read_grouped function that mimics AWS SQS FIFO batch retrieval behavior
 -- This function attempts to return as many messages as possible from the same message group
-CREATE OR REPLACE FUNCTION pgmq.read_fifo(
+CREATE OR REPLACE FUNCTION pgmq.read_grouped(
     queue_name TEXT,
     vt INTEGER,
     qty INTEGER,
@@ -327,8 +327,8 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- Create read_fifo_with_poll function for polling support
-CREATE OR REPLACE FUNCTION pgmq.read_fifo_with_poll(
+-- Create read_grouped_with_poll function for polling support
+CREATE OR REPLACE FUNCTION pgmq.read_grouped_with_poll(
     queue_name TEXT,
     vt INTEGER,
     qty INTEGER,

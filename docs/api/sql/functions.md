@@ -202,13 +202,13 @@ select * from pgmq.read_with_poll('my_queue', 1, 1, 5, 100);
 
 ---
 
-### read_fifo_rr
+### read_grouped_rr
 
 Read messages from a queue while respecting FIFO (First-In-First-Out) ordering within message groups. Messages with the same FIFO group ID (specified in the `x-pgmq-group` header) will be processed in strict order. Messages without FIFO headers are treated as belonging to a default group.
 
 <pre>
  <code>
-pgmq.read_fifo_rr(
+pgmq.read_grouped_rr(
     queue_name text,
     vt integer,
     qty integer,
@@ -244,7 +244,7 @@ select pgmq.send('my_queue', '{"order": 2}', '{"x-pgmq-group": "user123"}');
 select pgmq.send('my_queue', '{"order": 1}', '{"x-pgmq-group": "user456"}');
 
 -- Read with FIFO RR ordering - interleaves by group layers
-select * from pgmq.read_fifo_rr('my_queue', 10, 5);
+select * from pgmq.read_grouped_rr('my_queue', 10, 5);
  msg_id | read_ct |          enqueued_at          |              vt               |     message     |           headers
 --------+---------+-------------------------------+-------------------------------+-----------------+---------------------------
       1 |       1 | 2023-10-28 19:14:47.356595-05 | 2023-10-28 19:17:08.608922-05 | {"order": 1}   | {"x-pgmq-group": "user123"}
@@ -253,14 +253,14 @@ select * from pgmq.read_fifo_rr('my_queue', 10, 5);
 
 ---
 
-### read_fifo_rr_with_poll
+### read_grouped_rr_with_poll
 
-Same as read_fifo(). Also provides convenient long-poll functionality for FIFO queues.
+Same as read_grouped(). Also provides convenient long-poll functionality for FIFO queues.
  When there are no messages available that respect FIFO ordering, the function call will wait for `max_poll_seconds` in duration before returning.
 
 <pre>
  <code>
- pgmq.read_fifo_rr_with_poll(
+ pgmq.read_grouped_rr_with_poll(
     queue_name text,
     vt integer,
     qty integer,
@@ -286,7 +286,7 @@ RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
 Example:
 
 ```sql
-select * from pgmq.read_fifo_rr_with_poll('my_queue', 10, 1, 5, 100);
+select * from pgmq.read_grouped_rr_with_poll('my_queue', 10, 1, 5, 100);
  msg_id | read_ct |          enqueued_at          |              vt               |      message    |           headers
 --------+---------+-------------------------------+-------------------------------+-----------------+---------------------------
       1 |       1 | 2023-10-28 19:09:09.177756-05 | 2023-10-28 19:27:00.337929-05 | {"order": 1}   | {"x-pgmq-group": "user123"}

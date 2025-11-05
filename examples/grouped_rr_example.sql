@@ -43,7 +43,7 @@ SELECT
     message->>'customer_id' as customer_id,
     message->>'action' as action,
     headers->>'x-pgmq-group' as fifo_group
-FROM pgmq.read_fifo_rr('order_processing', 30, 10);
+FROM pgmq.read_grouped_rr('order_processing', 30, 10);
 
 -- Expected result: 3 messages (first from each customer group)
 -- - cust_123: create order
@@ -60,7 +60,7 @@ SELECT
     message->>'customer_id' as customer_id,
     message->>'action' as action,
     headers->>'x-pgmq-group' as fifo_group
-FROM pgmq.read_fifo_rr('order_processing', 30, 10);
+FROM pgmq.read_grouped_rr('order_processing', 30, 10);
 
 -- Example 5: Using conditional reads with FIFO
 -- Only read "create" actions
@@ -69,7 +69,7 @@ SELECT
     message->>'customer_id' as customer_id,
     message->>'action' as action,
     headers->>'x-pgmq-group' as fifo_group
-FROM pgmq.read_fifo_rr('order_processing', 30, 10, '{"action": "create"}'::jsonb);
+FROM pgmq.read_grouped_rr('order_processing', 30, 10, '{"action": "create"}'::jsonb);
 
 -- Example 6: Mixed FIFO and non-FIFO messages
 -- Send a message without FIFO header (goes to default group)
@@ -89,7 +89,7 @@ SELECT
     COALESCE(message->>'customer_id', message->>'system_message') as identifier,
     message->>'action' as action,
     COALESCE(headers->>'x-pgmq-group', 'default') as fifo_group
-FROM pgmq.read_fifo_rr('order_processing', 30, 10);
+FROM pgmq.read_grouped_rr('order_processing', 30, 10);
 
 -- Example 7: Using polling for real-time processing
 -- This will wait up to 5 seconds for new messages
@@ -98,7 +98,7 @@ SELECT
     message->>'customer_id' as customer_id,
     message->>'action' as action,
     headers->>'x-pgmq-group' as fifo_group
-FROM pgmq.read_fifo_rr_with_poll('order_processing', 30, 5, 5, 100);
+FROM pgmq.read_grouped_rr_with_poll('order_processing', 30, 5, 5, 100);
 
 -- Example 8: Visibility timeout behavior
 -- Read a message with short timeout to demonstrate blocking
@@ -106,7 +106,7 @@ SELECT
     msg_id,
     message->>'customer_id' as customer_id,
     message->>'action' as action
-FROM pgmq.read_fifo_rr('order_processing', 5, 1);
+FROM pgmq.read_grouped_rr('order_processing', 5, 1);
 
 -- Immediately try to read again - should not get the same customer's next message
 -- because the previous message is still being processed (visibility timeout)
@@ -114,7 +114,7 @@ SELECT
     msg_id,
     message->>'customer_id' as customer_id,
     message->>'action' as action
-FROM pgmq.read_fifo_rr('order_processing', 30, 10);
+FROM pgmq.read_grouped_rr('order_processing', 30, 10);
 
 -- Wait for visibility timeout to expire (5 seconds)
 SELECT pg_sleep(6);
@@ -124,7 +124,7 @@ SELECT
     msg_id,
     message->>'customer_id' as customer_id,
     message->>'action' as action
-FROM pgmq.read_fifo_rr('order_processing', 30, 10);
+FROM pgmq.read_grouped_rr('order_processing', 30, 10);
 
 -- Example 9: Error handling and message retry
 -- Set visibility timeout to 0 to make a message immediately available again
@@ -136,7 +136,7 @@ SELECT
     read_ct,
     message->>'customer_id' as customer_id,
     message->>'action' as action
-FROM pgmq.read_fifo('order_processing', 30, 10);
+FROM pgmq.read_grouped('order_processing', 30, 10);
 
 -- Example 10: Queue metrics and monitoring
 SELECT * FROM pgmq.metrics('order_processing');

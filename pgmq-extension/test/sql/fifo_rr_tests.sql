@@ -1,4 +1,4 @@
--- Tests for read_fifo_rr_with_poll round-robin polling across FIFO groups
+-- Tests for read_grouped_rr_with_poll round-robin polling across FIFO groups
 
 -- Stabilize messages and ensure a clean extension state
 SET client_min_messages = warning;
@@ -15,7 +15,7 @@ SELECT * FROM pgmq.send('fifo_rr_poll_queue', '{"n":1}'::jsonb, '{"x-pgmq-group"
 
 -- Validate we can poll and get the three heads in layered order immediately (single evaluation)
 WITH rr AS (
-  SELECT * FROM pgmq.read_fifo_rr_with_poll('fifo_rr_poll_queue', 10, 3, 1, 100)
+  SELECT * FROM pgmq.read_grouped_rr_with_poll('fifo_rr_poll_queue', 10, 3, 1, 100)
 )
 SELECT
   (SELECT COUNT(*) FROM rr) = 3,
@@ -56,13 +56,13 @@ UPDATE pgmq.q_fifo_rr_poll_queue SET vt = clock_timestamp() - interval '1 second
 SELECT 
   ARRAY(
     SELECT (headers->>'x-pgmq-group')
-    FROM pgmq.read_fifo_rr_with_poll('fifo_rr_poll_queue', 10, 10, 1, 100)
+    FROM pgmq.read_grouped_rr_with_poll('fifo_rr_poll_queue', 10, 10, 1, 100)
     ORDER BY msg_id
   ) = ARRAY['g1','g2','g3','g1','g2','g3','g1','g2','g3','g1'];
 
 -- Reset visibility and validate full layering by taking all 15 using polling
 UPDATE pgmq.q_fifo_rr_poll_queue SET vt = clock_timestamp() - interval '1 second';
-SELECT COUNT(*) = 15 FROM pgmq.read_fifo_rr_with_poll('fifo_rr_poll_queue', 10, 15, 1, 100);
+SELECT COUNT(*) = 15 FROM pgmq.read_grouped_rr_with_poll('fifo_rr_poll_queue', 10, 15, 1, 100);
 
 -- Cleanup
 SELECT pgmq.drop_queue('fifo_rr_poll_queue');
