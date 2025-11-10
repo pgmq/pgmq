@@ -77,6 +77,7 @@ Community
 - [.NET](https://github.com/brianpursley/Npgmq)
 - [Python (with SQLAlchemy)](https://github.com/jason810496/pgmq-sqlalchemy)
 - [REST-API (Bun + Elysia)](https://github.com/eichenroth/pgmq-rest)
+- [Ruby](https://github.com/mensfeld/pgmq-ruby)
 - [TypeScript (NodeJs + Prisma)](https://github.com/dvlkv/prisma-pgmq) 
 
 ## SQL Examples
