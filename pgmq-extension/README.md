@@ -79,6 +79,7 @@ Community
 - [REST-API (Bun + Elysia)](https://github.com/eichenroth/pgmq-rest)
 - [Ruby](https://github.com/mensfeld/pgmq-ruby)
 - [TypeScript (NodeJs + Prisma)](https://github.com/dvlkv/prisma-pgmq) 
+- [PHP (non blocking)](https://github.com/thesis-php/pgmq)
 
 ## SQL Examples
 
