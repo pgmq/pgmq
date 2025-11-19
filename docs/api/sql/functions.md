@@ -741,7 +741,7 @@ select * from pgmq.drop_queue('my_unlogged');
 
 ## Utilities
 
-### set_vt
+### set_vt (single)
 
 Sets the visibility timeout of a message to a specified time duration in the future. Returns the record of the message that was updated.
 
@@ -771,6 +771,41 @@ select * from pgmq.set_vt('my_queue', 11, 30);
  msg_id | read_ct |          enqueued_at          |              vt               |       message        | headers
 --------+---------+-------------------------------+-------------------------------+----------------------+---------
      1 |       0 | 2023-10-28 19:42:21.778741-05 | 2023-10-28 19:59:34.286462-05 | {"hello": "world_0"} |
+```
+
+---
+
+### set_vt (batch)
+
+Sets the visibility timeout of multiple messages to a specified time duration in the future. Returns the records of the messages that were updated.
+
+```text
+pgmq.set_vt(
+    queue_name text,
+    msg_ids bigint[],
+    vt integer
+)
+RETURNS SETOF pgmq.message_record
+```
+
+**Parameters:**
+
+| Parameter      | Type | Description     |
+| :---        |    :----   |          :--- |
+| queue_name  | text         | The name of the queue   |
+| msg_ids      | bigint[]       | Array of message IDs to set visibility time  |
+| vt   | integer      | Duration from now, in seconds, that the messages' VT should be set to   |
+
+Example:
+
+Set the visibility timeout of messages 1 and 2 to 60 seconds from now.
+
+```sql
+select * from pgmq.set_vt('my_queue', ARRAY[1, 2], 60);
+ msg_id | read_ct |          enqueued_at          |              vt               |       message        | headers
+--------+---------+-------------------------------+-------------------------------+----------------------+---------
+     1 |       0 | 2023-10-28 19:42:21.778741-05 | 2023-10-28 19:59:34.286462-05 | {"hello": "world_0"} |
+     2 |       1 | 2023-10-28 19:42:22.123456-05 | 2023-10-28 19:59:34.286501-05 | {"hello": "world_1"} |
 ```
 
 ---
