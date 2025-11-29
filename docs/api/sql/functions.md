@@ -812,10 +812,10 @@ select * from pgmq.metrics_all();
 
 ### enable_notify_insert
 
-Enable PostgreSQL NOTIFY triggers for a queue. When enabled, a notification is sent on the channel `pgmq.<queue_table>.INSERT` every time a message is inserted. This allows applications to use `LISTEN` to be notified immediately when new messages arrive, instead of polling.
+Enable PostgreSQL NOTIFY triggers for a queue with optional throttling. When enabled, a notification is sent on the channel `pgmq.<queue_table>.INSERT` every time a message is inserted (subject to throttling). This allows applications to use `LISTEN` to be notified immediately when new messages arrive, instead of polling.
 
 ```text
-pgmq.enable_notify_insert(queue_name text)
+pgmq.enable_notify_insert(queue_name text, throttle_interval_ms integer DEFAULT 250)
 RETURNS void
 ```
 
@@ -824,18 +824,56 @@ RETURNS void
 | Parameter      | Type | Description     |
 | :---        |    :----   |          :--- |
 | queue_name      | text       | The name of the queue   |
+| throttle_interval_ms | integer | Minimum milliseconds between notifications. Set to 0 to disable throttling. Defaults to 250. |
 
-**Note:** The notification channel will be named `pgmq.q_<queue_name>.INSERT` where `q_<queue_name>` is the internal table name.
+**Notes:**
 
-Example:
+- The notification channel will be named `pgmq.q_<queue_name>.INSERT` where `q_<queue_name>` is the internal table name.
+
+- **Throttling behavior**: Throttling prevents excessive notifications during high-volume inserts. When multiple messages are inserted rapidly, only one notification per throttle interval will be sent. This protects your system from notification overhead when message volume is high.
+
+- **When to use notifications**: Notifications are most valuable for queues with sporadic or low-volume traffic. During high-volume periods, consumers can continuously poll and expect work to be present. However, when there are longer gaps between messages, notifications allow the consumer to wait idle and only poll when it receives a notification, significantly reducing unnecessary polling overhead. The throttling feature ensures that during burst traffic, you don't create excessive notifications while still maintaining the notification behavior during low-volume periods.
+
+Examples:
 
 ```sql
+-- Enable notifications with default 250ms throttling
 select pgmq.enable_notify_insert('my_queue');
+ enable_notify_insert
+----------------------
+
+-- Enable notifications with custom 500ms throttling
+select pgmq.enable_notify_insert('my_queue', 500);
+ enable_notify_insert
+----------------------
+
+-- Enable notifications with no throttling (0ms)
+select pgmq.enable_notify_insert('my_queue', 0);
  enable_notify_insert
 ----------------------
 
 -- In another session, listen for notifications:
 -- LISTEN "pgmq.q_my_queue.INSERT";
+```
+
+**Changing throttling after enabling notifications:**
+
+You can modify the throttling interval for an existing queue by directly updating the `pgmq.notify_insert_throttle` table:
+
+```sql
+-- Change throttling to 1000ms (1 second)
+UPDATE pgmq.notify_insert_throttle
+SET throttle_interval_ms = 1000
+WHERE queue_name = 'my_queue';
+
+-- Disable throttling (set to 0ms)
+UPDATE pgmq.notify_insert_throttle
+SET throttle_interval_ms = 0
+WHERE queue_name = 'my_queue';
+
+-- View current throttle settings for all queues
+SELECT queue_name, throttle_interval_ms, last_notified_at
+FROM pgmq.notify_insert_throttle;
 ```
 
 ---
