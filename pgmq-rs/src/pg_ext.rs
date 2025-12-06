@@ -71,12 +71,24 @@ impl PGMQueueExt {
         self.init_with_cxn(&self.connection).await
     }
 
-    pub async fn create_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres>>(
+    pub async fn create_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres> + std::marker::Copy>(
         &self,
         queue_name: &str,
         executor: E,
     ) -> Result<bool, PgmqError> {
         check_input(queue_name)?;
+
+        let exists = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM pgmq.meta WHERE queue_name = $1::text);",
+        )
+        .bind(queue_name)
+        .fetch_one(executor)
+        .await?;
+
+        if exists {
+            return Ok(false);
+        }
+
         sqlx::query("SELECT * from pgmq.create(queue_name=>$1::text);")
             .bind(queue_name)
             .execute(executor)
@@ -85,8 +97,7 @@ impl PGMQueueExt {
     }
     /// Errors when there is any database error and Ok(false) when the queue already exists.
     pub async fn create(&self, queue_name: &str) -> Result<bool, PgmqError> {
-        self.create_with_cxn(queue_name, &self.connection).await?;
-        Ok(true)
+        self.create_with_cxn(queue_name, &self.connection).await
     }
 
     pub async fn create_unlogged_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres>>(
