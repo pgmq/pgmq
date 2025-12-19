@@ -4,14 +4,15 @@
 
 The complete representation of a message in a queue.
 
-| Attribute Name   | Type       | Description                |
-| :---             |    :----   |                       :--- |
-| msg_id           | bigint     | Unique ID of the message   |
-| read_ct          | integer     | Number of times the message has been read. Increments on read().   |
-| enqueued_at           |  timestamp with time zone     | time that the message was inserted into the queue   |
-| vt           | timestamp with time zone      | Timestamp when the message will become available for consumers to read   |
-| message           | jsonb      | The message payload   |
-| headers           | jsonb      | Optional message headers/metadata   |
+| Attribute Name   | Type                       | Description                                                              |
+| :---             | :----                      | :---                                                                     |
+| msg_id           | bigint                     | Unique ID of the message                                                 |
+| read_ct          | integer                    | Number of times the message has been read. Increments on read().         |
+| enqueued_at      | timestamp with time zone   | Timestamp when the message was inserted into the queue                   |
+| last_read_at     | timestamp with time zone   | Timestamp when the message was last read                                 |
+| vt               | timestamp with time zone   | Timestamp when the message will become available for consumers to read   |
+| message          | jsonb                      | The message payload                                                      |
+| headers          | jsonb                      | Optional message headers/metadata                                        |
 
 
 Example:

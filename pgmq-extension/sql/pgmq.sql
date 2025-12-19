@@ -59,6 +59,7 @@ CREATE TYPE pgmq.message_record AS (
     msg_id BIGINT,
     read_ct INTEGER,
     enqueued_at TIMESTAMP WITH TIME ZONE,
+    last_read_at TIMESTAMP WITH TIME ZONE,
     vt TIMESTAMP WITH TIME ZONE,
     message JSONB,
     headers JSONB
@@ -126,11 +127,12 @@ BEGIN
         )
         UPDATE pgmq.%I m
         SET
+            last_read_at = clock_timestamp(),
             vt = clock_timestamp() + %L,
             read_ct = read_ct + 1
         FROM cte
         WHERE m.msg_id = cte.msg_id
-        RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.vt, m.message, m.headers;
+        RETURNING m.*;
         $QUERY$,
         qtable, conditional, qtable, make_interval(secs => vt)
     );
@@ -177,11 +179,12 @@ BEGIN
           )
           UPDATE pgmq.%I m
           SET
+              last_read_at = clock_timestamp(),
               vt = clock_timestamp() + %L,
               read_ct = read_ct + 1
           FROM cte
           WHERE m.msg_id = cte.msg_id
-          RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.vt, m.message, m.headers;
+          RETURNING m.*;
           $QUERY$,
           qtable, conditional, qtable, make_interval(secs => vt)
       );
@@ -219,10 +222,10 @@ BEGIN
         WITH archived AS (
             DELETE FROM pgmq.%I
             WHERE msg_id = $1
-            RETURNING msg_id, vt, read_ct, enqueued_at, message, headers
+            RETURNING msg_id, vt, read_ct, enqueued_at, last_read_at, message, headers
         )
-        INSERT INTO pgmq.%I (msg_id, vt, read_ct, enqueued_at, message, headers)
-        SELECT msg_id, vt, read_ct, enqueued_at, message, headers
+        INSERT INTO pgmq.%I (msg_id, vt, read_ct, enqueued_at, last_read_at, message, headers)
+        SELECT msg_id, vt, read_ct, enqueued_at, last_read_at, message, headers
         FROM archived
         RETURNING msg_id;
         $QUERY$,
@@ -251,10 +254,10 @@ BEGIN
         WITH archived AS (
             DELETE FROM pgmq.%I
             WHERE msg_id = ANY($1)
-            RETURNING msg_id, vt, read_ct, enqueued_at, message, headers
+            RETURNING msg_id, vt, read_ct, enqueued_at, last_read_at, message, headers
         )
-        INSERT INTO pgmq.%I (msg_id, vt, read_ct, enqueued_at, message, headers)
-        SELECT msg_id, vt, read_ct, enqueued_at, message, headers
+        INSERT INTO pgmq.%I (msg_id, vt, read_ct, enqueued_at, last_read_at, message, headers)
+        SELECT msg_id, vt, read_ct, enqueued_at, last_read_at, message, headers
         FROM archived
         RETURNING msg_id;
         $QUERY$,
@@ -771,6 +774,7 @@ BEGIN
         msg_id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
         read_ct INT DEFAULT 0 NOT NULL,
         enqueued_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+        last_read_at TIMESTAMP WITH TIME ZONE,
         vt TIMESTAMP WITH TIME ZONE NOT NULL,
         message JSONB,
         headers JSONB
@@ -785,6 +789,7 @@ BEGIN
       msg_id BIGINT PRIMARY KEY,
       read_ct INT DEFAULT 0 NOT NULL,
       enqueued_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+      last_read_at TIMESTAMP WITH TIME ZONE,
       archived_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
       vt TIMESTAMP WITH TIME ZONE NOT NULL,
       message JSONB,
@@ -837,6 +842,7 @@ BEGIN
         msg_id BIGINT PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
         read_ct INT DEFAULT 0 NOT NULL,
         enqueued_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+        last_read_at TIMESTAMP WITH TIME ZONE,
         vt TIMESTAMP WITH TIME ZONE NOT NULL,
         message JSONB,
         headers JSONB
@@ -851,6 +857,7 @@ BEGIN
       msg_id BIGINT PRIMARY KEY,
       read_ct INT DEFAULT 0 NOT NULL,
       enqueued_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+      last_read_at TIMESTAMP WITH TIME ZONE,
       archived_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
       vt TIMESTAMP WITH TIME ZONE NOT NULL,
       message JSONB,
@@ -956,6 +963,7 @@ BEGIN
         msg_id BIGINT GENERATED ALWAYS AS IDENTITY,
         read_ct INT DEFAULT 0 NOT NULL,
         enqueued_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+        last_read_at TIMESTAMP WITH TIME ZONE,
         vt TIMESTAMP WITH TIME ZONE NOT NULL,
         message JSONB,
         headers JSONB
@@ -1028,6 +1036,7 @@ BEGIN
       msg_id BIGINT NOT NULL,
       read_ct INT DEFAULT 0 NOT NULL,
       enqueued_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
+      last_read_at TIMESTAMP WITH TIME ZONE,
       archived_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
       vt TIMESTAMP WITH TIME ZONE NOT NULL,
       message JSONB,
