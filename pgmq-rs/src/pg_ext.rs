@@ -71,10 +71,7 @@ impl PGMQueueExt {
         self.init_with_cxn(&self.connection).await
     }
 
-    pub async fn create_with_cxn<
-        'c,
-        E: sqlx::Executor<'c, Database = Postgres>,
-    >(
+     pub async fn create_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres>>(
         &self,
         queue_name: &str,
         executor: &'c E,
