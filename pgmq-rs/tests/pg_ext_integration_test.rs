@@ -350,23 +350,95 @@ async fn test_pgmq_init() {
     assert!(!created, "failed to detect duplicate queue");
 }
 
+/// test creating queue in transaction
+#[tokio::test]
+async fn test_create_txn() {
+    // use test harness to create a connection pool
+    let _q = format!("_q_{}", rand::thread_rng().gen_range(0..100000));
+    let _queue = init_queue_ext(&_q).await;
+    let pool = _queue.connection;
+
+    // init a new queue
+    let queue = init_queue_ext(&_q).await;
+    // start a txn
+    let mut tx = pool.begin().await.expect("failed to start transaction");
+    let q = format!(
+        "test_create_txn_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    // use the pool to create a new queue
+    queue
+        .create_with_cxn(&q, &mut *tx)
+        .await
+        .expect("failed to create queue in txn");
+    // commit txn
+    tx.commit().await.expect("failed to commit txn");
+    // verify queue exists
+    let q_names = queue
+        .list_queues()
+        .await
+        .expect("error listing queues")
+        .expect("test queue was not created")
+        .iter()
+        .map(|q| q.queue_name.clone())
+        .collect::<Vec<_>>();
+    assert!(q_names.contains(&q), "failed to find created queue");
+
+    // rollback txn, verify queue not created
+    let mut tx = pool.begin().await.expect("failed to start transaction");
+    let q_rollback = format!(
+        "test_create_txn_rb_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    // use the pool to create a new queue
+    queue
+        .create_with_cxn(&q_rollback, &mut *tx)
+        .await
+        .expect("failed to create queue in txn");
+    // rollback txn
+    tx.rollback().await.expect("failed to rollback txn");
+    // verify queue does not exist
+    let q_names = queue
+        .list_queues()
+        .await
+        .expect("error listing queues")
+        .expect("test queue was not created")
+        .iter()
+        .map(|q| q.queue_name.clone())
+        .collect::<Vec<_>>();
+    assert!(
+        !q_names.contains(&q_rollback),
+        "found queue that should not exist"
+    );
+}
+
 /// test "bring your own pool"
 #[tokio::test]
 async fn test_byop() {
-    let test_queue = format!("test_byop_{}", rand::thread_rng().gen_range(0..100000));
-    let _queue = init_queue_ext(&test_queue).await;
+    // use test harness to create a connection pool
+    let _q = format!("test_byop_{}", rand::thread_rng().gen_range(0..100000));
+    let _queue = init_queue_ext(&_q).await;
     let pool = _queue.connection;
 
+    // use the pool to create a new queue
     let queue = pgmq::PGMQueueExt::new_with_pool(pool).await;
-
     let init = queue.init().await.expect("failed to create extension");
     assert!(init, "failed to create extension");
 
+    // first time must return true
+    let test_queue = format!("test_byop_{}", rand::thread_rng().gen_range(0..100000));
     let created = queue
-        .create("test_byop")
+        .create(&test_queue)
         .await
         .expect("failed to create queue");
-    assert!(created);
+    assert!(created, "failed to create queue_{}", test_queue);
+
+    // second time must return false
+    let created = queue
+        .create(&test_queue)
+        .await
+        .expect("failed execute create queue");
+    assert!(!created, "failed to detect duplicate queue");
 }
 
 #[tokio::test]
