@@ -73,11 +73,11 @@ impl PGMQueueExt {
 
     pub async fn create_with_cxn<
         'c,
-        E: sqlx::Executor<'c, Database = Postgres> + std::marker::Copy,
+        E: sqlx::Executor<'c, Database = Postgres>,
     >(
         &self,
         queue_name: &str,
-        executor: E,
+        executor: &'c E,
     ) -> Result<bool, PgmqError> {
         check_input(queue_name)?;
 
