@@ -71,18 +71,22 @@ impl PGMQueueExt {
         self.init_with_cxn(&self.connection).await
     }
 
-    pub async fn create_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres>>(
+    pub async fn create_with_cxn<'c, E>(
         &self,
         queue_name: &str,
-        executor: &'c E,
-    ) -> Result<bool, PgmqError> {
+        executor: E,
+    ) -> Result<bool, PgmqError>
+    where
+        E: sqlx::Acquire<'c, Database = Postgres>,
+    {
         check_input(queue_name)?;
+        let mut conn = executor.acquire().await?;
 
         let exists = sqlx::query_scalar::<_, bool>(
             "SELECT EXISTS(SELECT 1 FROM pgmq.meta WHERE queue_name = $1::text);",
         )
         .bind(queue_name)
-        .fetch_one(executor)
+        .fetch_one(&mut *conn)
         .await?;
 
         if exists {
@@ -91,7 +95,7 @@ impl PGMQueueExt {
 
         sqlx::query("SELECT * from pgmq.create(queue_name=>$1::text);")
             .bind(queue_name)
-            .execute(executor)
+            .execute(&mut *conn)
             .await?;
         Ok(true)
     }
