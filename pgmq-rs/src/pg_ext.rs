@@ -6,7 +6,7 @@ use crate::util::{check_input, connect};
 use log::info;
 use serde::{Deserialize, Serialize};
 use sqlx::types::chrono::Utc;
-use sqlx::{Pool, Postgres};
+use sqlx::{Pool, Postgres, Row};
 
 const DEFAULT_POLL_TIMEOUT_S: i32 = 5;
 const DEFAULT_POLL_INTERVAL_MS: i32 = 250;
@@ -60,7 +60,7 @@ impl PGMQueueExt {
         &self,
         executor: E,
     ) -> Result<bool, PgmqError> {
-        sqlx::query!("CREATE EXTENSION IF NOT EXISTS pgmq CASCADE;")
+        sqlx::query("CREATE EXTENSION IF NOT EXISTS pgmq CASCADE;")
             .execute(executor)
             .await
             .map(|_| true)
@@ -71,24 +71,37 @@ impl PGMQueueExt {
         self.init_with_cxn(&self.connection).await
     }
 
-    pub async fn create_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres>>(
+    pub async fn create_with_cxn<'c, E>(
         &self,
         queue_name: &str,
         executor: E,
-    ) -> Result<bool, PgmqError> {
+    ) -> Result<bool, PgmqError>
+    where
+        E: sqlx::Acquire<'c, Database = Postgres>,
+    {
         check_input(queue_name)?;
-        sqlx::query!(
-            "SELECT * from pgmq.create(queue_name=>$1::text);",
-            queue_name
+        let mut conn = executor.acquire().await?;
+
+        let exists = sqlx::query_scalar::<_, bool>(
+            "SELECT EXISTS(SELECT 1 FROM pgmq.meta WHERE queue_name = $1::text);",
         )
-        .execute(executor)
+        .bind(queue_name)
+        .fetch_one(&mut *conn)
         .await?;
+
+        if exists {
+            return Ok(false);
+        }
+
+        sqlx::query("SELECT * from pgmq.create(queue_name=>$1::text);")
+            .bind(queue_name)
+            .execute(&mut *conn)
+            .await?;
         Ok(true)
     }
     /// Errors when there is any database error and Ok(false) when the queue already exists.
     pub async fn create(&self, queue_name: &str) -> Result<bool, PgmqError> {
-        self.create_with_cxn(queue_name, &self.connection).await?;
-        Ok(true)
+        self.create_with_cxn(queue_name, &self.connection).await
     }
 
     pub async fn create_unlogged_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres>>(
@@ -97,12 +110,10 @@ impl PGMQueueExt {
         executor: E,
     ) -> Result<bool, PgmqError> {
         check_input(queue_name)?;
-        sqlx::query!(
-            "SELECT * from pgmq.create_unlogged(queue_name=>$1::text);",
-            queue_name
-        )
-        .execute(executor)
-        .await?;
+        sqlx::query("SELECT * from pgmq.create_unlogged(queue_name=>$1::text);")
+            .bind(queue_name)
+            .execute(executor)
+            .await?;
         Ok(true)
     }
 
@@ -134,12 +145,10 @@ impl PGMQueueExt {
             info!("queue: {queue_name} already exists",);
             Ok(false)
         } else {
-            sqlx::query!(
-                "SELECT * from pgmq.create_partitioned(queue_name=>$1::text);",
-                queue_name
-            )
-            .execute(executor)
-            .await?;
+            sqlx::query("SELECT * from pgmq.create_partitioned(queue_name=>$1::text);")
+                .bind(queue_name)
+                .execute(executor)
+                .await?;
             Ok(true)
         }
     }
@@ -158,10 +167,10 @@ impl PGMQueueExt {
     ) -> Result<(), PgmqError> {
         check_input(queue_name)?;
         executor
-            .execute(sqlx::query!(
-                "SELECT * from pgmq.drop_queue(queue_name=>$1::text);",
-                queue_name
-            ))
+            .execute(
+                sqlx::query("SELECT * from pgmq.drop_queue(queue_name=>$1::text);")
+                    .bind(queue_name),
+            )
             .await?;
 
         Ok(())
@@ -179,14 +188,11 @@ impl PGMQueueExt {
         executor: E,
     ) -> Result<i64, PgmqError> {
         check_input(queue_name)?;
-        let purged = sqlx::query!(
-            "SELECT * from pgmq.purge_queue(queue_name=>$1::text);",
-            queue_name
-        )
-        .fetch_one(executor)
-        .await?;
-
-        Ok(purged.purge_queue.expect("no purged count"))
+        let purged = sqlx::query("SELECT * from pgmq.purge_queue(queue_name=>$1::text);")
+            .bind(queue_name)
+            .fetch_one(executor)
+            .await?;
+        Ok(purged.try_get("purge_queue")?)
     }
 
     /// Drop an existing queue table.
@@ -199,7 +205,7 @@ impl PGMQueueExt {
         &self,
         executor: E,
     ) -> Result<Option<Vec<PGMQueueMeta>>, PgmqError> {
-        let queues = sqlx::query!(r#"SELECT queue_name, is_partitioned, is_unlogged, created_at as "created_at: chrono::DateTime<Utc>" from pgmq.list_queues();"#)
+        let queues = sqlx::query(r#"SELECT queue_name, is_partitioned, is_unlogged, created_at from pgmq.list_queues();"#)
             .fetch_all(executor)
             .await?;
         if queues.is_empty() {
@@ -207,13 +213,15 @@ impl PGMQueueExt {
         } else {
             let queues = queues
                 .into_iter()
-                .map(|q| PGMQueueMeta {
-                    queue_name: q.queue_name.expect("queue_name missing"),
-                    created_at: q.created_at.expect("created_at missing"),
-                    is_unlogged: q.is_unlogged.expect("is_unlogged missing"),
-                    is_partitioned: q.is_partitioned.expect("is_partitioned missing"),
+                .map(|q| {
+                    Ok(PGMQueueMeta {
+                        queue_name: q.try_get("queue_name")?,
+                        created_at: q.try_get("created_at")?,
+                        is_unlogged: q.try_get("is_unlogged")?,
+                        is_partitioned: q.try_get("is_partitioned")?,
+                    })
                 })
-                .collect();
+                .collect::<Result<_, sqlx::Error>>()?;
             Ok(Some(queues))
         }
     }
@@ -236,22 +244,22 @@ impl PGMQueueExt {
     ) -> Result<Message<T>, PgmqError> {
         check_input(queue_name)?;
         // queue_name, created_at as "created_at: chrono::DateTime<Utc>", is_partitioned, is_unlogged
-        let updated = sqlx::query!(
-            r#"SELECT msg_id, read_ct, enqueued_at as "enqueued_at: chrono::DateTime<Utc>", vt as "vt: chrono::DateTime<Utc>", message from pgmq.set_vt(queue_name=>$1::text, msg_id=>$2::bigint, vt=>$3::integer);"#,
-            queue_name,
-            msg_id,
-            vt
+        let updated = sqlx::query(
+            r#"SELECT msg_id, read_ct, enqueued_at, vt, message from pgmq.set_vt(queue_name=>$1::text, msg_id=>$2::bigint, vt=>$3::integer);"#
         )
+        .bind(queue_name)
+        .bind(msg_id)
+        .bind(vt)
         .fetch_one(executor)
         .await?;
-        let raw_msg = updated.message.expect("no message");
+        let raw_msg = updated.try_get("message")?;
         let parsed_msg = serde_json::from_value::<T>(raw_msg)?;
 
         Ok(Message {
-            msg_id: updated.msg_id.expect("msg_id missing"),
-            vt: updated.vt.expect("vt missing"),
-            read_ct: updated.read_ct.expect("read_ct missing"),
-            enqueued_at: updated.enqueued_at.expect("enqueued_at missing"),
+            msg_id: updated.try_get("msg_id")?,
+            vt: updated.try_get("vt")?,
+            read_ct: updated.try_get("read_ct")?,
+            enqueued_at: updated.try_get("enqueued_at")?,
             message: parsed_msg,
         })
     }
@@ -274,13 +282,13 @@ impl PGMQueueExt {
     ) -> Result<i64, PgmqError> {
         check_input(queue_name)?;
         let msg = serde_json::json!(&message);
-        let prepared = sqlx::query!(
+        let prepared = sqlx::query(
             "SELECT send as msg_id from pgmq.send(queue_name=>$1::text, msg=>$2::jsonb, delay=>0::integer);",
-            queue_name,
-            msg
-        );
+        )
+        .bind(queue_name)
+        .bind(msg);
         let sent = prepared.fetch_one(executor).await?;
-        Ok(sent.msg_id.expect("no message id"))
+        Ok(sent.try_get("msg_id")?)
     }
 
     pub async fn send<T: Serialize>(
@@ -305,15 +313,15 @@ impl PGMQueueExt {
     ) -> Result<i64, PgmqError> {
         check_input(queue_name)?;
         let msg = serde_json::json!(&message);
-        let sent = sqlx::query!(
+        let sent = sqlx::query(
             "SELECT send as msg_id from pgmq.send(queue_name=>$1::text, msg=>$2::jsonb, delay=>$3::int);",
-            queue_name,
-            msg,
-            delay as i32
         )
+        .bind(queue_name)
+        .bind(msg)
+        .bind(delay as i32)
         .fetch_one(executor)
         .await?;
-        Ok(sent.msg_id.expect("no message id"))
+        Ok(sent.try_get("msg_id")?)
     }
 
     pub async fn send_delay<T: Serialize>(
@@ -337,26 +345,24 @@ impl PGMQueueExt {
         executor: E,
     ) -> Result<Option<Message<T>>, PgmqError> {
         check_input(queue_name)?;
-        let row = sqlx::query!(
-            r#"SELECT msg_id, read_ct, enqueued_at as "enqueued_at: chrono::DateTime<Utc>", vt as "vt: chrono::DateTime<Utc>", message from pgmq.read(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer)"#,
-            queue_name,
-            vt,
-            1
+        let row = sqlx::query(
+            r#"SELECT msg_id, read_ct, enqueued_at, vt, message from pgmq.read(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer)"#,
         )
+        .bind(queue_name)
+        .bind(vt)
+        .bind(1)
         .fetch_optional(executor)
         .await?;
         match row {
             Some(row) => {
                 // happy path - successfully read a message
-                let raw_msg = row.message.expect("no message");
+                let raw_msg = row.try_get("message")?;
                 let parsed_msg = serde_json::from_value::<T>(raw_msg)?;
                 Ok(Some(Message {
-                    msg_id: row.msg_id.expect("msg_id missing from queue table"),
-                    vt: row.vt.expect("vt missing from queue table"),
-                    read_ct: row.read_ct.expect("read_ct missing from queue table"),
-                    enqueued_at: row
-                        .enqueued_at
-                        .expect("enqueued_at missing from queue table"),
+                    msg_id: row.try_get("msg_id")?,
+                    vt: row.try_get("vt")?,
+                    read_ct: row.try_get("read_ct")?,
+                    enqueued_at: row.try_get("enqueued_at")?,
                     message: parsed_msg,
                 }))
             }
@@ -391,20 +397,20 @@ impl PGMQueueExt {
         let poll_timeout_s = poll_timeout.map_or(DEFAULT_POLL_TIMEOUT_S, |t| t.as_secs() as i32);
         let poll_interval_ms =
             poll_interval.map_or(DEFAULT_POLL_INTERVAL_MS, |i| i.as_millis() as i32);
-        let result = sqlx::query!(
-            r#"SELECT msg_id, read_ct, enqueued_at as "enqueued_at: chrono::DateTime<Utc>", vt as "vt: chrono::DateTime<Utc>", message from pgmq.read_with_poll(
+        let result = sqlx::query(
+            r#"SELECT msg_id, read_ct, enqueued_at, vt, message from pgmq.read_with_poll(
                 queue_name=>$1::text,
                 vt=>$2::integer,
                 qty=>$3::integer,
                 max_poll_seconds=>$4::integer,
                 poll_interval_ms=>$5::integer
             )"#,
-            queue_name,
-            vt,
-            max_batch_size,
-            poll_timeout_s,
-            poll_interval_ms
         )
+        .bind(queue_name)
+        .bind(vt)
+        .bind(max_batch_size)
+        .bind(poll_timeout_s)
+        .bind(poll_interval_ms)
         .fetch_all(executor)
         .await;
 
@@ -415,18 +421,16 @@ impl PGMQueueExt {
                 // happy path - successfully read messages
                 let mut messages: Vec<Message<T>> = Vec::new();
                 for row in rows.iter() {
-                    let raw_msg = row.message.clone().expect("no message");
+                    let raw_msg = row.try_get("message")?;
                     let parsed_msg = serde_json::from_value::<T>(raw_msg);
                     if let Err(e) = parsed_msg {
                         return Err(PgmqError::JsonParsingError(e));
                     } else if let Ok(parsed_msg) = parsed_msg {
                         messages.push(Message {
-                            msg_id: row.msg_id.expect("msg_id missing from queue table"),
-                            vt: row.vt.expect("vt missing from queue table"),
-                            read_ct: row.read_ct.expect("read_ct missing from queue table"),
-                            enqueued_at: row
-                                .enqueued_at
-                                .expect("enqueued_at missing from queue table"),
+                            msg_id: row.try_get("msg_id")?,
+                            vt: row.try_get("vt")?,
+                            read_ct: row.try_get("read_ct")?,
+                            enqueued_at: row.try_get("enqueued_at")?,
                             message: parsed_msg,
                         })
                     }
@@ -462,14 +466,13 @@ impl PGMQueueExt {
         executor: E,
     ) -> Result<bool, PgmqError> {
         check_input(queue_name)?;
-        let arch = sqlx::query!(
-            "SELECT * from pgmq.archive(queue_name=>$1::text, msg_id=>$2::bigint)",
-            queue_name,
-            msg_id
-        )
-        .fetch_one(executor)
-        .await?;
-        Ok(arch.archive.expect("no archive result"))
+        let arch =
+            sqlx::query("SELECT * from pgmq.archive(queue_name=>$1::text, msg_id=>$2::bigint)")
+                .bind(queue_name)
+                .bind(msg_id)
+                .fetch_one(executor)
+                .await?;
+        Ok(arch.try_get("archive")?)
     }
     /// Move a message to the archive table.
     pub async fn archive(&self, queue_name: &str, msg_id: i64) -> Result<bool, PgmqError> {
@@ -485,14 +488,13 @@ impl PGMQueueExt {
         executor: E,
     ) -> Result<usize, PgmqError> {
         check_input(queue_name)?;
-        let qty = sqlx::query!(
-            "SELECT * from pgmq.archive(queue_name=>$1::text, msg_ids=>$2::bigint[])",
-            queue_name,
-            msg_ids
-        )
-        .fetch_all(executor)
-        .await?
-        .len();
+        let qty =
+            sqlx::query("SELECT * from pgmq.archive(queue_name=>$1::text, msg_ids=>$2::bigint[])")
+                .bind(queue_name)
+                .bind(msg_ids)
+                .fetch_all(executor)
+                .await?
+                .len();
 
         Ok(qty)
     }
@@ -517,21 +519,20 @@ impl PGMQueueExt {
         executor: E,
     ) -> Result<Option<Message<T>>, PgmqError> {
         check_input(queue_name)?;
-        let row = sqlx::query!(r#"SELECT msg_id, read_ct, enqueued_at as "enqueued_at: chrono::DateTime<Utc>", vt as "vt: chrono::DateTime<Utc>", message from pgmq.pop(queue_name=>$1::text)"#, queue_name,)
+        let row = sqlx::query(r#"SELECT msg_id, read_ct, enqueued_at, vt, message from pgmq.pop(queue_name=>$1::text)"#)
+            .bind(queue_name)
             .fetch_optional(executor)
             .await?;
         match row {
             Some(row) => {
                 // happy path - successfully read a message
-                let raw_msg = row.message.expect("no message");
+                let raw_msg = row.try_get("message")?;
                 let parsed_msg = serde_json::from_value::<T>(raw_msg)?;
                 Ok(Some(Message {
-                    msg_id: row.msg_id.expect("msg_id missing from queue table"),
-                    vt: row.vt.expect("vt missing from queue table"),
-                    read_ct: row.read_ct.expect("read_ct missing from queue table"),
-                    enqueued_at: row
-                        .enqueued_at
-                        .expect("enqueued_at missing from queue table"),
+                    msg_id: row.try_get("msg_id")?,
+                    vt: row.try_get("vt")?,
+                    read_ct: row.try_get("read_ct")?,
+                    enqueued_at: row.try_get("enqueued_at")?,
                     message: parsed_msg,
                 }))
             }
@@ -555,14 +556,13 @@ impl PGMQueueExt {
         msg_id: i64,
         executor: E,
     ) -> Result<bool, PgmqError> {
-        let row = sqlx::query!(
-            "SELECT * from pgmq.delete(queue_name=>$1::text, msg_id=>$2::bigint)",
-            queue_name,
-            msg_id
-        )
-        .fetch_one(executor)
-        .await?;
-        Ok(row.delete.expect("no delete result"))
+        let row =
+            sqlx::query("SELECT * from pgmq.delete(queue_name=>$1::text, msg_id=>$2::bigint)")
+                .bind(queue_name)
+                .bind(msg_id)
+                .fetch_one(executor)
+                .await?;
+        Ok(row.try_get("delete")?)
     }
 
     // Delete a message by message id.
@@ -577,14 +577,13 @@ impl PGMQueueExt {
         msg_id: &[i64],
         executor: E,
     ) -> Result<usize, PgmqError> {
-        let qty = sqlx::query!(
-            "SELECT * from pgmq.delete(queue_name=>$1::text, msg_ids=>$2::bigint[])",
-            queue_name,
-            msg_id
-        )
-        .fetch_all(executor)
-        .await?
-        .len();
+        let qty =
+            sqlx::query("SELECT * from pgmq.delete(queue_name=>$1::text, msg_ids=>$2::bigint[])")
+                .bind(queue_name)
+                .bind(msg_id)
+                .fetch_all(executor)
+                .await?
+                .len();
 
         // FIXME: change function signature to Vec<i64> and return rows
         Ok(qty)

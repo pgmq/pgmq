@@ -13,9 +13,9 @@ PGMQ was created by [Tembo](https://tembo.io/). Our goal is to make the full Pos
 We're building a radically simplified Postgres platform designed to be developer-first and easily extensible.
 PGMQ is a part of that project.
 
-This project contains two APIs, a pure Rust client side library and the Rust SDK wrapped around the Postgres extension.
+This project contains two APIs, a pure Rust client-side library and the Rust SDK wrapped around the Postgres extension.
 
-`The Rust client for the Postgres extension`. This gives the you the an ORM-like experience with the Postgres extension and makes managing connection pools, transactions, and serialization/deserialization much easier.
+`The Rust client for the Postgres extension`. This gives you an ORM-like experience with the Postgres extension and makes managing connection pools, transactions, and serialization/deserialization much easier.
 
 ```rust
 use pgmq::PGMQueueExt;
@@ -113,7 +113,7 @@ async fn main() -> Result<(), PgmqError> {
 
 ## Transactions
 
-You can execute all of PGMQ's operations within a transaction along with other database operations. See the [transaction example](./examples/transaction.rs) or run the example with:
+You can execute all of PGMQ's operations within a transaction along with other database operations. See the [transaction example](./examples/transactions.rs) or run the example with:
 
 ```bash
 cargo run --example transactions

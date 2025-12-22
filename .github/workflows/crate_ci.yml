@@ -86,7 +86,6 @@ jobs:
           - 5432:5432
     env:
       DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
-      SQLX_OFFLINE: 1
     steps:
       - uses: actions/checkout@v4
       - name: Install Rust stable toolchain
