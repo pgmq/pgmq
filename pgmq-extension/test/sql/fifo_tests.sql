@@ -177,6 +177,3 @@ SELECT pgmq.drop_queue('fifo_test_queue');
 
 -- Verify queue was dropped
 SELECT COUNT(*) = 0 FROM pgmq.list_queues() WHERE queue_name = 'fifo_test_queue';
-
--- Test completed successfully
-SELECT 'FIFO SQS-style tests completed successfully' as result;

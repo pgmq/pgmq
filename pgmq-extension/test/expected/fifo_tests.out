@@ -407,10 +407,3 @@ SELECT COUNT(*) = 0 FROM pgmq.list_queues() WHERE queue_name = 'fifo_test_queue'
  t
 (1 row)
 
--- Test completed successfully
-SELECT 'FIFO SQS-style tests completed successfully' as result;
-                   result                    
----------------------------------------------
- FIFO SQS-style tests completed successfully
-(1 row)
-

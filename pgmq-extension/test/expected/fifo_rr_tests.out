@@ -432,10 +432,3 @@ SELECT pgmq.drop_queue('fifo_rr_poll_queue');
  t
 (1 row)
 
--- Test completed successfully
-SELECT 'Round-robin tests completed successfully' as result;
-                  result                  
-------------------------------------------
- Round-robin tests completed successfully
-(1 row)
-

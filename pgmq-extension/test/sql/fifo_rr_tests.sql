@@ -165,6 +165,3 @@ SELECT
 
 -- Cleanup
 SELECT pgmq.drop_queue('fifo_rr_poll_queue');
-
--- Test completed successfully
-SELECT 'Round-robin tests completed successfully' as result;
