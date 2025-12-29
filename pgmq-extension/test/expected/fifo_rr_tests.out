@@ -1,60 +1,387 @@
--- Tests for read_grouped_rr_with_poll round-robin polling across FIFO groups
+-- ROUND-ROBIN FIFO TESTS
+-- This test file validates the round-robin FIFO queue implementation for both
+-- read_grouped_rr (non-polling) and read_grouped_rr_with_poll (polling) functions
 -- Stabilize messages and ensure a clean extension state
 SET client_min_messages = warning;
 DROP EXTENSION IF EXISTS pgmq CASCADE;
 CREATE EXTENSION pgmq;
 -- Create a dedicated queue
-SELECT pgmq.create('fifo_rr_poll_queue');
+SELECT pgmq.create('fifo_rr_queue');
  create 
 --------
  
 (1 row)
 
+-- test_basic_round_robin_three_groups
 -- Insert heads for 3 groups
-SELECT * FROM pgmq.send('fifo_rr_poll_queue', '{"n":1}'::jsonb, '{"x-pgmq-group":"g1"}'::jsonb);
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":1}'::jsonb, '{"x-pgmq-group":"g1"}'::jsonb);
  send 
 ------
     1
 (1 row)
 
-SELECT * FROM pgmq.send('fifo_rr_poll_queue', '{"n":1}'::jsonb, '{"x-pgmq-group":"g2"}'::jsonb);
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":1}'::jsonb, '{"x-pgmq-group":"g2"}'::jsonb);
  send 
 ------
     2
 (1 row)
 
-SELECT * FROM pgmq.send('fifo_rr_poll_queue', '{"n":1}'::jsonb, '{"x-pgmq-group":"g3"}'::jsonb);
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":1}'::jsonb, '{"x-pgmq-group":"g3"}'::jsonb);
  send 
 ------
     3
 (1 row)
 
--- Validate we can poll and get the three heads in layered order immediately (single evaluation)
-WITH rr AS (
-  SELECT * FROM pgmq.read_grouped_rr_with_poll('fifo_rr_poll_queue', 10, 3, 1, 100)
+-- Validate we get the three heads in layered round-robin order
+WITH results AS (
+    SELECT * FROM pgmq.read_grouped_rr('fifo_rr_queue', 10, 3)
 )
 SELECT
-  (SELECT COUNT(*) FROM rr) = 3,
-  (SELECT ARRAY_AGG(headers->>'x-pgmq-group' ORDER BY msg_id) FROM rr) = ARRAY['g1','g2','g3'];
- ?column? | ?column? 
-----------+----------
- t        | t
+    (SELECT COUNT(*) FROM results) = 3 as count_correct,
+    (SELECT ARRAY_AGG(headers->>'x-pgmq-group' ORDER BY msg_id) FROM results)
+        = ARRAY['g1','g2','g3']::text[] as correct_rr_order;
+ count_correct | correct_rr_order 
+---------------+------------------
+ t             | t
 (1 row)
 
--- Drop and recreate for extended validations similar to non-poll test
-SELECT pgmq.drop_queue('fifo_rr_poll_queue');
+-- Clean up for next test
+SELECT pgmq.drop_queue('fifo_rr_queue');
  drop_queue 
 ------------
  t
 (1 row)
 
+SELECT pgmq.create('fifo_rr_queue');
+ create 
+--------
+ 
+(1 row)
+
+-- test_layered_round_robin_pattern
+-- Insert 5 messages per group for 3 groups, in layered order to fix priorities
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":1}'::jsonb, '{"x-pgmq-group":"g1"}'::jsonb);
+ send 
+------
+    1
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":1}'::jsonb, '{"x-pgmq-group":"g2"}'::jsonb);
+ send 
+------
+    2
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":1}'::jsonb, '{"x-pgmq-group":"g3"}'::jsonb);
+ send 
+------
+    3
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":2}'::jsonb, '{"x-pgmq-group":"g1"}'::jsonb);
+ send 
+------
+    4
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":2}'::jsonb, '{"x-pgmq-group":"g2"}'::jsonb);
+ send 
+------
+    5
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":2}'::jsonb, '{"x-pgmq-group":"g3"}'::jsonb);
+ send 
+------
+    6
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":3}'::jsonb, '{"x-pgmq-group":"g1"}'::jsonb);
+ send 
+------
+    7
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":3}'::jsonb, '{"x-pgmq-group":"g2"}'::jsonb);
+ send 
+------
+    8
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":3}'::jsonb, '{"x-pgmq-group":"g3"}'::jsonb);
+ send 
+------
+    9
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":4}'::jsonb, '{"x-pgmq-group":"g1"}'::jsonb);
+ send 
+------
+   10
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":4}'::jsonb, '{"x-pgmq-group":"g2"}'::jsonb);
+ send 
+------
+   11
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":4}'::jsonb, '{"x-pgmq-group":"g3"}'::jsonb);
+ send 
+------
+   12
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":5}'::jsonb, '{"x-pgmq-group":"g1"}'::jsonb);
+ send 
+------
+   13
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":5}'::jsonb, '{"x-pgmq-group":"g2"}'::jsonb);
+ send 
+------
+   14
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":5}'::jsonb, '{"x-pgmq-group":"g3"}'::jsonb);
+ send 
+------
+   15
+(1 row)
+
+-- Verify total messages
+SELECT COUNT(*) = 15 FROM pgmq.q_fifo_rr_queue;
+ ?column? 
+----------
+ t
+(1 row)
+
+-- Validate layered round-robin pattern for first 10 picks
+WITH results AS (
+    SELECT * FROM pgmq.read_grouped_rr('fifo_rr_queue', 10, 10)
+)
+SELECT
+    (SELECT COUNT(*) FROM results) = 10 as count_correct,
+    (SELECT ARRAY_AGG(headers->>'x-pgmq-group' ORDER BY msg_id) FROM results)
+        = ARRAY['g1','g2','g3','g1','g2','g3','g1','g2','g3','g1']::text[] as correct_layered_rr;
+ count_correct | correct_layered_rr 
+---------------+--------------------
+ t             | t
+(1 row)
+
+-- Reset visibility and validate full layering by taking all 15
+UPDATE pgmq.q_fifo_rr_queue SET vt = clock_timestamp() - interval '1 second';
+WITH results AS (
+    SELECT * FROM pgmq.read_grouped_rr('fifo_rr_queue', 10, 15)
+)
+SELECT
+    (SELECT COUNT(*) FROM results) = 15 as count_correct,
+    (SELECT ARRAY_AGG(headers->>'x-pgmq-group' ORDER BY msg_id) FROM results)
+        = ARRAY['g1','g2','g3','g1','g2','g3','g1','g2','g3','g1','g2','g3','g1','g2','g3']::text[] as all_15_layered;
+ count_correct | all_15_layered 
+---------------+----------------
+ t             | t
+(1 row)
+
+-- Clean up for next test
+SELECT pgmq.drop_queue('fifo_rr_queue');
+ drop_queue 
+------------
+ t
+(1 row)
+
+SELECT pgmq.create('fifo_rr_queue');
+ create 
+--------
+ 
+(1 row)
+
+-- test_round_robin_with_unequal_groups
+-- Test with unequal group sizes: g1 has 5 messages, g2 has 2 messages
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":1}'::jsonb, '{"x-pgmq-group":"g1"}'::jsonb);
+ send 
+------
+    1
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":1}'::jsonb, '{"x-pgmq-group":"g2"}'::jsonb);
+ send 
+------
+    2
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":2}'::jsonb, '{"x-pgmq-group":"g1"}'::jsonb);
+ send 
+------
+    3
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":2}'::jsonb, '{"x-pgmq-group":"g2"}'::jsonb);
+ send 
+------
+    4
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":3}'::jsonb, '{"x-pgmq-group":"g1"}'::jsonb);
+ send 
+------
+    5
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":4}'::jsonb, '{"x-pgmq-group":"g1"}'::jsonb);
+ send 
+------
+    6
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"n":5}'::jsonb, '{"x-pgmq-group":"g1"}'::jsonb);
+ send 
+------
+    7
+(1 row)
+
+WITH results AS (
+    SELECT * FROM pgmq.read_grouped_rr('fifo_rr_queue', 10, 10)
+)
+SELECT
+    (SELECT COUNT(*) FROM results) = 7 as count_correct,
+    (SELECT ARRAY_AGG(headers->>'x-pgmq-group' ORDER BY msg_id) FROM results)
+        = ARRAY['g1','g2','g1','g2','g1','g1','g1']::text[] as unequal_groups_rr;
+ count_correct | unequal_groups_rr 
+---------------+-------------------
+ t             | t
+(1 row)
+
+-- Clean up for next test
+SELECT pgmq.drop_queue('fifo_rr_queue');
+ drop_queue 
+------------
+ t
+(1 row)
+
+SELECT pgmq.create('fifo_rr_queue');
+ create 
+--------
+ 
+(1 row)
+
+-- test_round_robin_respects_fifo_within_group
+-- Verify that within each group, messages are processed in FIFO order
+-- while round-robining between groups
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"group":"orders","seq":1}'::jsonb, '{"x-pgmq-group":"orders"}'::jsonb);
+ send 
+------
+    1
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"group":"payments","seq":1}'::jsonb, '{"x-pgmq-group":"payments"}'::jsonb);
+ send 
+------
+    2
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"group":"orders","seq":2}'::jsonb, '{"x-pgmq-group":"orders"}'::jsonb);
+ send 
+------
+    3
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"group":"payments","seq":2}'::jsonb, '{"x-pgmq-group":"payments"}'::jsonb);
+ send 
+------
+    4
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"group":"orders","seq":3}'::jsonb, '{"x-pgmq-group":"orders"}'::jsonb);
+ send 
+------
+    5
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"group":"payments","seq":3}'::jsonb, '{"x-pgmq-group":"payments"}'::jsonb);
+ send 
+------
+    6
+(1 row)
+
+WITH results AS (
+    SELECT * FROM pgmq.read_grouped_rr('fifo_rr_queue', 10, 6)
+)
+SELECT
+    (SELECT COUNT(*) FROM results) = 6 as count_correct,
+    (SELECT ARRAY_AGG((message->>'group')::text ORDER BY msg_id) FROM results)
+        = ARRAY['orders','payments','orders','payments','orders','payments']::text[] as correct_rr_between_groups,
+    (SELECT ARRAY_AGG((message->>'seq')::int ORDER BY msg_id) FROM results)
+        = ARRAY[1,1,2,2,3,3]::int[] as fifo_within_each_group;
+ count_correct | correct_rr_between_groups | fifo_within_each_group 
+---------------+---------------------------+------------------------
+ t             | t                         | t
+(1 row)
+
+-- Clean up for next test
+SELECT pgmq.drop_queue('fifo_rr_queue');
+ drop_queue 
+------------
+ t
+(1 row)
+
+SELECT pgmq.create('fifo_rr_queue');
+ create 
+--------
+ 
+(1 row)
+
+-- test_round_robin_with_default_group
+-- Test that messages without x-pgmq-group header use default group
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"msg":"no_header_1"}'::jsonb);
+ send 
+------
+    1
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"msg":"with_header"}'::jsonb, '{"x-pgmq-group":"explicit"}'::jsonb);
+ send 
+------
+    2
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_queue', '{"msg":"no_header_2"}'::jsonb);
+ send 
+------
+    3
+(1 row)
+
+-- Should round-robin between default group and explicit group
+-- Expected order: no_header_1 (default), with_header (explicit), no_header_2 (default)
+WITH results AS (
+    SELECT * FROM pgmq.read_grouped_rr('fifo_rr_queue', 10, 3)
+)
+SELECT
+    (SELECT COUNT(*) FROM results) = 3 as count_correct,
+    (SELECT ARRAY_AGG((message->>'msg')::text ORDER BY msg_id) FROM results)
+        = ARRAY['no_header_1', 'with_header', 'no_header_2']::text[] as correct_alternating_pattern;
+ count_correct | correct_alternating_pattern 
+---------------+-----------------------------
+ t             | t
+(1 row)
+
+-- Cleanup
+SELECT pgmq.drop_queue('fifo_rr_queue');
+ drop_queue 
+------------
+ t
+(1 row)
+
+-- test_round_robin_with_poll
+-- Test that the polling variant works with immediate message availability
 SELECT pgmq.create('fifo_rr_poll_queue');
  create 
 --------
  
 (1 row)
 
--- Insert 5 messages per group for 3 groups, in layered order to fix priorities
+-- Insert messages across 3 groups
 SELECT * FROM pgmq.send('fifo_rr_poll_queue', '{"n":1}'::jsonb, '{"x-pgmq-group":"g1"}'::jsonb);
  send 
 ------
@@ -85,93 +412,17 @@ SELECT * FROM pgmq.send('fifo_rr_poll_queue', '{"n":2}'::jsonb, '{"x-pgmq-group"
     5
 (1 row)
 
-SELECT * FROM pgmq.send('fifo_rr_poll_queue', '{"n":2}'::jsonb, '{"x-pgmq-group":"g3"}'::jsonb);
- send 
-------
-    6
-(1 row)
-
-SELECT * FROM pgmq.send('fifo_rr_poll_queue', '{"n":3}'::jsonb, '{"x-pgmq-group":"g1"}'::jsonb);
- send 
-------
-    7
-(1 row)
-
-SELECT * FROM pgmq.send('fifo_rr_poll_queue', '{"n":3}'::jsonb, '{"x-pgmq-group":"g2"}'::jsonb);
- send 
-------
-    8
-(1 row)
-
-SELECT * FROM pgmq.send('fifo_rr_poll_queue', '{"n":3}'::jsonb, '{"x-pgmq-group":"g3"}'::jsonb);
- send 
-------
-    9
-(1 row)
-
-SELECT * FROM pgmq.send('fifo_rr_poll_queue', '{"n":4}'::jsonb, '{"x-pgmq-group":"g1"}'::jsonb);
- send 
-------
-   10
-(1 row)
-
-SELECT * FROM pgmq.send('fifo_rr_poll_queue', '{"n":4}'::jsonb, '{"x-pgmq-group":"g2"}'::jsonb);
- send 
-------
-   11
-(1 row)
-
-SELECT * FROM pgmq.send('fifo_rr_poll_queue', '{"n":4}'::jsonb, '{"x-pgmq-group":"g3"}'::jsonb);
- send 
-------
-   12
-(1 row)
-
-SELECT * FROM pgmq.send('fifo_rr_poll_queue', '{"n":5}'::jsonb, '{"x-pgmq-group":"g1"}'::jsonb);
- send 
-------
-   13
-(1 row)
-
-SELECT * FROM pgmq.send('fifo_rr_poll_queue', '{"n":5}'::jsonb, '{"x-pgmq-group":"g2"}'::jsonb);
- send 
-------
-   14
-(1 row)
-
-SELECT * FROM pgmq.send('fifo_rr_poll_queue', '{"n":5}'::jsonb, '{"x-pgmq-group":"g3"}'::jsonb);
- send 
-------
-   15
-(1 row)
-
--- Verify total messages
-SELECT COUNT(*) = 15 FROM pgmq.q_fifo_rr_poll_queue;
- ?column? 
-----------
- t
-(1 row)
-
--- Reset visibility so results are readable and comparable in one call
-UPDATE pgmq.q_fifo_rr_poll_queue SET vt = clock_timestamp() - interval '1 second';
--- Validate layered round-robin pattern for first 10 picks using polling
-SELECT 
-  ARRAY(
-    SELECT (headers->>'x-pgmq-group')
-    FROM pgmq.read_grouped_rr_with_poll('fifo_rr_poll_queue', 10, 10, 1, 100)
-    ORDER BY msg_id
-  ) = ARRAY['g1','g2','g3','g1','g2','g3','g1','g2','g3','g1'];
- ?column? 
-----------
- t
-(1 row)
-
--- Reset visibility and validate full layering by taking all 15 using polling
-UPDATE pgmq.q_fifo_rr_poll_queue SET vt = clock_timestamp() - interval '1 second';
-SELECT COUNT(*) = 15 FROM pgmq.read_grouped_rr_with_poll('fifo_rr_poll_queue', 10, 15, 1, 100);
- ?column? 
-----------
- t
+-- Validate polling returns messages with correct round-robin order
+WITH results AS (
+    SELECT * FROM pgmq.read_grouped_rr_with_poll('fifo_rr_poll_queue', 10, 5, 1, 100)
+)
+SELECT
+    (SELECT COUNT(*) FROM results) = 5 as count_correct,
+    (SELECT ARRAY_AGG(headers->>'x-pgmq-group' ORDER BY msg_id) FROM results)
+        = ARRAY['g1','g2','g3','g1','g2']::text[] as correct_poll_order;
+ count_correct | correct_poll_order 
+---------------+--------------------
+ t             | t
 (1 row)
 
 -- Cleanup
@@ -179,5 +430,12 @@ SELECT pgmq.drop_queue('fifo_rr_poll_queue');
  drop_queue 
 ------------
  t
+(1 row)
+
+-- Test completed successfully
+SELECT 'Round-robin tests completed successfully' as result;
+                  result                  
+------------------------------------------
+ Round-robin tests completed successfully
 (1 row)
 
