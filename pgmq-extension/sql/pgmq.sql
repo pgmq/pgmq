@@ -178,24 +178,36 @@ BEGIN
                   END = 1
               AND m.msg_id >= eg.head_msg_id
         ),
-        selected_messages AS (
+        ordered_messages AS (
             -- Layered round-robin: take rank 1 of all groups by group_priority, then rank 2, etc.
-            SELECT msg_id
+            -- Assign selection order before locking
+            SELECT msg_id, ROW_NUMBER() OVER (ORDER BY msg_rank_in_group, group_priority) as selection_order
             FROM available_messages
-            ORDER BY msg_rank_in_group, group_priority
-            LIMIT $1
-            FOR UPDATE SKIP LOCKED
+        ),
+        selected_messages AS (
+            -- Lock the messages in the correct order, preserving selection_order
+            SELECT om.msg_id, om.selection_order
+            FROM ordered_messages om
+            JOIN pgmq.%5$I m ON m.msg_id = om.msg_id
+            WHERE om.selection_order <= $1
+            ORDER BY om.selection_order
+            FOR UPDATE OF m SKIP LOCKED
+        ),
+        updated_messages AS (
+            UPDATE pgmq.%6$I m
+            SET
+                vt = clock_timestamp() + %7$L,
+                read_ct = read_ct + 1
+            FROM selected_messages sm
+            WHERE m.msg_id = sm.msg_id
+              AND m.vt <= clock_timestamp() -- final guard to avoid duplicate reads under races
+            RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.vt, m.message, m.headers, sm.selection_order
         )
-        UPDATE pgmq.%5$I m
-        SET
-            vt = clock_timestamp() + %6$L,
-            read_ct = read_ct + 1
-        FROM selected_messages sm
-        WHERE m.msg_id = sm.msg_id
-          AND m.vt <= clock_timestamp() -- final guard to avoid duplicate reads under races
-        RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.vt, m.message, m.headers;
+        SELECT msg_id, read_ct, enqueued_at, vt, message, headers
+        FROM updated_messages
+        ORDER BY selection_order;
         $QUERY$,
-        qtable, qtable, conditional, qtable, qtable, make_interval(secs => vt)
+        qtable, qtable, conditional, qtable, qtable, qtable, make_interval(secs => vt)
     );
     RETURN QUERY EXECUTE sql USING qty;
 END;
