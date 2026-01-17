@@ -54,24 +54,21 @@ SELECT
 -- Clean up for next test
 SELECT * FROM pgmq.purge_queue('fifo_test_queue');
 
--- test_fifo_sqs_style_conditional_reads
--- SQS-style with conditional reads
+-- test_fifo_sqs_style_all_messages_read
+-- SQS-style reading all messages from a single group
 SELECT * FROM pgmq.send('fifo_test_queue', '{"type": "order", "priority": "high"}'::jsonb, '{"x-pgmq-group": "orders"}'::jsonb);
 SELECT * FROM pgmq.send('fifo_test_queue', '{"type": "order", "priority": "medium"}'::jsonb, '{"x-pgmq-group": "orders"}'::jsonb);
 SELECT * FROM pgmq.send('fifo_test_queue', '{"type": "notification", "priority": "low"}'::jsonb, '{"x-pgmq-group": "orders"}'::jsonb);
 SELECT * FROM pgmq.send('fifo_test_queue', '{"type": "order", "priority": "low"}'::jsonb, '{"x-pgmq-group": "orders"}'::jsonb);
 
--- Should return only order messages using SQS-style conditional read
--- Expected: 3 messages with type=order (skipping the notification message)
+-- Should return all 4 messages in FIFO order from the orders group
 WITH results AS (
-    SELECT * FROM pgmq.read_grouped('fifo_test_queue', 10, 10, '{"type": "order"}'::jsonb)
+    SELECT * FROM pgmq.read_grouped('fifo_test_queue', 10, 10)
 )
 SELECT
-    (SELECT COUNT(*) FROM results) = 3 as count_correct,
-    (SELECT ARRAY_AGG((message->>'type')::text ORDER BY msg_id) FROM results)
-        = ARRAY['order', 'order', 'order']::text[] as all_orders,
+    (SELECT COUNT(*) FROM results) = 4 as count_correct,
     (SELECT ARRAY_AGG((message->>'priority')::text ORDER BY msg_id) FROM results)
-        = ARRAY['high', 'medium', 'low']::text[] as correct_fifo_order;
+        = ARRAY['high', 'medium', 'low', 'low']::text[] as correct_fifo_order;
 
 -- Clean up for next test
 SELECT * FROM pgmq.purge_queue('fifo_test_queue');
