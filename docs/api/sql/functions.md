@@ -244,17 +244,16 @@ select * from pgmq.read_with_poll('my_queue', 1, 1, 5, 100);
 
 ---
 
-### read_grouped_rr
+### read_grouped
 
-Read messages from a queue while respecting FIFO (First-In-First-Out) ordering within message groups. Messages with the same FIFO group ID (specified in the `x-pgmq-group` header) will be processed in strict order. Messages without FIFO headers are treated as belonging to a default group.
+Read messages from a queue with AWS SQS FIFO-style batch retrieval behavior. This function attempts to return as many messages as possible from the same message group, filling the batch from the earliest available group first. Messages with the same FIFO group ID (specified in the `x-pgmq-group` header) will be processed in order. Messages without FIFO headers are treated as belonging to a default group.
 
 <pre>
  <code>
-pgmq.read_grouped_rr(
+pgmq.read_grouped(
     queue_name text,
     vt integer,
-    qty integer,
-    conditional jsonb DEFAULT '{}'
+    qty integer
 )
 RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
  </code>
@@ -266,8 +265,98 @@ RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
 | :---        |  :----   |  :--- |
 | queue_name  | text     | The name of the queue   |
 | vt          | integer  | Time in seconds that the message become invisible after reading |
-| qty         | integer  | The number of messages to read from the queue. Defaults to 1 |
-| conditional | jsonb    | Filters the messages by their json content. Defaults to '{}' - no filtering |
+| qty         | integer  | The number of messages to read from the queue |
+
+**FIFO Behavior (Fill from same group):**
+- Messages with the same `x-pgmq-group` header value are processed in strict order
+- Only the oldest unprocessed message from each FIFO group can be read
+- The batch is filled preferentially from the earliest group (by oldest msg_id)
+- Messages from different FIFO groups can be processed in parallel
+- Messages without FIFO headers are treated as a single default group
+
+Examples:
+
+Send messages with FIFO grouping:
+
+```sql
+-- Send messages to the same FIFO group
+select pgmq.send('my_queue', '{"order": 1}', '{"x-pgmq-group": "user123"}');
+select pgmq.send('my_queue', '{"order": 2}', '{"x-pgmq-group": "user123"}');
+select pgmq.send('my_queue', '{"order": 3}', '{"x-pgmq-group": "user123"}');
+select pgmq.send('my_queue', '{"order": 1}', '{"x-pgmq-group": "user456"}');
+
+-- Read with FIFO grouped ordering - tries to fill batch from earliest group
+select * from pgmq.read_grouped('my_queue', 10, 5);
+ msg_id | read_ct |          enqueued_at          |              vt               |     message     |           headers
+--------+---------+-------------------------------+-------------------------------+-----------------+---------------------------
+      1 |       1 | 2023-10-28 19:14:47.356595-05 | 2023-10-28 19:17:08.608922-05 | {"order": 1}   | {"x-pgmq-group": "user123"}
+      2 |       1 | 2023-10-28 19:14:47.356595-05 | 2023-10-28 19:17:08.608974-05 | {"order": 2}   | {"x-pgmq-group": "user123"}
+      3 |       1 | 2023-10-28 19:14:47.356595-05 | 2023-10-28 19:17:08.608974-05 | {"order": 3}   | {"x-pgmq-group": "user123"}
+```
+
+---
+
+### read_grouped_with_poll
+
+Same as read_grouped(). Also provides convenient long-poll functionality for FIFO queues.
+ When there are no messages available that respect FIFO ordering, the function call will wait for `max_poll_seconds` in duration before returning.
+
+<pre>
+ <code>
+ pgmq.read_grouped_with_poll(
+    queue_name text,
+    vt integer,
+    qty integer,
+    max_poll_seconds integer DEFAULT 5,
+    poll_interval_ms integer DEFAULT 100
+)
+RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
+ </code>
+</pre>
+
+**Parameters:**
+
+| Parameter      | Type | Description     |
+| :---        |    :----   |          :--- |
+| queue_name      | text       | The name of the queue   |
+| vt   | integer       | Time in seconds that the message become invisible after reading.      |
+| qty   | integer        | The number of messages to read from the queue.      |
+| max_poll_seconds   | integer        | Time in seconds to wait for new messages to reach the queue. Defaults to 5.      |
+| poll_interval_ms   | integer        | Milliseconds between the internal poll operations. Defaults to 100.      |
+
+Example:
+
+```sql
+select * from pgmq.read_grouped_with_poll('my_queue', 10, 5, 5, 100);
+ msg_id | read_ct |          enqueued_at          |              vt               |      message    |           headers
+--------+---------+-------------------------------+-------------------------------+-----------------+---------------------------
+      1 |       1 | 2023-10-28 19:09:09.177756-05 | 2023-10-28 19:27:00.337929-05 | {"order": 1}   | {"x-pgmq-group": "user123"}
+```
+
+---
+
+### read_grouped_rr
+
+Read messages from a queue while respecting FIFO (First-In-First-Out) ordering within message groups and using round-robin interleaving across groups. Messages with the same FIFO group ID (specified in the `x-pgmq-group` header) will be processed in strict order. Messages without FIFO headers are treated as belonging to a default group.
+
+<pre>
+ <code>
+pgmq.read_grouped_rr(
+    queue_name text,
+    vt integer,
+    qty integer
+)
+RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
+ </code>
+</pre>
+
+**Parameters:**
+
+| Parameter   | Type     | Description |
+| :---        |  :----   |  :--- |
+| queue_name  | text     | The name of the queue   |
+| vt          | integer  | Time in seconds that the message become invisible after reading |
+| qty         | integer  | The number of messages to read from the queue |
 
 **FIFO Behavior (Round Robin across groups):**
 - Messages with the same `x-pgmq-group` header value are processed in strict order
@@ -297,7 +386,7 @@ select * from pgmq.read_grouped_rr('my_queue', 10, 5);
 
 ### read_grouped_rr_with_poll
 
-Same as read_grouped(). Also provides convenient long-poll functionality for FIFO queues.
+Same as read_grouped_rr(). Also provides convenient long-poll functionality for FIFO queues.
  When there are no messages available that respect FIFO ordering, the function call will wait for `max_poll_seconds` in duration before returning.
 
 <pre>
@@ -307,8 +396,7 @@ Same as read_grouped(). Also provides convenient long-poll functionality for FIF
     vt integer,
     qty integer,
     max_poll_seconds integer DEFAULT 5,
-    poll_interval_ms integer DEFAULT 100,
-    conditional jsonb DEFAULT '{}'
+    poll_interval_ms integer DEFAULT 100
 )
 RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
  </code>
@@ -320,10 +408,9 @@ RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
 | :---        |    :----   |          :--- |
 | queue_name      | text       | The name of the queue   |
 | vt   | integer       | Time in seconds that the message become invisible after reading.      |
-| qty   | integer        | The number of messages to read from the queue. Defaults to 1.      |
+| qty   | integer        | The number of messages to read from the queue.      |
 | max_poll_seconds   | integer        | Time in seconds to wait for new messages to reach the queue. Defaults to 5.      |
 | poll_interval_ms   | integer        | Milliseconds between the internal poll operations. Defaults to 100.      |
-| conditional | jsonb    | Filters the messages by their json content. Defaults to '{}' - no filtering |
 
 Example:
 
