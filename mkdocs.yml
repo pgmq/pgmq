@@ -31,3 +31,6 @@ markdown_extensions:
 plugins:
   - search
   - mkdocstrings
+extra:
+  version:
+    provider: mike
