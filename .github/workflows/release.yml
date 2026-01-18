@@ -109,5 +109,6 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          uv run mike deploy --push --update-aliases ${{ steps.version.outputs.TAG_VER }} latest
-          uv run mike set-default --push latest
+          uv run mike deploy --update-aliases ${{ steps.version.outputs.TAG_VER }} latest
+          uv run mike set-default latest
+          git push origin gh-pages
