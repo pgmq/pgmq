@@ -432,3 +432,86 @@ SELECT pgmq.drop_queue('fifo_rr_poll_queue');
  t
 (1 row)
 
+-- test for round robin batch reads lose message ordering
+-- when messages become visible again after VT expires, they should maintain FIFO order within each group
+SELECT pgmq.create('fifo_rr_order_test');
+ create 
+--------
+ 
+(1 row)
+
+-- Send 3 messages: 2 to user123, 1 to user456
+SELECT * FROM pgmq.send('fifo_rr_order_test', '{"order": 1}'::jsonb, '{"x-pgmq-group":"user123"}'::jsonb);
+ send 
+------
+    1
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_order_test', '{"order": 2}'::jsonb, '{"x-pgmq-group":"user123"}'::jsonb);
+ send 
+------
+    2
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_rr_order_test', '{"order": 1}'::jsonb, '{"x-pgmq-group":"user456"}'::jsonb);
+ send 
+------
+    3
+(1 row)
+
+-- first read gets 2 messages (1 from each group in round-robin)
+WITH first_read AS (
+    SELECT * FROM pgmq.read_grouped_rr('fifo_rr_order_test', 2, 2)
+)
+SELECT
+    (SELECT COUNT(*) FROM first_read) = 2 as first_read_count_correct,
+    (SELECT ARRAY_AGG(headers->>'x-pgmq-group' ORDER BY msg_id) FROM first_read)
+        = ARRAY['user123','user456']::text[] as first_read_groups_correct;
+ first_read_count_correct | first_read_groups_correct 
+--------------------------+---------------------------
+ t                        | t
+(1 row)
+
+-- second read should get nothing (messages in flight)
+WITH second_read AS (
+    SELECT * FROM pgmq.read_grouped_rr('fifo_rr_order_test', 2, 2)
+)
+SELECT (SELECT COUNT(*) FROM second_read) = 0 as second_read_empty;
+ second_read_empty 
+-------------------
+ t
+(1 row)
+
+-- Manually expire the visibility timeout for all messages
+UPDATE pgmq.q_fifo_rr_order_test SET vt = clock_timestamp() - interval '1 second';
+-- third read after VT expires, should maintain FIFO order within groups
+-- expected order: user123-msg1, user456-msg1, user123-msg2
+WITH third_read AS (
+    SELECT
+        msg_id,
+        message->>'order' as msg_order,
+        headers->>'x-pgmq-group' as grp,
+        ROW_NUMBER() OVER () as return_order
+    FROM pgmq.read_grouped_rr('fifo_rr_order_test', 2, 5)
+)
+SELECT
+    (SELECT COUNT(*) FROM third_read) = 3 as third_read_count_correct,
+    -- Verify round-robin layering (in the order returned, not by msg_id)
+    (SELECT ARRAY_AGG(grp ORDER BY return_order) FROM third_read)
+        = ARRAY['user123','user456','user123']::text[] as correct_rr_layering,
+    -- very important, verify FIFO within user123 group (msg1 before msg2)
+    -- When we look at user123 messages in return order, seq should be [1,2]
+    (SELECT ARRAY_AGG(msg_order::int ORDER BY return_order) FILTER (WHERE grp = 'user123') FROM third_read)
+        = ARRAY[1,2]::int[] as fifo_maintained_in_user123;
+ third_read_count_correct | correct_rr_layering | fifo_maintained_in_user123 
+--------------------------+---------------------+----------------------------
+ t                        | t                   | t
+(1 row)
+
+-- Cleanup
+SELECT pgmq.drop_queue('fifo_rr_order_test');
+ drop_queue 
+------------
+ t
+(1 row)
+

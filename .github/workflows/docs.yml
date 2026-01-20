@@ -12,12 +12,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v2
         with:
-          python-version: 3.11
-      - run: curl -sSL https://install.python-poetry.org | POETRY_VERSION=1.8.3 python3 -
-      - run: poetry install
-      - name: deploy docs
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.11"
+      - run: uv sync
+      - name: Configure git for mike
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Deploy main docs
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: poetry run mkdocs gh-deploy --force
+        run: uv run mike deploy --push main

@@ -68,7 +68,7 @@ SELECT pgmq.send('my_queue', '{"message": "second"}');
 
 ### Reading Functions
 
-#### `pgmq.read_grouped_rr(queue_name, vt, qty, conditional)`
+#### `pgmq.read_grouped_rr(queue_name, vt, qty)`
 
 Read messages while respecting FIFO ordering within groups.
 
@@ -76,13 +76,12 @@ Read messages while respecting FIFO ordering within groups.
 - `queue_name` (text): Name of the queue
 - `vt` (integer): Visibility timeout in seconds
 - `qty` (integer): Maximum number of messages to read
-- `conditional` (jsonb): Optional message filtering
 
-#### `pgmq.read_grouped_rr_with_poll(queue_name, vt, qty, max_poll_seconds, poll_interval_ms, conditional)`
+#### `pgmq.read_grouped_rr_with_poll(queue_name, vt, qty, max_poll_seconds, poll_interval_ms)`
 
 Same as `read_grouped_rr()` but with polling support for real-time processing.
 
-#### `pgmq.read_grouped(queue_name, vt, qty, conditional)`
+#### `pgmq.read_grouped(queue_name, vt, qty)`
 
 Read messages with AWS SQS FIFO-style batch retrieval behavior. Unlike `read_grouped_rr()` which interleaves fairly across groups, this function attempts to return as many messages as possible from the same message group to maximize throughput for related messages.
 
@@ -92,9 +91,9 @@ Read messages with AWS SQS FIFO-style batch retrieval behavior. Unlike `read_gro
 - Only moves to other groups if the batch cannot be filled from the first group
 - Maintains strict FIFO ordering within each group
 
-#### `pgmq.read_grouped_with_poll(queue_name, vt, qty, max_poll_seconds, poll_interval_ms, conditional)`
+#### `pgmq.read_grouped_with_poll(queue_name, vt, qty, max_poll_seconds, poll_interval_ms)`
 
-Same as `read_grouped_sqs_style()` but with polling support for real-time processing.
+Same as `read_grouped()` but with polling support for real-time processing.
 
 ### Utility Functions
 
