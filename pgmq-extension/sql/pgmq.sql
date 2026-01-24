@@ -154,13 +154,14 @@ BEGIN
             UPDATE pgmq.%5$I m
             SET
                 vt = clock_timestamp() + %6$L,
-                read_ct = read_ct + 1
+                read_ct = read_ct + 1,
+                last_read_at = clock_timestamp()
             FROM selected_messages sm
             WHERE m.msg_id = sm.msg_id
               AND m.vt <= clock_timestamp() -- final guard to avoid duplicate reads under races
-            RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.vt, m.message, m.headers, sm.selection_order
+            RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.last_read_at, m.vt, m.message, m.headers, sm.selection_order
         )
-        SELECT msg_id, read_ct, enqueued_at, vt, message, headers
+        SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers
         FROM updated_messages
         ORDER BY selection_order;
         $QUERY$,
@@ -342,10 +343,11 @@ BEGIN
         UPDATE pgmq.%I m
         SET
             vt = clock_timestamp() + %L,
-            read_ct = read_ct + 1
+            read_ct = read_ct + 1,
+            last_read_at = clock_timestamp()
         FROM selected_messages sm
         WHERE m.msg_id = sm.msg_id
-        RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.vt, m.message, m.headers;
+        RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.last_read_at, m.vt, m.message, m.headers;
         $QUERY$,
         qtable, qtable, qtable, qtable, qtable, make_interval(secs => vt)
     );
