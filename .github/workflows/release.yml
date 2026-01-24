@@ -83,3 +83,32 @@ jobs:
           tags: |
             ghcr.io/pgmq/pg${{matrix.pg}}-pgmq:v${{ steps.versions.outputs.TAG_VER }}
             ghcr.io/pgmq/pg${{matrix.pg}}-pgmq:latest
+  docs-release:
+    if: github.repository == 'pgmq/pgmq'
+    name: Deploy versioned docs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: astral-sh/setup-uv@v7
+        with:
+          python-version: "3.11"
+      - run: uv sync
+      - name: Configure git for mike
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+      - name: Get version from pgmq.control
+        id: version
+        working-directory: ./pgmq-extension
+        run: |
+          echo "TAG_VER=$(grep 'default_version' pgmq.control | cut -d "'" -f 2)" >> $GITHUB_OUTPUT
+      - name: Deploy docs for release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          uv run mike deploy --update-aliases ${{ steps.version.outputs.TAG_VER }} latest
+          uv run mike set-default latest
+          git push origin gh-pages

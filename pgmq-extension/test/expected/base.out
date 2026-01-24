@@ -847,7 +847,7 @@ SELECT pgmq.convert_archive_partitioned('long_queue_name_12345678901234567890123
 NOTICE:  identifier "archived_at_idx_long_queue_name_1234567890123456789012345678901_old" will be truncated to "archived_at_idx_long_queue_name_1234567890123456789012345678901"
 ERROR:  relation "archived_at_idx_long_queue_name_1234567890123456789012345678901" already exists
 CONTEXT:  SQL statement "ALTER INDEX pgmq.archived_at_idx_long_queue_name_1234567890123456789012345678901 RENAME TO archived_at_idx_long_queue_name_1234567890123456789012345678901_old"
-PL/pgSQL function pgmq.convert_archive_partitioned(text,text,text,integer) line 34 at EXECUTE
+PL/pgSQL function pgmq.convert_archive_partitioned(text,text,text,integer) line 52 at EXECUTE
 --Success
 SELECT pgmq.create('long_queue_name_');
  create 
@@ -859,6 +859,57 @@ SELECT pgmq.convert_archive_partitioned('long_queue_name_');
  convert_archive_partitioned 
 -----------------------------
  
+(1 row)
+
+-- test_convert_archive_partitioned_time_based
+-- Test that convert_archive_partitioned works with time-based intervals
+SELECT pgmq.create('time_based_convert_queue');
+ create 
+--------
+ 
+(1 row)
+
+-- Send and archive some messages to populate the archive table
+SELECT pgmq.send('time_based_convert_queue', '{"test": 1}');
+ send 
+------
+    1
+(1 row)
+
+SELECT pgmq.send('time_based_convert_queue', '{"test": 2}');
+ send 
+------
+    2
+(1 row)
+
+SELECT pgmq.archive('time_based_convert_queue', 1);
+ archive 
+---------
+ t
+(1 row)
+
+SELECT pgmq.archive('time_based_convert_queue', 2);
+ archive 
+---------
+ t
+(1 row)
+
+-- Convert archive to time-based partitioned (should not error with "invalid input syntax for type bigint")
+SELECT pgmq.convert_archive_partitioned('time_based_convert_queue', '1 hour', '2 hours');
+ convert_archive_partitioned 
+-----------------------------
+ 
+(1 row)
+
+-- Verify the archive table is now partitioned
+SELECT c.relkind = 'p' AS is_partitioned
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname = 'pgmq'
+  AND c.relname = 'a_time_based_convert_queue';
+ is_partitioned 
+----------------
+ t
 (1 row)
 
 \set SHOW_CONTEXT never

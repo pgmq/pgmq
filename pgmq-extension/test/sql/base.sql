@@ -338,6 +338,23 @@ SELECT pgmq.convert_archive_partitioned('long_queue_name_12345678901234567890123
 SELECT pgmq.create('long_queue_name_');
 SELECT pgmq.convert_archive_partitioned('long_queue_name_');
 
+-- test_convert_archive_partitioned_time_based
+-- Test that convert_archive_partitioned works with time-based intervals
+SELECT pgmq.create('time_based_convert_queue');
+-- Send and archive some messages to populate the archive table
+SELECT pgmq.send('time_based_convert_queue', '{"test": 1}');
+SELECT pgmq.send('time_based_convert_queue', '{"test": 2}');
+SELECT pgmq.archive('time_based_convert_queue', 1);
+SELECT pgmq.archive('time_based_convert_queue', 2);
+-- Convert archive to time-based partitioned (should not error with "invalid input syntax for type bigint")
+SELECT pgmq.convert_archive_partitioned('time_based_convert_queue', '1 hour', '2 hours');
+-- Verify the archive table is now partitioned
+SELECT c.relkind = 'p' AS is_partitioned
+  FROM pg_class c
+  JOIN pg_namespace n ON n.oid = c.relnamespace
+  WHERE n.nspname = 'pgmq'
+  AND c.relname = 'a_time_based_convert_queue';
+
 \set SHOW_CONTEXT never
 
 --Failed SQL injection attack
