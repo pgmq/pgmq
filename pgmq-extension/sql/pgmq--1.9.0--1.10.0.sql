@@ -1,7 +1,3 @@
-------------------------------------------------------------
--- Migration: Add last_read_at column to existing queues
-------------------------------------------------------------
-
 -- Add last_read_at column to all existing queue tables (q_*) and archive tables (a_*)
 DO $$
 DECLARE
@@ -40,12 +36,7 @@ BEGIN
 END;
 $$;
 
-------------------------------------------------------------
--- Migration: Update pgmq.message_record type
-------------------------------------------------------------
-
--- Drop the old type and recreate with last_read_at
--- Note: The functions that use this type are being dropped and recreated below
+-- The functions that use this type are being dropped and recreated below
 DROP TYPE IF EXISTS pgmq.message_record CASCADE;
 
 CREATE TYPE pgmq.message_record AS (

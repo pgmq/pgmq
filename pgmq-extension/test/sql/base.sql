@@ -408,6 +408,120 @@ SELECT pgmq.create('null_message_queue');
 SELECT pgmq.send('null_message_queue', NULL);
 SELECT msg_id, read_ct, message FROM pgmq.read('null_message_queue', 1, 1);
 
+-- test_last_read_at
+-- Tests that last_read_at is properly set and returned by read functions
+
+-- test_last_read_at_read
+SELECT pgmq.create('test_last_read_at_read');
+SELECT pgmq.send('test_last_read_at_read', '{"test": "read"}');
+-- First read: last_read_at should be set
+SELECT
+    msg_id = 1 AS correct_msg_id,
+    last_read_at IS NOT NULL AS has_last_read_at,
+    last_read_at <= clock_timestamp() AS last_read_at_is_valid
+FROM pgmq.read('test_last_read_at_read', 0, 1);
+
+-- test_last_read_at_read_with_poll
+SELECT pgmq.create('test_last_read_at_rwp');
+SELECT pgmq.send('test_last_read_at_rwp', '{"test": "read_with_poll"}');
+SELECT
+    msg_id = 1 AS correct_msg_id,
+    last_read_at IS NOT NULL AS has_last_read_at,
+    last_read_at <= clock_timestamp() AS last_read_at_is_valid
+FROM pgmq.read_with_poll('test_last_read_at_rwp', 0, 1, 1);
+
+-- test_last_read_at_pop
+SELECT pgmq.create('test_last_read_at_pop');
+SELECT pgmq.send('test_last_read_at_pop', '{"test": "pop"}');
+-- Pop returns the message with last_read_at (should be NULL since never read)
+SELECT
+    msg_id = 1 AS correct_msg_id,
+    last_read_at IS NULL AS last_read_at_is_null_before_read
+FROM pgmq.pop('test_last_read_at_pop');
+-- Send another, read it first, then pop
+SELECT pgmq.send('test_last_read_at_pop', '{"test": "pop2"}');
+SELECT msg_id FROM pgmq.read('test_last_read_at_pop', 0, 1);
+SELECT
+    msg_id = 2 AS correct_msg_id,
+    last_read_at IS NOT NULL AS has_last_read_at_after_read
+FROM pgmq.pop('test_last_read_at_pop');
+
+-- test_last_read_at_set_vt
+SELECT pgmq.create('test_last_read_at_set_vt');
+SELECT pgmq.send('test_last_read_at_set_vt', '{"test": "set_vt"}');
+-- set_vt returns the message with last_read_at column
+SELECT
+    msg_id = 1 AS correct_msg_id,
+    last_read_at IS NULL AS last_read_at_null_before_read
+FROM pgmq.set_vt('test_last_read_at_set_vt', 1, 0);
+-- Read the message to set last_read_at
+SELECT msg_id FROM pgmq.read('test_last_read_at_set_vt', 0, 1);
+-- Now set_vt should show last_read_at is set
+SELECT
+    msg_id = 1 AS correct_msg_id,
+    last_read_at IS NOT NULL AS has_last_read_at
+FROM pgmq.set_vt('test_last_read_at_set_vt', 1, 0);
+
+-- test_last_read_at_set_vt_batch
+SELECT pgmq.create('test_last_read_at_set_vt_batch');
+SELECT pgmq.send('test_last_read_at_set_vt_batch', '{"test": "batch1"}');
+SELECT pgmq.send('test_last_read_at_set_vt_batch', '{"test": "batch2"}');
+-- Read both messages
+SELECT msg_id FROM pgmq.read('test_last_read_at_set_vt_batch', 0, 2);
+-- Batch set_vt should return messages with last_read_at set
+SELECT
+    COUNT(*) = 2 AS both_messages_returned,
+    COUNT(*) FILTER (WHERE last_read_at IS NOT NULL) = 2 AS both_have_last_read_at
+FROM pgmq.set_vt('test_last_read_at_set_vt_batch', ARRAY[1, 2], 0);
+
+-- test_last_read_at_read_grouped
+SELECT pgmq.create('test_last_read_at_rg');
+SELECT pgmq.send('test_last_read_at_rg', '{"test": "grouped"}', '{"x-pgmq-group": "group1"}'::jsonb);
+SELECT
+    msg_id = 1 AS correct_msg_id,
+    last_read_at IS NOT NULL AS has_last_read_at,
+    last_read_at <= clock_timestamp() AS last_read_at_is_valid
+FROM pgmq.read_grouped('test_last_read_at_rg', 0, 1);
+
+-- test_last_read_at_read_grouped_with_poll
+SELECT pgmq.create('test_last_read_at_rgwp');
+SELECT pgmq.send('test_last_read_at_rgwp', '{"test": "grouped_poll"}', '{"x-pgmq-group": "group1"}'::jsonb);
+SELECT
+    msg_id = 1 AS correct_msg_id,
+    last_read_at IS NOT NULL AS has_last_read_at,
+    last_read_at <= clock_timestamp() AS last_read_at_is_valid
+FROM pgmq.read_grouped_with_poll('test_last_read_at_rgwp', 0, 1, 1);
+
+-- test_last_read_at_read_grouped_rr
+SELECT pgmq.create('test_last_read_at_rgrr');
+SELECT pgmq.send('test_last_read_at_rgrr', '{"test": "rr"}', '{"x-pgmq-group": "group1"}'::jsonb);
+SELECT
+    msg_id = 1 AS correct_msg_id,
+    last_read_at IS NOT NULL AS has_last_read_at,
+    last_read_at <= clock_timestamp() AS last_read_at_is_valid
+FROM pgmq.read_grouped_rr('test_last_read_at_rgrr', 0, 1);
+
+-- test_last_read_at_read_grouped_rr_with_poll
+SELECT pgmq.create('test_last_read_at_rgrrwp');
+SELECT pgmq.send('test_last_read_at_rgrrwp', '{"test": "rr_poll"}', '{"x-pgmq-group": "group1"}'::jsonb);
+SELECT
+    msg_id = 1 AS correct_msg_id,
+    last_read_at IS NOT NULL AS has_last_read_at,
+    last_read_at <= clock_timestamp() AS last_read_at_is_valid
+FROM pgmq.read_grouped_rr_with_poll('test_last_read_at_rgrrwp', 0, 1, 1);
+
+-- test_last_read_at_updates_on_reread
+-- Verify that last_read_at updates each time a message is read
+SELECT pgmq.create('test_last_read_at_reread');
+SELECT pgmq.send('test_last_read_at_reread', '{"test": "reread"}');
+-- First read
+SELECT last_read_at AS first_read_at FROM pgmq.read('test_last_read_at_reread', 0, 1) \gset
+SELECT pg_sleep(0.1);
+-- Second read
+SELECT last_read_at AS second_read_at FROM pgmq.read('test_last_read_at_reread', 0, 1) \gset
+-- Second read should have a later timestamp
+SELECT :'second_read_at'::timestamptz > :'first_read_at'::timestamptz AS last_read_at_updated;
+
 --Cleanup tests
 DROP EXTENSION pgmq CASCADE;
 DROP EXTENSION pg_partman CASCADE;
