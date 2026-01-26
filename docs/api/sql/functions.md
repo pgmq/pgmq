@@ -175,11 +175,29 @@ RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
 | queue_name  | text     | The name of the queue   |
 | vt          | integer  | Time in seconds that the message become invisible after reading |
 | qty         | integer  | The number of messages to read from the queue |
-| conditional | jsonb    | Filters the messages by their json content. Defaults to '{}' - no filtering. **This feature is experimental, and the API is subject to change in future releases**  |
+| conditional | jsonb    | Filters the messages by their json content. Defaults to '{}' - no filtering. Supports two formats: simple containment (backward compatible) and advanced filtering with comparison operators. |
+
+**Conditional Filter Formats:**
+
+1. **Simple Containment** (backward compatible): `{"field": "value"}` - Uses JSONB `@>` operator to match messages containing the specified key-value pair.
+
+2. **Advanced Filtering**: `{"field": "field_name", "operator": ">", "value": 4}` - Supports comparison operators and nested fields.
+
+**Supported Operators:**
+- `>` - Greater than (numeric comparison)
+- `>=` - Greater than or equal (numeric comparison)
+- `<` - Less than (numeric comparison)
+- `<=` - Less than or equal (numeric comparison)
+- `=` - Equal (numeric or text comparison)
+- `!=` or `<>` - Not equal (numeric or text comparison)
+- `exists` - Check if field exists (no value required)
+
+**Nested Fields:**
+Nested JSON fields can be accessed using dot notation: `"user.age"` will access `message->'user'->>'age'`.
 
 Examples:
 
-Read messages from a queue
+Read messages from a queue (no filtering)
 
 ```sql
 select * from pgmq.read('my_queue', 10, 2);
@@ -190,13 +208,59 @@ select * from pgmq.read('my_queue', 10, 2);
 (2 rows)
 ```
 
-Read a message from a queue with message filtering
+Read with simple containment filter (backward compatible)
 
 ```sql
 select * from pgmq.read('my_queue', 10, 2, '{"hello": "world_1"}');
  msg_id | read_ct |          enqueued_at          |              vt               |       message        | headers
 --------+---------+-------------------------------+-------------------------------+----------------------+---------
       2 |       1 | 2023-10-28 19:14:47.356595-05 | 2023-10-28 19:17:08.608974-05 | {"hello": "world_1"} |
+(1 row)
+```
+
+Read with advanced filtering - greater than
+
+```sql
+-- Find messages where age > 20
+select * from pgmq.read('my_queue', 10, 10, '{"field": "age", "operator": ">", "value": 20}');
+ msg_id | read_ct |          enqueued_at          |              vt               |       message        | headers
+--------+---------+-------------------------------+-------------------------------+----------------------+---------
+      1 |       1 | 2023-10-28 19:14:47.356595-05 | 2023-10-28 19:17:08.608922-05 | {"name": "Alice", "age": 25} |
+      2 |       1 | 2023-10-28 19:14:47.356595-05 | 2023-10-28 19:17:08.608974-05 | {"name": "Bob", "age": 30} |
+(2 rows)
+```
+
+Read with advanced filtering - equality
+
+```sql
+-- Find messages where status = "active"
+select * from pgmq.read('my_queue', 10, 10, '{"field": "status", "operator": "=", "value": "active"}');
+ msg_id | read_ct |          enqueued_at          |              vt               |       message        | headers
+--------+---------+-------------------------------+-------------------------------+----------------------+---------
+      3 |       1 | 2023-10-28 19:14:47.356595-05 | 2023-10-28 19:17:08.608922-05 | {"status": "active", "priority": "high"} |
+(1 row)
+```
+
+Read with advanced filtering - field exists
+
+```sql
+-- Find messages that have an "age" field
+select * from pgmq.read('my_queue', 10, 10, '{"field": "age", "operator": "exists"}');
+ msg_id | read_ct |          enqueued_at          |              vt               |       message        | headers
+--------+---------+-------------------------------+-------------------------------+----------------------+---------
+      1 |       1 | 2023-10-28 19:14:47.356595-05 | 2023-10-28 19:17:08.608922-05 | {"name": "Alice", "age": 25} |
+      2 |       1 | 2023-10-28 19:14:47.356595-05 | 2023-10-28 19:17:08.608974-05 | {"name": "Bob", "age": 30} |
+(2 rows)
+```
+
+Read with advanced filtering - nested fields
+
+```sql
+-- Find messages where user.age > 30
+select * from pgmq.read('my_queue', 10, 10, '{"field": "user.age", "operator": ">", "value": 30}');
+ msg_id | read_ct |          enqueued_at          |              vt               |       message        | headers
+--------+---------+-------------------------------+-------------------------------+----------------------+---------
+      4 |       1 | 2023-10-28 19:14:47.356595-05 | 2023-10-28 19:17:08.608922-05 | {"user": {"name": "Frank", "age": 35}} |
 (1 row)
 ```
 
@@ -231,15 +295,34 @@ RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
 | qty   | integer        | The number of messages to read from the queue      |
 | max_poll_seconds   | integer        | Time in seconds to wait for new messages to reach the queue. Defaults to 5.      |
 | poll_interval_ms   | integer        | Milliseconds between the internal poll operations. Defaults to 100.      |
-| conditional | jsonb    | Filters the messages by their json content. Defaults to '{}' - no filtering. **This feature is experimental, and the API is subject to change in future releases** |
+| conditional | jsonb    | Filters the messages by their json content. Defaults to '{}' - no filtering. Supports the same formats as `read()`: simple containment or advanced filtering with comparison operators. |
 
-Example:
+**Conditional Filter:**
+The `conditional` parameter supports the same formats as `read()`:
+- Simple containment: `{"field": "value"}`
+- Advanced filtering: `{"field": "field_name", "operator": ">", "value": 4}`
+
+See the `read()` function documentation for details on supported operators and nested field access.
+
+Examples:
+
+Basic polling without filter
 
 ```sql
 select * from pgmq.read_with_poll('my_queue', 1, 1, 5, 100);
  msg_id | read_ct |          enqueued_at          |              vt               |      message       | headers
 --------+---------+-------------------------------+-------------------------------+--------------------+---------
       1 |       1 | 2023-10-28 19:09:09.177756-05 | 2023-10-28 19:27:00.337929-05 | {"hello": "world"} |
+```
+
+Polling with advanced filter
+
+```sql
+-- Poll for messages where age > 25
+select * from pgmq.read_with_poll('my_queue', 30, 10, 5, 100, '{"field": "age", "operator": ">", "value": 25}');
+ msg_id | read_ct |          enqueued_at          |              vt               |      message       | headers
+--------+---------+-------------------------------+-------------------------------+--------------------+---------
+      2 |       1 | 2023-10-28 19:14:47.356595-05 | 2023-10-28 19:17:08.608974-05 | {"name": "Bob", "age": 30} |
 ```
 
 ---

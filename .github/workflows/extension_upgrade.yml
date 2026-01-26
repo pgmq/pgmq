@@ -56,10 +56,6 @@ jobs:
           sed -i "s|PG_CONFIG = pg_config|PG_CONFIG = ${PG_CONFIG}|" Makefile && \
           make && \
           make install
-      - name: Checkout old version (1.0.0)
-        run: |
-          git fetch --tags
-          git checkout tags/v1.0.0
       - name: Run old version (1.0.0)
         run: |
           rm -rf ./target/pgrx-test-data-* || true

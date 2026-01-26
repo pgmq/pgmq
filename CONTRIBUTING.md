@@ -190,37 +190,6 @@ Once you have a postgres instance with the extension installed, run:
 make installcheck
 ```
 
-## Documentation
-
-### Syncing Documentation with Source Code
-
-When making changes to `pgmq-extension/sql/pgmq.sql`, the documentation must be updated to stay in sync. A comprehensive guide is available in `.claude/commands/pgmq/update-docs.md` to help with this process.
-
-**With Claude Code:**
-```bash
-/pgmq:update-docs
-```
-
-**With other AI assistants (ChatGPT, Copilot, etc.):**
-Copy-paste the contents of `.claude/commands/pgmq/update-docs.md` to your AI assistant.
-
-This command provides:
-- Step-by-step verification process
-- Checklist of common documentation issues
-- Examples from previous syncs
-- Best practices for maintaining accuracy
-
-The documentation files that need to be kept in sync:
-- `docs/api/sql/types.md` - Type definitions
-- `docs/api/sql/functions.md` - Function signatures and examples
-- `pgmq-extension/README.md` - User-facing examples and guides
-
-**Important:**
-1. Always review the generated documentation changes by hand to ensure accuracy
-2. After updating the docs, run `/pgmq:update-docs` again to verify all changes are correct and no issues were introduced
-
-Note: The root `README.md` is a symlink to `pgmq-extension/README.md`, so only edit the latter.
-
 ## Releases
 
 The PGMQ Postgres Extension is released as a bundle with Postgres (in a container) and as PGXN distribution. Both of these flows are managed in a [Github workflow](https://github.com/pgmq/pgmq/blob/main/.github/workflows/release.yml). To create a release,

@@ -19,6 +19,7 @@ A lightweight message queue. Like [AWS SQS](https://aws.amazon.com/sqs/) and [RS
 - FIFO (First-In-First-Out) queues with message group keys for ordered processing
 - Messages stay in the queue until explicitly removed
 - Messages can be archived, instead of deleted, for long-term retention and replayability
+- **Advanced JSON filtering** - Filter messages by field values using comparison operators (`>`, `>=`, `<`, `<=`, `=`, `!=`, `exists`) and nested field access
 
 Supported on Postgres 14-18.
 
@@ -183,6 +184,63 @@ SELECT * FROM pgmq.read(
 ```text
  msg_id | read_ct | enqueued_at | vt | message | headers
 --------+---------+-------------+----+---------+---------
+```
+
+### Read messages with advanced filtering
+
+PGMQ supports advanced JSON filtering to selectively read messages based on their content. You can use comparison operators to filter messages by field values.
+
+**Simple containment filter** (backward compatible):
+```sql
+-- Find messages containing {"status": "active"}
+SELECT * FROM pgmq.read(
+  queue_name => 'my_queue',
+  vt         => 30,
+  qty        => 10,
+  conditional => '{"status": "active"}'
+);
+```
+
+**Advanced filtering with comparison operators**:
+```sql
+-- Find messages where age > 20
+SELECT * FROM pgmq.read(
+  queue_name => 'my_queue',
+  vt         => 30,
+  qty        => 10,
+  conditional => '{"field": "age", "operator": ">", "value": 20}'
+);
+```
+
+**Supported operators:**
+- `>`, `>=`, `<`, `<=` - Numeric comparisons
+- `=`, `!=`, `<>` - Equality comparisons (works with numbers and strings)
+- `exists` - Check if a field exists
+
+**Nested field access:**
+```sql
+-- Find messages where user.age > 30
+SELECT * FROM pgmq.read(
+  queue_name => 'my_queue',
+  vt         => 30,
+  qty        => 10,
+  conditional => '{"field": "user.age", "operator": ">", "value": 30}'
+);
+```
+
+**More examples:**
+```sql
+-- Find messages where status = "pending"
+SELECT * FROM pgmq.read('my_queue', 30, 10, 
+  '{"field": "status", "operator": "=", "value": "pending"}');
+
+-- Find messages where score >= 85
+SELECT * FROM pgmq.read('my_queue', 30, 10, 
+  '{"field": "score", "operator": ">=", "value": 85}');
+
+-- Find messages that have a "priority" field
+SELECT * FROM pgmq.read('my_queue', 30, 10, 
+  '{"field": "priority", "operator": "exists"}');
 ```
 
 ### Pop a message
