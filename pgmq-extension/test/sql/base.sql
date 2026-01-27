@@ -234,6 +234,20 @@ SELECT msg_id FROM pgmq.set_vt('test_set_vt_queue', :first_msg_id, 0);
 -- set vt works if message is readable
 SELECT msg_id from pgmq.read('test_set_vt_queue', 1, 1);
 
+-- set message vt to a specific timestamp in the future
+SELECT clock_timestamp() + interval '65 seconds' AS future_ts \gset
+SELECT msg_id, vt = (:'future_ts')::timestamptz FROM pgmq.set_vt('test_set_vt_queue', :first_msg_id, (:'future_ts')::timestamptz);
+
+-- read message, it should not be visible
+SELECT msg_id from pgmq.read('test_set_vt_queue', 1, 1);
+
+-- make it visible
+SELECT clock_timestamp() AS current_ts \gset
+SELECT msg_id, vt = (:'current_ts')::timestamptz FROM pgmq.set_vt('test_set_vt_queue', :first_msg_id, (:'current_ts')::timestamptz);
+
+-- set vt works if message is readable again
+SELECT msg_id from pgmq.read('test_set_vt_queue', 1, 1);
+
 -- test batch set_vt
 SELECT pgmq.create('test_batch_set_vt_queue');
 
@@ -255,6 +269,22 @@ SELECT ARRAY(
 ) = ARRAY[:batch_msg_id1, :batch_msg_id2]::bigint[];
 
 -- both messages should be visible now
+SELECT ARRAY(
+    SELECT msg_id FROM pgmq.read('test_batch_set_vt_queue', 1, 5)
+) = ARRAY[:batch_msg_id1, :batch_msg_id2]::bigint[];
+
+-- set both messages vt to a specific timestamp in the future
+SELECT clock_timestamp() + interval '65 seconds' AS future_ts \gset
+SELECT msg_id, vt = (:'future_ts')::timestamptz FROM pgmq.set_vt('test_batch_set_vt_queue', ARRAY[:batch_msg_id1, :batch_msg_id2], (:'future_ts')::timestamptz);
+
+-- read messages, none should be visible
+SELECT COUNT(*) = 0 FROM pgmq.read('test_batch_set_vt_queue', 1, 5);
+
+-- make them visible again using batch set_vt
+SELECT clock_timestamp() AS current_ts \gset
+SELECT msg_id, vt = (:'current_ts')::timestamptz FROM pgmq.set_vt('test_batch_set_vt_queue', ARRAY[:batch_msg_id1, :batch_msg_id2], (:'current_ts')::timestamptz);
+
+-- both messages should be visible again
 SELECT ARRAY(
     SELECT msg_id FROM pgmq.read('test_batch_set_vt_queue', 1, 5)
 ) = ARRAY[:batch_msg_id1, :batch_msg_id2]::bigint[];
