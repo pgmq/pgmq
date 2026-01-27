@@ -10,7 +10,7 @@
    "provides": {
       "pgmq": {
          "abstract": "A lightweight message queue like AWS SQS or RSMQ, but on Postgres",
-         "file": "src/pgmq.sql",
+         "file": "sql/pgmq.sql",
          "docfile": "README.md",
          "version": "@@VERSION@@"
       }
