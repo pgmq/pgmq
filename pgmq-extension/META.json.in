@@ -4,13 +4,13 @@
    "description": "A lightweight message queue for PostgreSQL, like AWS SQS or RSMQ, but entirely in the database.",
    "version": "@@VERSION@@",
    "maintainer": [
-      "Tembo <admin+pgxn@tembo.io>"
+      "Adam Hendel <adam@hendel.dev>"
    ],
    "license": "postgresql",
    "provides": {
       "pgmq": {
          "abstract": "A lightweight message queue like AWS SQS or RSMQ, but on Postgres",
-         "file": "src/sql_src.sql",
+         "file": "sql/pgmq.sql",
          "docfile": "README.md",
          "version": "@@VERSION@@"
       }
@@ -27,11 +27,11 @@
    },
    "resources": {
       "bugtracker": {
-         "web": "https://github.com/tembo-io/pgmq/issues/"
+         "web": "https://github.com/pgmq/pgmq/issues/"
       },
       "repository": {
-         "url": "git://github.com/tembo-io/pgmq.git",
-         "web": "https://github.com/tembo-io/pgmq/",
+         "url": "git://github.com/pgmq/pgmq.git",
+         "web": "https://github.com/pgmq/pgmq/",
          "type": "git"
       }
    },

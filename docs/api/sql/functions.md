@@ -862,11 +862,9 @@ select * from pgmq.drop_queue('my_unlogged');
 Sets the visibility timeout of a message to a specified time duration in the future. Returns the record of the message that was updated.
 
 ```text
-pgmq.set_vt(
-    queue_name text,
-    msg_id bigint,
-    vt integer
-)
+pgmq.set_vt(queue_name text, msg_id bigint, vt integer)
+pgmq.set_vt(queue_name text, msg_id bigint, vt timestamp with time zone)
+
 RETURNS SETOF pgmq.message_record
 ```
 
@@ -877,6 +875,7 @@ RETURNS SETOF pgmq.message_record
 | queue_name  | text         | The name of the queue   |
 | msg_id      | bigint       | ID of the message to set visibility time  |
 | vt   | integer      | Duration from now, in seconds, that the message's VT should be set to   |
+| vt   | timestamp with time zone | Timestamp when the message becomes visible   |
 
 Example:
 
@@ -899,11 +898,9 @@ select * from pgmq.set_vt('my_queue', 1, 30);
 Sets the visibility timeout of multiple messages to a specified time duration in the future. Returns the records of the messages that were updated.
 
 ```text
-pgmq.set_vt(
-    queue_name text,
-    msg_ids bigint[],
-    vt integer
-)
+pgmq.set_vt(queue_name text, msg_ids bigint[], vt integer)
+pgmq.set_vt(queue_name text, msg_ids bigint[], vt timestamp with time zone)
+
 RETURNS SETOF pgmq.message_record
 ```
 
@@ -914,6 +911,7 @@ RETURNS SETOF pgmq.message_record
 | queue_name  | text         | The name of the queue   |
 | msg_ids      | bigint[]       | Array of message IDs to set visibility time  |
 | vt   | integer      | Duration from now, in seconds, that the messages' VT should be set to   |
+| vt   | timestamp with time zone | Timestamp when the messages become visible   |
 
 Example:
 

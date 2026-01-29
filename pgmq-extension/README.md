@@ -82,7 +82,7 @@ Community
 - [Ruby](https://github.com/mensfeld/pgmq-ruby)
 - [TypeScript (NodeJs + Prisma)](https://github.com/dvlkv/prisma-pgmq) 
 - [PHP (non blocking)](https://github.com/thesis-php/pgmq)
-- [Haskell](https://github.com/garganscript/haskell-pgmq)
+- [Haskell](https://github.com/MichelBoucey/stakhanov)
 
 ## SQL Examples
 

@@ -435,6 +435,65 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- Update archive functions to include last_read_at column
+CREATE OR REPLACE FUNCTION pgmq.archive(
+    queue_name TEXT,
+    msg_id BIGINT
+)
+RETURNS BOOLEAN AS $$
+DECLARE
+    sql TEXT;
+    result BIGINT;
+    qtable TEXT := pgmq.format_table_name(queue_name, 'q');
+    atable TEXT := pgmq.format_table_name(queue_name, 'a');
+BEGIN
+    sql := FORMAT(
+        $QUERY$
+        WITH archived AS (
+            DELETE FROM pgmq.%I
+            WHERE msg_id = $1
+            RETURNING msg_id, vt, read_ct, enqueued_at, last_read_at, message, headers
+        )
+        INSERT INTO pgmq.%I (msg_id, vt, read_ct, enqueued_at, last_read_at, message, headers)
+        SELECT msg_id, vt, read_ct, enqueued_at, last_read_at, message, headers
+        FROM archived
+        RETURNING msg_id;
+        $QUERY$,
+        qtable, atable
+    );
+    EXECUTE sql USING msg_id INTO result;
+    RETURN NOT (result IS NULL);
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE OR REPLACE FUNCTION pgmq.archive(
+    queue_name TEXT,
+    msg_ids BIGINT[]
+)
+RETURNS SETOF BIGINT AS $$
+DECLARE
+    sql TEXT;
+    qtable TEXT := pgmq.format_table_name(queue_name, 'q');
+    atable TEXT := pgmq.format_table_name(queue_name, 'a');
+BEGIN
+    sql := FORMAT(
+        $QUERY$
+        WITH archived AS (
+            DELETE FROM pgmq.%I
+            WHERE msg_id = ANY($1)
+            RETURNING msg_id, vt, read_ct, enqueued_at, last_read_at, message, headers
+        )
+        INSERT INTO pgmq.%I (msg_id, vt, read_ct, enqueued_at, last_read_at, message, headers)
+        SELECT msg_id, vt, read_ct, enqueued_at, last_read_at, message, headers
+        FROM archived
+        RETURNING msg_id;
+        $QUERY$,
+        qtable, atable
+    );
+    RETURN QUERY EXECUTE sql USING msg_ids;
+END;
+$$ LANGUAGE plpgsql;
+
 DROP FUNCTION IF EXISTS pgmq.pop(
     queue_name TEXT,
     qty INTEGER
@@ -467,12 +526,14 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
-DROP FUNCTION IF EXISTS pgmq.set_vt(
-    queue_name TEXT,
-    msg_id BIGINT,
-    vt INTEGER
-);
-CREATE FUNCTION pgmq.set_vt(queue_name TEXT, msg_id BIGINT, vt INTEGER)
+-- Drop old set_vt overloads (they'll be recreated below)
+DROP FUNCTION IF EXISTS pgmq.set_vt(TEXT, BIGINT, INTEGER);
+DROP FUNCTION IF EXISTS pgmq.set_vt(TEXT, BIGINT, TIMESTAMP WITH TIME ZONE);
+DROP FUNCTION IF EXISTS pgmq.set_vt(TEXT, BIGINT[], INTEGER);
+DROP FUNCTION IF EXISTS pgmq.set_vt(TEXT, BIGINT[], TIMESTAMP WITH TIME ZONE);
+
+-- Sets timestamp vt of a message, returns it (base implementation)
+CREATE FUNCTION pgmq.set_vt(queue_name TEXT, msg_id BIGINT, vt TIMESTAMP WITH TIME ZONE)
 RETURNS SETOF pgmq.message_record AS $$
 DECLARE
     sql TEXT;
@@ -482,34 +543,33 @@ BEGIN
     sql := FORMAT(
         $QUERY$
         UPDATE pgmq.%I
-        SET vt = (clock_timestamp() + %L)
-        WHERE msg_id = %L
+        SET vt = $1
+        WHERE msg_id = $2
         RETURNING *;
         $QUERY$,
-        qtable, make_interval(secs => vt), msg_id
+        qtable
     );
-    RETURN QUERY EXECUTE sql;
+    RETURN QUERY EXECUTE sql USING vt, msg_id;
 END;
 $$ LANGUAGE plpgsql;
 
-DROP FUNCTION IF EXISTS pgmq.set_vt(
-    queue_name TEXT,
-    msg_ids BIGINT[],
-    vt INTEGER
-);
+-- Sets integer vt of a message, returns it
+CREATE FUNCTION pgmq.set_vt(queue_name TEXT, msg_id BIGINT, vt INTEGER)
+RETURNS SETOF pgmq.message_record AS $$
+    SELECT * FROM pgmq.set_vt(queue_name, msg_id, clock_timestamp() + make_interval(secs => vt));
+$$ LANGUAGE sql;
+
+-- Sets timestamp vt of multiple messages, returns them (base implementation)
 CREATE FUNCTION pgmq.set_vt(
     queue_name TEXT,
     msg_ids BIGINT[],
-    vt INTEGER
+    vt TIMESTAMP WITH TIME ZONE
 )
 RETURNS SETOF pgmq.message_record AS $$
 DECLARE
     sql TEXT;
     qtable TEXT := pgmq.format_table_name(queue_name, 'q');
-    new_vt TIMESTAMP WITH TIME ZONE;
 BEGIN
-    new_vt := clock_timestamp() + make_interval(secs => vt);
-
     sql := FORMAT(
         $QUERY$
         UPDATE pgmq.%I
@@ -519,6 +579,16 @@ BEGIN
         $QUERY$,
         qtable
     );
-    RETURN QUERY EXECUTE sql USING new_vt, msg_ids;
+    RETURN QUERY EXECUTE sql USING vt, msg_ids;
 END;
 $$ LANGUAGE plpgsql;
+
+-- Sets integer vt of multiple messages, returns them
+CREATE FUNCTION pgmq.set_vt(
+    queue_name TEXT,
+    msg_ids BIGINT[],
+    vt INTEGER
+)
+RETURNS SETOF pgmq.message_record AS $$
+    SELECT * FROM pgmq.set_vt(queue_name, msg_ids, clock_timestamp() + make_interval(secs => vt));
+$$ LANGUAGE sql;
