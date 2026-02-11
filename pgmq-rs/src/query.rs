@@ -41,7 +41,8 @@ pub fn create_queue(name: CheckedName<'_>, is_unlogged: bool) -> Result<String, 
             read_ct INT DEFAULT 0 NOT NULL,
             enqueued_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
             vt TIMESTAMP WITH TIME ZONE NOT NULL,
-            message JSONB
+            message JSONB,
+            headers JSONB
         );
         "
     ))
@@ -56,7 +57,8 @@ pub fn create_archive(name: CheckedName<'_>) -> Result<String, PgmqError> {
             enqueued_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
             archived_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
             vt TIMESTAMP WITH TIME ZONE NOT NULL,
-            message JSONB
+            message JSONB,
+            headers JSONB
         );
         "
     ))
