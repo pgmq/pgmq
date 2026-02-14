@@ -3,7 +3,7 @@ use std::fmt::Display;
 use crate::{errors::PgmqError, types::Message};
 
 use log::LevelFilter;
-use serde::{Deserialize, Serialize};
+use serde::Deserialize;
 use sqlx::error::Error;
 use sqlx::postgres::PgRow;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
@@ -220,6 +220,9 @@ async fn execute_sql_statements(pool: &Pool<Postgres>, multi_query: &str) -> Res
     Ok(())
 }
 
+#[cfg(feature = "cli")]
+use serde::Serialize;
+#[cfg(feature = "cli")]
 #[derive(Serialize, Deserialize)]
 struct GitHubRelease {
     tag_name: String,

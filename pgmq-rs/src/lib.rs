@@ -167,12 +167,14 @@ pub use types::Message;
 use std::time::Duration;
 
 /// Main controller for interacting with a queue.
+#[deprecated(note = "Use `pg_ext::PGMQueueExt` instead")]
 #[derive(Clone, Debug)]
 pub struct PGMQueue {
     pub url: String,
     pub connection: Pool<Postgres>,
 }
 
+#[allow(deprecated)]
 impl PGMQueue {
     pub async fn new(url: String) -> Result<Self, PgmqError> {
         let con = util::connect(&url, 5).await?;

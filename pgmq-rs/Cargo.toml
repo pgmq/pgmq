@@ -1,6 +1,6 @@
 [package]
 name = "pgmq"
-version = "0.31.2"
+version = "0.32.0"
 edition = "2021"
 authors = ["PGMQ Maintainers"]
 description = "A distributed message queue for Rust applications, on Postgres."
@@ -56,3 +56,8 @@ lazy_static = "1.4.0"
 # both the `time` and `chrono` features enabled. If a query that would see the conflict is added, `pgmq` will fail to
 # compile when running tests/examples.
 sqlx = { version = "0.8.1", features = ["time"] }
+
+[[example]]
+name = "install"
+path = "examples/install.rs"
+required-features = ["cli"]
