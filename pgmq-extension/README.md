@@ -107,7 +107,7 @@ Community
 - [Ruby](https://github.com/mensfeld/pgmq-ruby)
 - [TypeScript (Deno)](https://github.com/tmountain/deno-pgmq)
 - [TypeScript (NodeJs + Prisma)](https://github.com/dvlkv/prisma-pgmq) 
-- [TypeScript (NodeJs](https://github.com/waitingsong/pgmq-js) [+ Midway.js)](https://midwayjs.org/)
+- [TypeScript (NodeJs + Midway.js)](https://github.com/waitingsong/pgmq-js)
 
 ## SQL Examples
 
