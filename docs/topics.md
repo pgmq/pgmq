@@ -143,6 +143,78 @@ SELECT pgmq.send_topic('orders.created', '{"order_id": 123}');
 SELECT pgmq.send_topic('orders.created', '{"order_id": 123}', 5); -- 5 second delay
 ```
 
+**Notes:**
+
+- If no patterns match the routing key, the message is not sent (returns 0)
+- If multiple patterns match, the message is sent to all matching queues
+- All sends succeed or all fail (transactional)
+
+#### `pgmq.send_batch_topic(routing_key, msgs, headers, delay)`
+
+Send multiple messages to all queues whose patterns match the routing key.
+
+**Parameters:**
+
+- `routing_key` (text): The routing key for pattern matching
+- `msgs` (jsonb[]): Array of message payloads to send
+- `headers` (jsonb[]): Optional array of headers for each message
+- `delay` (integer): Delay in seconds before messages become visible
+- `delay` (timestamp with time zone): Timestamp when messages become visible
+
+**Returns:** Table with columns:
+- `queue_name` (text): Name of the queue that received messages
+- `msg_id` (bigint): ID of each message that was sent
+
+**Example:**
+
+```sql
+-- Send 3 messages to all matching queues
+SELECT * FROM pgmq.send_batch_topic(
+    'orders.created',
+    ARRAY[
+        '{"order_id": 1, "amount": 100}',
+        '{"order_id": 2, "amount": 200}',
+        '{"order_id": 3, "amount": 300}'
+    ]::jsonb[]
+);
+
+-- Returns (if 2 queues match the pattern):
+--  queue_name       | msg_id
+-- ------------------+--------
+--  order_processor  | 1
+--  order_processor  | 2
+--  order_processor  | 3
+--  order_analytics  | 1
+--  order_analytics  | 2
+--  order_analytics  | 3
+
+-- With headers
+SELECT * FROM pgmq.send_batch_topic(
+    'notifications.email',
+    ARRAY['{"to": "user1@example.com"}', '{"to": "user2@example.com"}']::jsonb[],
+    ARRAY['{"priority": "high"}', '{"priority": "normal"}']::jsonb[]
+);
+
+-- Simplified versions
+SELECT * FROM pgmq.send_batch_topic('logs.info', ARRAY['{"msg": "test"}']::jsonb[]);
+SELECT * FROM pgmq.send_batch_topic('alerts.critical', ARRAY['{"alert": "down"}']::jsonb[], 60); -- 60 second delay
+
+-- With timestamp delay (visible in 1 hour)
+SELECT * FROM pgmq.send_batch_topic(
+    'scheduled.tasks',
+    ARRAY['{"task": "backup"}']::jsonb[],
+    CURRENT_TIMESTAMP + INTERVAL '1 hour'
+);
+```
+
+**Notes:**
+
+- Each message in the batch is sent to all matching queues
+- If the routing key matches 2 queues and you send 3 messages, you get 6 total messages (3 per queue)
+- Headers array length must exactly match messages array length when provided (not NULL). Empty headers arrays will fail validation if msgs is not empty. To send without headers, omit the parameter or pass NULL
+- If no patterns match the routing key, returns an empty result set
+- All sends succeed or all fail (transactional)
+
 ### Testing Functions
 
 #### `pgmq.test_routing(routing_key)`
@@ -318,6 +390,52 @@ SELECT pgmq.bind_topic('#', 'all_tenants');
 -- Route by tenant
 SELECT pgmq.send_topic('acme.orders.new', '{"order": "data"}');
 -- Routes to: tenant_acme, all_tenants
+```
+
+### 6. Batch Message Publishing
+
+Send multiple messages at once using `send_batch_topic`:
+
+```sql
+-- Create notification queues
+SELECT pgmq.create('email_queue');
+SELECT pgmq.create('sms_queue');
+SELECT pgmq.create('all_notifications');
+
+-- Bind patterns
+SELECT pgmq.bind_topic('notify.email.#', 'email_queue');
+SELECT pgmq.bind_topic('notify.sms.#', 'sms_queue');
+SELECT pgmq.bind_topic('notify.#', 'all_notifications');
+
+-- Send batch of email notifications
+SELECT * FROM pgmq.send_batch_topic(
+    'notify.email.welcome',
+    ARRAY[
+        '{"to": "user1@example.com", "name": "Alice"}',
+        '{"to": "user2@example.com", "name": "Bob"}',
+        '{"to": "user3@example.com", "name": "Carol"}'
+    ]::jsonb[]
+);
+-- Routes 3 messages each to: email_queue and all_notifications (6 total messages)
+
+-- Send batch with headers for priority handling
+SELECT * FROM pgmq.send_batch_topic(
+    'notify.sms.alert',
+    ARRAY['{"phone": "+1234567890", "msg": "Alert!"}']::jsonb[],
+    ARRAY['{"priority": "urgent"}']::jsonb[]
+);
+-- Routes to: sms_queue and all_notifications with priority header
+
+-- Send batch with delay (e.g., scheduled notifications)
+SELECT * FROM pgmq.send_batch_topic(
+    'notify.email.reminder',
+    ARRAY[
+        '{"to": "user@example.com", "subject": "Reminder"}',
+        '{"to": "admin@example.com", "subject": "Daily report"}'
+    ]::jsonb[],
+    3600  -- Delay 1 hour
+);
+-- Messages become visible in 1 hour
 ```
 
 ## Performance Considerations

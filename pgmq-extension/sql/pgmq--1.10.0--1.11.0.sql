@@ -235,10 +235,10 @@ BEGIN
     -- Filter matching patterns in SQL for better performance (uses index)
     -- Any failure will rollback the entire transaction
     FOR b IN
-        SELECT tb.queue_name
+        SELECT DISTINCT tb.queue_name
         FROM pgmq.topic_bindings tb
         WHERE routing_key ~ tb.compiled_regex
-        ORDER BY tb.pattern -- Deterministic ordering
+        ORDER BY tb.queue_name -- Deterministic ordering, deduplicated by queue_name
         LOOP
             PERFORM pgmq.send(b.queue_name, msg, headers, delay);
             matched_count := matched_count + 1;
@@ -269,3 +269,170 @@ BEGIN
     RETURN pgmq.send_topic(routing_key, msg, NULL, delay);
 END;
 $$;
+
+-- send_batch_topic: Base implementation with TIMESTAMP WITH TIME ZONE delay
+CREATE OR REPLACE FUNCTION pgmq.send_batch_topic(
+    routing_key text,
+    msgs jsonb[],
+    headers jsonb[],
+    delay TIMESTAMP WITH TIME ZONE
+)
+    RETURNS TABLE(queue_name text, msg_id bigint)
+    LANGUAGE plpgsql
+    VOLATILE
+AS
+$$
+DECLARE
+    b RECORD;
+BEGIN
+    PERFORM pgmq.validate_routing_key(routing_key);
+
+    -- Validate batch parameters once (not per queue)
+    PERFORM pgmq._validate_batch_params(msgs, headers);
+
+    -- Filter matching patterns in SQL for better performance (uses index)
+    -- Any failure will rollback the entire transaction
+    FOR b IN
+        SELECT DISTINCT tb.queue_name
+        FROM pgmq.topic_bindings tb
+        WHERE routing_key ~ tb.compiled_regex
+        ORDER BY tb.queue_name -- Deterministic ordering, deduplicated by queue_name
+        LOOP
+            -- Use private _send_batch to avoid redundant validation
+            RETURN QUERY
+            SELECT b.queue_name, batch_result.msg_id
+            FROM pgmq._send_batch(b.queue_name, msgs, headers, delay) AS batch_result(msg_id);
+        END LOOP;
+
+    RETURN;
+END;
+$$;
+
+-- send_batch_topic: 2 args (routing_key, msgs)
+CREATE OR REPLACE FUNCTION pgmq.send_batch_topic(
+    routing_key text,
+    msgs jsonb[]
+)
+    RETURNS TABLE(queue_name text, msg_id bigint)
+    LANGUAGE sql
+    VOLATILE
+AS
+$$
+    SELECT * FROM pgmq.send_batch_topic(routing_key, msgs, NULL, clock_timestamp());
+$$;
+
+-- send_batch_topic: 3 args with headers
+CREATE OR REPLACE FUNCTION pgmq.send_batch_topic(
+    routing_key text,
+    msgs jsonb[],
+    headers jsonb[]
+)
+    RETURNS TABLE(queue_name text, msg_id bigint)
+    LANGUAGE sql
+    VOLATILE
+AS
+$$
+    SELECT * FROM pgmq.send_batch_topic(routing_key, msgs, headers, clock_timestamp());
+$$;
+
+-- send_batch_topic: 3 args with integer delay
+CREATE OR REPLACE FUNCTION pgmq.send_batch_topic(
+    routing_key text,
+    msgs jsonb[],
+    delay integer
+)
+    RETURNS TABLE(queue_name text, msg_id bigint)
+    LANGUAGE sql
+    VOLATILE
+AS
+$$
+    SELECT * FROM pgmq.send_batch_topic(routing_key, msgs, NULL, clock_timestamp() + make_interval(secs => delay));
+$$;
+
+-- send_batch_topic: 3 args with timestamp delay
+CREATE OR REPLACE FUNCTION pgmq.send_batch_topic(
+    routing_key text,
+    msgs jsonb[],
+    delay TIMESTAMP WITH TIME ZONE
+)
+    RETURNS TABLE(queue_name text, msg_id bigint)
+    LANGUAGE sql
+    VOLATILE
+AS
+$$
+    SELECT * FROM pgmq.send_batch_topic(routing_key, msgs, NULL, delay);
+$$;
+
+-- send_batch_topic: 4 args with integer delay
+CREATE OR REPLACE FUNCTION pgmq.send_batch_topic(
+    routing_key text,
+    msgs jsonb[],
+    headers jsonb[],
+    delay integer
+)
+    RETURNS TABLE(queue_name text, msg_id bigint)
+    LANGUAGE sql
+    VOLATILE
+AS
+$$
+    SELECT * FROM pgmq.send_batch_topic(routing_key, msgs, headers, clock_timestamp() + make_interval(secs => delay));
+$$;
+
+-- Fix: Add validation to send_batch to ensure headers array length matches msgs array length
+-- Refactored to use private functions for better performance and code reuse
+
+-- _validate_batch_params: Private function to validate batch parameters
+CREATE OR REPLACE FUNCTION pgmq._validate_batch_params(
+    msgs JSONB[],
+    headers JSONB[]
+) RETURNS void AS $$
+BEGIN
+    -- Validate that msgs is not NULL or empty
+    IF msgs IS NULL OR array_length(msgs, 1) IS NULL THEN
+        RAISE EXCEPTION 'msgs cannot be NULL or empty';
+    END IF;
+
+    -- Validate that headers array length matches msgs array length if headers is provided
+    -- Note: array_length returns NULL for empty arrays, so we use COALESCE to treat empty arrays as length 0
+    IF headers IS NOT NULL AND COALESCE(array_length(headers, 1), 0) != COALESCE(array_length(msgs, 1), 0) THEN
+        RAISE EXCEPTION 'headers array length (%) must match msgs array length (%)',
+            COALESCE(array_length(headers, 1), 0), COALESCE(array_length(msgs, 1), 0);
+    END IF;
+END;
+$$ LANGUAGE plpgsql;
+
+-- _send_batch: Private function that performs the actual batch insert without validation
+CREATE OR REPLACE FUNCTION pgmq._send_batch(
+    queue_name TEXT,
+    msgs JSONB[],
+    headers JSONB[],
+    delay TIMESTAMP WITH TIME ZONE
+) RETURNS SETOF BIGINT AS $$
+DECLARE
+    sql TEXT;
+    qtable TEXT := pgmq.format_table_name(queue_name, 'q');
+BEGIN
+    sql := FORMAT(
+            $QUERY$
+        INSERT INTO pgmq.%I (vt, message, headers)
+        SELECT $2, unnest($1), unnest(coalesce($3, ARRAY[]::jsonb[]))
+        RETURNING msg_id;
+        $QUERY$,
+            qtable
+           );
+    RETURN QUERY EXECUTE sql USING msgs, delay, headers;
+END;
+$$ LANGUAGE plpgsql;
+
+-- send_batch: Public function with validation
+CREATE OR REPLACE FUNCTION pgmq.send_batch(
+    queue_name TEXT,
+    msgs JSONB[],
+    headers JSONB[],
+    delay TIMESTAMP WITH TIME ZONE
+) RETURNS SETOF BIGINT AS $$
+BEGIN
+    PERFORM pgmq._validate_batch_params(msgs, headers);
+    RETURN QUERY SELECT * FROM pgmq._send_batch(queue_name, msgs, headers, delay);
+END;
+$$ LANGUAGE plpgsql;

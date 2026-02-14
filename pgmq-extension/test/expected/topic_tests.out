@@ -1439,6 +1439,396 @@ SELECT pgmq.drop_queue('validation_queue');
 (1 row)
 
 DELETE FROM pgmq.topic_bindings;
+-- =============================================================================
+-- Tests for send_batch_topic()
+-- =============================================================================
+-- test_send_batch_topic_basic
+-- Test basic batch sending to topics
+SELECT pgmq.create('batch_topic_queue_1');
+ create 
+--------
+ 
+(1 row)
+
+SELECT pgmq.create('batch_topic_queue_2');
+ create 
+--------
+ 
+(1 row)
+
+SELECT pgmq.bind_topic('batch.test.*', 'batch_topic_queue_1');
+ bind_topic 
+------------
+ 
+(1 row)
+
+SELECT pgmq.bind_topic('batch.#', 'batch_topic_queue_2');
+ bind_topic 
+------------
+ 
+(1 row)
+
+-- Send a batch of 3 messages
+SELECT queue_name, msg_id FROM pgmq.send_batch_topic(
+    'batch.test.messages',
+    ARRAY['{"id": 1}'::jsonb, '{"id": 2}'::jsonb, '{"id": 3}'::jsonb]
+) ORDER BY queue_name, msg_id;
+     queue_name      | msg_id 
+---------------------+--------
+ batch_topic_queue_1 |      1
+ batch_topic_queue_1 |      2
+ batch_topic_queue_1 |      3
+ batch_topic_queue_2 |      1
+ batch_topic_queue_2 |      2
+ batch_topic_queue_2 |      3
+(6 rows)
+
+-- Should have 3 messages in each queue
+SELECT COUNT(*) = 3 FROM pgmq.q_batch_topic_queue_1;
+ ?column? 
+----------
+ t
+(1 row)
+
+SELECT COUNT(*) = 3 FROM pgmq.q_batch_topic_queue_2;
+ ?column? 
+----------
+ t
+(1 row)
+
+-- Clean up
+SELECT pgmq.purge_queue('batch_topic_queue_1');
+ purge_queue 
+-------------
+           3
+(1 row)
+
+SELECT pgmq.purge_queue('batch_topic_queue_2');
+ purge_queue 
+-------------
+           3
+(1 row)
+
+DELETE FROM pgmq.topic_bindings;
+-- test_send_batch_topic_with_headers
+-- Test batch sending with headers
+SELECT pgmq.bind_topic('headers.test', 'batch_topic_queue_1');
+ bind_topic 
+------------
+ 
+(1 row)
+
+SELECT queue_name, msg_id FROM pgmq.send_batch_topic(
+    'headers.test',
+    ARRAY['{"msg": 1}'::jsonb, '{"msg": 2}'::jsonb]::jsonb[],
+    ARRAY['{"header": "A"}'::jsonb, '{"header": "B"}'::jsonb]::jsonb[]
+) ORDER BY queue_name, msg_id;
+     queue_name      | msg_id 
+---------------------+--------
+ batch_topic_queue_1 |      4
+ batch_topic_queue_1 |      5
+(2 rows)
+
+-- Verify messages and headers
+SELECT message, headers FROM pgmq.q_batch_topic_queue_1 ORDER BY msg_id;
+  message   |     headers     
+------------+-----------------
+ {"msg": 1} | {"header": "A"}
+ {"msg": 2} | {"header": "B"}
+(2 rows)
+
+-- Clean up
+SELECT pgmq.purge_queue('batch_topic_queue_1');
+ purge_queue 
+-------------
+           2
+(1 row)
+
+DELETE FROM pgmq.topic_bindings;
+-- test_send_batch_topic_with_delay
+-- Test batch sending with delay
+SELECT pgmq.bind_topic('delay.test', 'batch_topic_queue_1');
+ bind_topic 
+------------
+ 
+(1 row)
+
+SELECT queue_name, msg_id FROM pgmq.send_batch_topic(
+    'delay.test',
+    ARRAY['{"delayed": true}'::jsonb]::jsonb[],
+    5
+) ORDER BY queue_name, msg_id;
+     queue_name      | msg_id 
+---------------------+--------
+ batch_topic_queue_1 |      6
+(1 row)
+
+-- Message should be invisible due to delay
+SELECT COUNT(*) = 0 FROM pgmq.read('batch_topic_queue_1', 1, 1);
+ ?column? 
+----------
+ t
+(1 row)
+
+SELECT COUNT(*) = 1 FROM pgmq.q_batch_topic_queue_1;
+ ?column? 
+----------
+ t
+(1 row)
+
+-- Clean up
+SELECT pgmq.purge_queue('batch_topic_queue_1');
+ purge_queue 
+-------------
+           1
+(1 row)
+
+DELETE FROM pgmq.topic_bindings;
+-- test_send_batch_topic_with_timestamp_delay
+-- Test batch sending with timestamp delay
+SELECT pgmq.bind_topic('timestamp_delay.test', 'batch_topic_queue_1');
+ bind_topic 
+------------
+ 
+(1 row)
+
+SELECT queue_name, msg_id FROM pgmq.send_batch_topic(
+    'timestamp_delay.test',
+    ARRAY['{"delayed_timestamp": true}'::jsonb]::jsonb[],
+    clock_timestamp() + interval '3 seconds'
+) ORDER BY queue_name, msg_id;
+     queue_name      | msg_id 
+---------------------+--------
+ batch_topic_queue_1 |      7
+(1 row)
+
+-- Message should be invisible due to delay
+SELECT COUNT(*) = 0 FROM pgmq.read('batch_topic_queue_1', 1, 1);
+ ?column? 
+----------
+ t
+(1 row)
+
+SELECT COUNT(*) = 1 FROM pgmq.q_batch_topic_queue_1;
+ ?column? 
+----------
+ t
+(1 row)
+
+-- Clean up
+SELECT pgmq.purge_queue('batch_topic_queue_1');
+ purge_queue 
+-------------
+           1
+(1 row)
+
+DELETE FROM pgmq.topic_bindings;
+-- test_send_batch_topic_no_matches
+-- Test sending to routing key with no bindings
+SELECT queue_name, msg_id FROM pgmq.send_batch_topic(
+    'no.matches.here',
+    ARRAY['{"test": 1}'::jsonb]
+);
+ queue_name | msg_id 
+------------+--------
+(0 rows)
+
+-- Should have 0 messages in queues
+SELECT COUNT(*) = 0 FROM pgmq.q_batch_topic_queue_1;
+ ?column? 
+----------
+ t
+(1 row)
+
+SELECT COUNT(*) = 0 FROM pgmq.q_batch_topic_queue_2;
+ ?column? 
+----------
+ t
+(1 row)
+
+-- test_send_batch_topic_single_queue
+-- Test sending to a single queue (edge case between 0 and multiple)
+SELECT pgmq.bind_topic('single.queue.test', 'batch_topic_queue_1');
+ bind_topic 
+------------
+ 
+(1 row)
+
+SELECT queue_name, COUNT(*) as msg_count
+FROM pgmq.send_batch_topic(
+    'single.queue.test',
+    ARRAY['{"a": 1}'::jsonb, '{"b": 2}'::jsonb]
+)
+GROUP BY queue_name;
+     queue_name      | msg_count 
+---------------------+-----------
+ batch_topic_queue_1 |         2
+(1 row)
+
+-- Clean up
+SELECT pgmq.purge_queue('batch_topic_queue_1');
+ purge_queue 
+-------------
+           2
+(1 row)
+
+DELETE FROM pgmq.topic_bindings;
+-- test_send_batch_topic_null_validation
+-- Test NULL validation
+SELECT pgmq.bind_topic('validation.test', 'batch_topic_queue_1');
+ bind_topic 
+------------
+ 
+(1 row)
+
+-- Use terse verbosity to make error output consistent across PG versions
+\set VERBOSITY terse
+-- Should fail: NULL messages array
+\set ON_ERROR_STOP 0
+SELECT pgmq.send_batch_topic('validation.test', NULL);
+ERROR:  msgs cannot be NULL or empty
+\set ON_ERROR_STOP 1
+-- Should fail: empty messages array
+\set ON_ERROR_STOP 0
+SELECT pgmq.send_batch_topic('validation.test', ARRAY[]::jsonb[]);
+ERROR:  msgs cannot be NULL or empty
+\set ON_ERROR_STOP 1
+-- Should fail: invalid routing key
+\set ON_ERROR_STOP 0
+SELECT pgmq.send_batch_topic('invalid..key', ARRAY['{"test": 1}'::jsonb]);
+ERROR:  routing_key cannot contain consecutive dots. Got: invalid..key
+\set ON_ERROR_STOP 1
+-- Should fail: headers array length greater than msgs array length
+\set ON_ERROR_STOP 0
+SELECT pgmq.send_batch_topic('validation.test', ARRAY['{"test": 1}'::jsonb], ARRAY['{"h": 1}'::jsonb, '{"h": 2}'::jsonb]);
+ERROR:  headers array length (2) must match msgs array length (1)
+\set ON_ERROR_STOP 1
+-- Should fail: headers array length less than msgs array length
+\set ON_ERROR_STOP 0
+SELECT pgmq.send_batch_topic('validation.test', ARRAY['{"test": 1}'::jsonb, '{"test": 2}'::jsonb], ARRAY['{"h": 1}'::jsonb]);
+ERROR:  headers array length (1) must match msgs array length (2)
+\set ON_ERROR_STOP 1
+-- Should fail: empty headers array with non-empty msgs array
+\set ON_ERROR_STOP 0
+SELECT pgmq.send_batch_topic('validation.test', ARRAY['{"test": 1}'::jsonb], ARRAY[]::jsonb[]);
+ERROR:  headers array length (0) must match msgs array length (1)
+\set ON_ERROR_STOP 1
+-- Restore default verbosity
+\set VERBOSITY default
+-- Clean up
+DELETE FROM pgmq.topic_bindings;
+SELECT pgmq.drop_queue('batch_topic_queue_1');
+ drop_queue 
+------------
+ t
+(1 row)
+
+SELECT pgmq.drop_queue('batch_topic_queue_2');
+ drop_queue 
+------------
+ t
+(1 row)
+
+-- =============================================================================
+-- Regression test for duplicate queue prevention (issue #455)
+-- =============================================================================
+-- test_no_duplicate_sends_when_multiple_patterns_match_same_queue
+-- Verify that when multiple patterns bind to the same queue and both match
+-- a routing key, the message is only sent once to that queue
+SELECT pgmq.create('dedup_test_queue');
+ create 
+--------
+ 
+(1 row)
+
+-- Bind two different patterns to the same queue, both will match the same routing key
+SELECT pgmq.bind_topic('logs.*', 'dedup_test_queue');
+ bind_topic 
+------------
+ 
+(1 row)
+
+SELECT pgmq.bind_topic('logs.#', 'dedup_test_queue');
+ bind_topic 
+------------
+ 
+(1 row)
+
+-- Both patterns match 'logs.error', but message should only be sent once
+SELECT pgmq.send_topic('logs.error', '{"msg": "test"}'::jsonb, NULL, 0);
+ send_topic 
+------------
+          1
+(1 row)
+
+-- Should have exactly 1 message (not 2)
+SELECT COUNT(*) = 1 FROM pgmq.q_dedup_test_queue;
+ ?column? 
+----------
+ t
+(1 row)
+
+-- Clean up
+SELECT pgmq.purge_queue('dedup_test_queue');
+ purge_queue 
+-------------
+           1
+(1 row)
+
+-- test_no_duplicate_batch_sends_when_multiple_patterns_match_same_queue
+-- Same test but for send_batch_topic
+SELECT pgmq.bind_topic('batch.test.*', 'dedup_test_queue');
+ bind_topic 
+------------
+ 
+(1 row)
+
+SELECT pgmq.bind_topic('batch.test.#', 'dedup_test_queue');
+ bind_topic 
+------------
+ 
+(1 row)
+
+-- Both patterns match 'batch.test.msg', but batch should only be sent once
+SELECT queue_name, COUNT(*) as msg_count
+FROM pgmq.send_batch_topic(
+    'batch.test.msg',
+    ARRAY['{"id": 1}'::jsonb, '{"id": 2}'::jsonb, '{"id": 3}'::jsonb]
+)
+GROUP BY queue_name;
+    queue_name    | msg_count 
+------------------+-----------
+ dedup_test_queue |         3
+(1 row)
+
+-- Should have exactly 3 messages (not 6)
+SELECT COUNT(*) = 3 FROM pgmq.q_dedup_test_queue;
+ ?column? 
+----------
+ t
+(1 row)
+
+-- Verify matched_count is correct for send_topic with deduplication
+SELECT pgmq.purge_queue('dedup_test_queue');
+ purge_queue 
+-------------
+           3
+(1 row)
+
+SELECT pgmq.send_topic('batch.test.msg', '{"msg": "count test"}'::jsonb, NULL, 0) = 1;
+ ?column? 
+----------
+ t
+(1 row)
+
+-- Clean up
+SELECT pgmq.drop_queue('dedup_test_queue');
+ drop_queue 
+------------
+ t
+(1 row)
+
+DELETE FROM pgmq.topic_bindings;
 -- Clean up all test queues
 SELECT pgmq.drop_queue('topic_queue_2');
  drop_queue 

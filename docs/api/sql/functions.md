@@ -96,6 +96,8 @@ RETURNS SETOF bigint
 
 **Returns:** The IDs of the messages that were added to the queue.
 
+**Validation:** When `headers` is provided (not NULL), its array length must exactly match the length of `msgs`. This includes empty arrays - an empty headers array (e.g., `ARRAY[]::jsonb[]`) will fail validation if `msgs` is not empty. To send messages without headers, either omit the `headers` parameter or pass NULL.
+
 Examples:
 
 ```sql
@@ -146,6 +148,245 @@ select * from pgmq.send_batch('my_queue',
 ------------
           7
           8
+```
+
+---
+
+## Topic-Based Routing
+
+PGMQ supports topic-based message routing with wildcard patterns. Messages can be routed to multiple queues based on routing keys and pattern matching. See the [Topics guide](../../topics.md) for detailed information.
+
+### send_topic
+
+Send a message to all queues whose patterns match the routing key.
+
+**Signatures:**
+
+```text
+pgmq.send_topic(routing_key text, msg jsonb)
+pgmq.send_topic(routing_key text, msg jsonb, delay integer)
+pgmq.send_topic(routing_key text, msg jsonb, headers jsonb, delay integer)
+
+RETURNS integer
+```
+
+**Parameters:**
+
+| Parameter   | Type    | Description                                             |
+| :---------- | :------ | :------------------------------------------------------ |
+| routing_key | text    | The routing key for pattern matching                    |
+| msg         | jsonb   | The message payload                                     |
+| headers     | jsonb   | Optional message headers/metadata                       |
+| delay       | integer | Time in seconds before the message becomes visible      |
+
+**Returns:** The number of queues the message was sent to.
+
+Examples:
+
+```sql
+-- Create queues and bind patterns
+select pgmq.create('logs_all');
+select pgmq.create('logs_errors');
+select pgmq.bind_topic('logs.#', 'logs_all');
+select pgmq.bind_topic('logs.*.error', 'logs_errors');
+
+-- Send to matching queues
+select pgmq.send_topic('logs.api.error', '{"message": "API failed"}');
+ send_topic
+------------
+          2
+-- Message sent to 2 queues: logs_all and logs_errors
+
+-- With headers
+select pgmq.send_topic('logs.db.error', '{"message": "DB error"}', '{"severity": "high"}', 0);
+
+-- With delay
+select pgmq.send_topic('logs.api.info', '{"message": "Request received"}', 5);
+```
+
+---
+
+### send_batch_topic
+
+Send multiple messages to all queues whose patterns match the routing key.
+
+**Signatures:**
+
+```text
+pgmq.send_batch_topic(routing_key text, msgs jsonb[])
+pgmq.send_batch_topic(routing_key text, msgs jsonb[], headers jsonb[])
+pgmq.send_batch_topic(routing_key text, msgs jsonb[], delay integer)
+pgmq.send_batch_topic(routing_key text, msgs jsonb[], delay timestamp with time zone)
+pgmq.send_batch_topic(routing_key text, msgs jsonb[], headers jsonb[], delay integer)
+pgmq.send_batch_topic(routing_key text, msgs jsonb[], headers jsonb[], delay timestamp with time zone)
+
+RETURNS TABLE(queue_name text, msg_id bigint)
+```
+
+**Parameters:**
+
+| Parameter   | Type     | Description                                                       |
+| :---------- | :------- | :---------------------------------------------------------------- |
+| routing_key | text     | The routing key for pattern matching                              |
+| msgs        | jsonb[]  | Array of message payloads to send                                 |
+| headers     | jsonb[]  | Optional array of headers for each message                        |
+| delay       | integer  | Time in seconds before the messages become visible                |
+| delay       | timestamp with time zone | Timestamp when the messages become visible           |
+
+**Returns:** A table with the queue name and message ID for each message sent.
+
+**Validation:** When `headers` is provided (not NULL), its array length must exactly match the length of `msgs`. Empty headers arrays will fail validation if `msgs` is not empty. To send messages without headers, either omit the `headers` parameter or pass NULL.
+
+Examples:
+
+```sql
+-- Send batch of messages to matching queues
+select * from pgmq.send_batch_topic(
+    'orders.created',
+    array[
+        '{"order_id": 1, "amount": 100}',
+        '{"order_id": 2, "amount": 200}'
+    ]::jsonb[]
+);
+      queue_name       | msg_id
+-----------------------+--------
+ order_processor       |      1
+ order_processor       |      2
+ order_analytics       |      1
+ order_analytics       |      2
+-- Each message sent to all matching queues
+
+-- With headers
+select * from pgmq.send_batch_topic(
+    'notifications.email',
+    array['{"to": "user1@example.com"}', '{"to": "user2@example.com"}']::jsonb[],
+    array['{"priority": "high"}', '{"priority": "normal"}']::jsonb[]
+);
+
+-- With delay (messages visible in 60 seconds)
+select * from pgmq.send_batch_topic(
+    'alerts.critical',
+    array['{"alert": "system down"}']::jsonb[],
+    60
+);
+
+-- With timestamp delay (visible in 1 hour)
+select * from pgmq.send_batch_topic(
+    'scheduled.tasks',
+    array['{"task": "backup"}']::jsonb[],
+    CURRENT_TIMESTAMP + INTERVAL '1 hour'
+);
+```
+
+---
+
+### bind_topic
+
+Bind a pattern to a queue. Messages with routing keys matching the pattern will be routed to this queue.
+
+**Signature:**
+
+```text
+pgmq.bind_topic(pattern text, queue_name text)
+
+RETURNS void
+```
+
+**Parameters:**
+
+| Parameter  | Type | Description                                |
+| :--------- | :--- | :----------------------------------------- |
+| pattern    | text | The wildcard pattern to match routing keys |
+| queue_name | text | Name of the queue to receive matching messages |
+
+**Wildcard patterns:**
+- `*` matches exactly one segment (e.g., `logs.*` matches `logs.error` but not `logs.api.error`)
+- `#` matches zero or more segments (e.g., `logs.#` matches `logs.error` and `logs.api.error`)
+
+Examples:
+
+```sql
+-- Create queue
+select pgmq.create('error_logs');
+
+-- Bind patterns
+select pgmq.bind_topic('logs.*.error', 'error_logs');  -- Errors from any service
+select pgmq.bind_topic('alerts.#', 'error_logs');      -- All alerts
+
+-- Binding is idempotent
+select pgmq.bind_topic('logs.*.error', 'error_logs');  -- No error, no duplicate
+```
+
+---
+
+### unbind_topic
+
+Remove a pattern binding from a queue.
+
+**Signature:**
+
+```text
+pgmq.unbind_topic(pattern text, queue_name text)
+
+RETURNS boolean
+```
+
+**Parameters:**
+
+| Parameter  | Type | Description                   |
+| :--------- | :--- | :---------------------------- |
+| pattern    | text | The pattern to unbind         |
+| queue_name | text | Name of the queue             |
+
+**Returns:** `true` if a binding was removed, `false` if no binding existed.
+
+Examples:
+
+```sql
+-- Remove binding
+select pgmq.unbind_topic('logs.*.error', 'error_logs');
+ unbind_topic
+--------------
+ t
+
+-- No binding to remove
+select pgmq.unbind_topic('nonexistent.pattern', 'error_logs');
+ unbind_topic
+--------------
+ f
+```
+
+---
+
+### test_routing
+
+Test which queues would receive a message with the given routing key, without actually sending a message.
+
+**Signature:**
+
+```text
+pgmq.test_routing(routing_key text)
+
+RETURNS TABLE(pattern text, queue_name text, compiled_regex text)
+```
+
+**Parameters:**
+
+| Parameter   | Type | Description                  |
+| :---------- | :--- | :--------------------------- |
+| routing_key | text | The routing key to test      |
+
+**Returns:** Table showing all patterns that match the routing key and which queues they route to.
+
+Examples:
+
+```sql
+-- Test routing
+select * from pgmq.test_routing('logs.api.error');
+    pattern     |  queue_name  | compiled_regex
+----------------+--------------+---------------------------
+ logs.#         | logs_all     | ^logs\..*$
+ logs.*.error   | error_logs   | ^logs\.[^.]+\.error$
 ```
 
 ---
