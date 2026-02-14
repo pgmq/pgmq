@@ -13,10 +13,11 @@ A lightweight message queue. Like [AWS SQS](https://aws.amazon.com/sqs/) and [RS
 
 ## Features
 
-- Lightweight - No background worker or external dependencies, just Postgres functions packaged in an extension
+- Lightweight - No background worker or external dependencies, just Postgres SQL objects
 - Guaranteed "exactly once" delivery of messages to a consumer within a visibility timeout
 - API parity with [AWS SQS](https://aws.amazon.com/sqs/) and [RSMQ](https://github.com/smrchy/rsmq)
-- FIFO (First-In-First-Out) queues with message group keys for ordered processing
+- [FIFO](docs/fifo-queues.md#overview) (First-In-First-Out) queues with message group keys for ordered processing
+- [Topic-based](docs/topics.md#topic-based-routing) routing with wildcard patterns for publish-subscribe and content-based routing
 - Messages stay in the queue until explicitly removed
 - Messages can be archived, instead of deleted, for long-term retention and replayability
 
@@ -28,6 +29,8 @@ Supported on Postgres 14-18.
   - [Features](#features)
   - [Table of Contents](#table-of-contents)
   - [Installation](#installation)
+    - [Docker](#docker)
+    - [SQL Only](#sql-only)
     - [Updating](#updating)
   - [Client Libraries](#client-libraries)
   - [SQL Examples](#sql-examples)
@@ -38,21 +41,43 @@ Supported on Postgres 14-18.
     - [Archive a message](#archive-a-message)
     - [Delete a message](#delete-a-message)
     - [Drop a queue](#drop-a-queue)
-  - [Configuration](#configuration)
-    - [Partitioned Queues](#partitioned-queues)
   - [Visibility Timeout (vt)](#visibility-timeout-vt)
   - [Who uses pgmq?](#who-uses-pgmq)
   - [✨ Contributors](#-contributors)
 
 ## Installation
 
-The fastest way to get started is by running the Docker image, where PGMQ comes pre-installed in Postgres.
+PGMQ can be run on any existing Postgres instance or installed as a Postgres Extension. See [INSTALLATION.md](https://github.com/pgmq/pgmq/blob/main/INSTALLATION.md) for the full installation guide including a [comparison](https://github.com/pgmq/pgmq/blob/main/INSTALLATION.md#considerations) of the Postgres Extension vs the SQL-only installation.
+
+### Docker
+
+The fastest way to get started is by running the Docker image, where PGMQ comes pre-installed as an extension in Postgres.
 
 ```bash
-docker run -d --name pgmq-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 ghcr.io/pgmq/pg18-pgmq:v1.7.0
+docker run -d --name pgmq-postgres -e POSTGRES_PASSWORD=postgres -p 5432:5432 ghcr.io/pgmq/pg18-pgmq:v1.10.0
 ```
 
-If you'd like to install PGMQ into an existing Postgres instance, refer to [INSTALLATION.md](https://github.com/pgmq/pgmq/blob/main/INSTALLATION.md).
+Then connect and enable PGMQ:
+
+```bash
+psql postgres://postgres:postgres@localhost:5432/postgres
+```
+
+```sql
+CREATE EXTENSION pgmq;
+```
+
+### SQL Only
+
+You can also use [psql](https://www.tigerdata.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows) to install PGMQ's objects directly into the pgmq schema in Postgres. Use this method if you are running someplace that does not natively support the PGMQ Extension. Read these [considerations](https://github.com/pgmq/pgmq/blob/main/INSTALLATION.md#considerations) before you decide.
+
+```bash
+git clone https://github.com/pgmq/pgmq.git
+
+cd pgmq
+
+psql -f pgmq-extension/sql/pgmq.sql postgres://postgres:postgres@localhost:5432/postgres
+```
 
 ### Updating
 
@@ -65,24 +90,24 @@ To update PGMQ versions, follow the instructions in [UPDATING.md](pgmq-extension
 
 Community
 
+- [.NET](https://github.com/brianpursley/Npgmq)
 - [Dart](https://github.com/Ofceab-Studio/dart_pgmq)
-- [Go](https://github.com/craigpastro/pgmq-go)
-- [Elixir](https://github.com/v0idpwn/pgmq-elixir)
 - [Elixir + Broadway](https://github.com/v0idpwn/off_broadway_pgmq)
+- [Elixir](https://github.com/v0idpwn/pgmq-elixir)
+- [Go](https://github.com/craigpastro/pgmq-go)
+- [Haskell](https://github.com/MichelBoucey/stakhanov)
 - [Java (JDBC)](https://github.com/roy20021/pgmq-jdbc-client)
 - [Java (Spring Boot)](https://github.com/adamalexandru4/pgmq-spring)
+- [Javascript (NodeJs)](https://github.com/Muhammad-Magdi/pgmq-js)
 - [Kotlin JVM (JDBC)](https://github.com/vdsirotkin/pgmq-kotlin-jvm)
 - [Kotlin Multiplatform (sqlx4k)](https://github.com/smyrgeorge/sqlx4k/tree/main/sqlx4k-postgres-pgmq)
-- [Javascript (NodeJs)](https://github.com/Muhammad-Magdi/pgmq-js)
-- [TypeScript (NodeJs](https://github.com/waitingsong/pgmq-js) + [Midway.js](https://midwayjs.org/))
-- [TypeScript (Deno)](https://github.com/tmountain/deno-pgmq)
-- [.NET](https://github.com/brianpursley/Npgmq)
+- [PHP (non blocking)](https://github.com/thesis-php/pgmq)
 - [Python (with SQLAlchemy)](https://github.com/jason810496/pgmq-sqlalchemy)
 - [REST-API (Bun + Elysia)](https://github.com/eichenroth/pgmq-rest)
 - [Ruby](https://github.com/mensfeld/pgmq-ruby)
+- [TypeScript (Deno)](https://github.com/tmountain/deno-pgmq)
 - [TypeScript (NodeJs + Prisma)](https://github.com/dvlkv/prisma-pgmq) 
-- [PHP (non blocking)](https://github.com/thesis-php/pgmq)
-- [Haskell](https://github.com/MichelBoucey/stakhanov)
+- [TypeScript (NodeJs](https://github.com/waitingsong/pgmq-js) [+ Midway.js)](https://midwayjs.org/)
 
 ## SQL Examples
 
@@ -312,38 +337,6 @@ SELECT pgmq.drop_queue('my_queue');
 -----------------
  t
 (1 row)
-```
-
-## Configuration
-
-### Partitioned Queues
-
-You will need to install [pg_partman](https://github.com/pgpartman/pg_partman/) if you want to use `pgmq` partitioned queues.
-
-`pgmq` queue tables can be created as a partitioned table by using `pgmq.create_partitioned()`. [pg_partman](https://github.com/pgpartman/pg_partman/)
-handles all maintenance of queue tables. This includes creating new partitions and dropping old partitions.
-
-Partitions behavior is configured at the time queues are created, via `pgmq.create_partitioned()`. This function has three parameters:
-
-`queue_name: text`: The name of the queue. Queues are Postgres tables prepended with `q_`. For example, `q_my_queue`. The archive is instead prefixed by `a_`, for example `a_my_queue`.
-
-`partition_interval: text` - The interval at which partitions are created. This can be either any valid Postgres `Duration` supported by pg_partman, or an integer value. When it is a duration, queues are partitioned by the time at which messages are sent to the table (`enqueued_at`). A value of `'daily'` would create a new partition each day. When it is an integer value, queues are partitioned by the `msg_id`. A value of `'100'` will create a new partition every 100 messages. The value must agree with `retention_interval` (time based or numeric). The default value is `'10000'`. For archive table, when interval is an integer value, then it will be partitioned by `msg_id`. In case of duration it will be partitioned on `archived_at` unlike queue table.
-
-`retention_interval: text` - The interval for retaining partitions. This can be either any valid Postgres `Duration` supported by pg_partman, or an integer value. When it is a duration, partitions containing data greater than the duration will be dropped. When it is an integer value, any messages that have a `msg_id` less than `max(msg_id) - retention_interval` will be dropped. For example, if the max `msg_id` is 100 and the `retention_interval` is 60, any partitions with `msg_id` values less than 40 will be dropped. The value must agree with `partition_interval` (time based or numeric). The default is `'100000'`. Note: `retention_interval` does not apply to messages that have been deleted via `pgmq.delete()` or archived with `pgmq.archive()`. `pgmq.delete()` removes messages forever and `pgmq.archive()` moves messages to the corresponding archive table forever (for example, `a_my_queue`).
-
-In order for automatic partition maintenance to take place, several settings must be added to the `postgresql.conf` file, which is typically located in the postgres `DATADIR`.
-`pg_partman_bgw.interval`
-in `postgresql.conf`. Below are the default configuration values set in pgmq docker images.
-
-Add the following to `postgresql.conf`. Note, changing `shared_preload_libraries` requires a restart of Postgres.
-
-`pg_partman_bgw.interval` sets the interval at which `pg_partman` conducts maintenance. This creates new partitions and dropping of partitions falling out of the `retention_interval`. By default, `pg_partman` will keep 4 partitions "ahead" of the currently active partition.
-
-```text
-shared_preload_libraries = 'pg_partman_bgw' # requires restart of Postgres
-pg_partman_bgw.interval = 60
-pg_partman_bgw.role = 'postgres'
-pg_partman_bgw.dbname = 'postgres'
 ```
 
 ## Visibility Timeout (vt)

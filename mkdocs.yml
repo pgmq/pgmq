@@ -18,6 +18,9 @@ nav:
     - SQL:
       - 'api/sql/types.md'
       - 'api/sql/functions.md'
+  - FIFO Queues: 'fifo-queues.md'
+  - Partitioned Queues: 'partitioned-queues.md'
+  - Topic Routing: 'topics.md'
 markdown_extensions:
 - toc:
     permalink: true
