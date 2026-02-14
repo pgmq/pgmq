@@ -27,9 +27,7 @@ pgmq-cli install postgres://postgres:postgres@localhost:5432/postgres
 
 ### In Rust
 
-Add PGMQ to your Cargo.toml with the `cli` feature enabled:
-
-Or refer to the [install example](examples/install.rs).
+Refer to the  [install example](examples/install.rs), or add PGMQ to your Cargo.toml with the cli feature enabled:
 
 ```bash
 cargo add pgmq --features cli
@@ -43,7 +41,7 @@ let queue = pgmq::PGMQueueExt::new(db_url, 2)
     .await
     .expect("failed to connect to postgres");
 
-let _ = queue.install_sql(Some(&"1.10.0".to_string())).await;
+queue.install_sql(Some(&"1.10.0".to_string())).await;
 ```
 
 ## Examples
@@ -65,6 +63,5 @@ cargo run --example install --features cli
 
 Messages can be parsed as `serde_json::Value` or into a struct of your design. `queue.read()` returns an `Result<Option<Message<T>>, PgmqError>`
 where `T` is the type of the message on the queue. It returns an error when there is an issue parsing the message (`PgmqError::JsonParsingError`) or if PGMQ is unable to reach postgres (`PgmqError::DatabaseError`).
-Note that when parsing into a `struct` (say, you expect `MyMessage{foo: "bar"}`), and the data of the message does not correspond to the struct definition (e.g. `{"hello": "world"}`), an error will be returned and unwrapping this result the way it is done for demo purposes in the [example](#minimal-example-at-a-glance) above will cause a panic, so you will rather want to handle this case properly.
 
 License: [PostgreSQL](LICENSE)
