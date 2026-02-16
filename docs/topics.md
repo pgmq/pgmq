@@ -117,6 +117,65 @@ Remove a pattern binding from a queue.
 SELECT pgmq.unbind_topic('orders.#', 'order_events');
 ```
 
+#### `pgmq.list_topic_bindings()`
+
+Returns all topic bindings across all queues.
+
+**Returns:** Table with columns:
+
+- `pattern` (text): The wildcard pattern
+- `queue_name` (text): Name of the queue receiving matching messages
+- `bound_at` (timestamp with time zone): When the binding was created
+- `compiled_regex` (text): The internal regex used for matching
+
+**Example:**
+
+```sql
+SELECT * FROM pgmq.list_topic_bindings();
+-- Returns:
+--   pattern      | queue_name  | bound_at                   | compiled_regex
+--   -------------+-------------+----------------------------+-------------------
+--   orders.#     | all_orders  | 2024-01-15 10:30:00.000000 | ^orders\..*$
+--   logs.*.error | error_logs  | 2024-01-15 10:29:00.000000 | ^logs\.[^.]+\.error$
+```
+
+**Notes:**
+
+- Results are ordered by `bound_at` DESC (most recent first), then by `pattern` and `queue_name`
+- Use this to audit or debug your topic routing configuration
+
+#### `pgmq.list_topic_bindings(queue_name)`
+
+Returns all topic bindings for a specific queue.
+
+**Parameters:**
+
+- `queue_name` (text): Name of the queue
+
+**Returns:** Table with columns:
+
+- `pattern` (text): The wildcard pattern
+- `queue_name` (text): Name of the queue (always matches the parameter)
+- `bound_at` (timestamp with time zone): When the binding was created
+- `compiled_regex` (text): The internal regex used for matching
+
+**Example:**
+
+```sql
+SELECT * FROM pgmq.list_topic_bindings('order_events');
+-- Returns:
+--   pattern         | queue_name    | bound_at                   | compiled_regex
+--   ----------------+---------------+----------------------------+---------------------
+--   orders.#        | order_events  | 2024-01-15 10:30:00.000000 | ^orders\..*$
+--   orders.*.failed | order_events  | 2024-01-15 10:28:00.000000 | ^orders\.[^.]+\.failed$
+```
+
+**Notes:**
+
+- Results are ordered by `bound_at` DESC (most recent first), then by `pattern`
+- Returns empty result if queue has no bindings
+- `queue_name` column is included for consistency with the no-argument version
+
 ### Sending Functions
 
 #### `pgmq.send_topic(routing_key, msg, headers, delay)`
@@ -445,9 +504,9 @@ SELECT * FROM pgmq.send_batch_topic(
 Patterns are compiled to regular expressions when bound, not at send time:
 
 ```sql
--- Pattern 'logs.*.error' is stored with precompiled regex: ^logs\.[^.]+\.error$
-SELECT pattern, compiled_regex
-FROM pgmq.topic_bindings;
+-- View all patterns with their compiled regex
+SELECT pattern, queue_name, compiled_regex
+FROM pgmq.list_topic_bindings();
 ```
 
 This means:

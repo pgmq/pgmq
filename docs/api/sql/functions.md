@@ -1310,23 +1310,17 @@ select pgmq.enable_notify_insert('my_queue', 0);
 
 **Changing throttling after enabling notifications:**
 
-You can modify the throttling interval for an existing queue by directly updating the `pgmq.notify_insert_throttle` table:
+Use `update_notify_insert()` to modify the throttling interval for an existing queue:
 
 ```sql
 -- Change throttling to 1000ms (1 second)
-UPDATE pgmq.notify_insert_throttle
-SET throttle_interval_ms = 1000
-WHERE queue_name = 'my_queue';
+SELECT pgmq.update_notify_insert('my_queue', 1000);
 
 -- Disable throttling (set to 0ms)
-UPDATE pgmq.notify_insert_throttle
-SET throttle_interval_ms = 0
-WHERE queue_name = 'my_queue';
-
--- View current throttle settings for all queues
-SELECT queue_name, throttle_interval_ms, last_notified_at
-FROM pgmq.notify_insert_throttle;
+SELECT pgmq.update_notify_insert('my_queue', 0);
 ```
+
+See [`update_notify_insert`](#update_notify_insert) for more details.
 
 ---
 
@@ -1351,6 +1345,79 @@ Example:
 select pgmq.disable_notify_insert('my_queue');
  disable_notify_insert
 -----------------------
+```
+
+---
+
+### update_notify_insert
+
+Update the throttle interval for a queue that has notifications enabled. This allows you to change the throttling rate without disabling and re-enabling notifications.
+
+```text
+pgmq.update_notify_insert(queue_name text, throttle_interval_ms integer)
+RETURNS void
+```
+
+**Parameters:**
+
+| Parameter      | Type | Description     |
+| :---        |    :----   |          :--- |
+| queue_name      | text       | The name of the queue   |
+| throttle_interval_ms | integer | Minimum milliseconds between notifications (0 = no throttling) |
+
+**Notes:**
+
+- The queue must have notifications enabled via `enable_notify_insert()` first
+- Setting to 0 disables throttling (sends notification on every insert)
+- Updating the throttle resets `last_notified_at` to ensure immediate notification on next insert
+- `throttle_interval_ms` must be non-negative
+
+Example:
+
+```sql
+-- Change throttling to 1 second
+select pgmq.update_notify_insert('my_queue', 1000);
+ update_notify_insert
+----------------------
+```
+
+---
+
+### list_notify_insert_throttles
+
+Returns all notification throttle configurations for queues that have notifications enabled.
+
+```text
+pgmq.list_notify_insert_throttles()
+RETURNS TABLE (
+    queue_name text,
+    throttle_interval_ms integer,
+    last_notified_at timestamp with time zone
+)
+```
+
+**Returns:**
+
+| Column      | Type | Description     |
+| :---        |    :----   |          :--- |
+| queue_name      | text       | The name of the queue   |
+| throttle_interval_ms | integer | Minimum milliseconds between notifications |
+| last_notified_at | timestamp with time zone | Timestamp of the last notification sent |
+
+**Notes:**
+
+- Only returns queues that have notifications enabled
+- Results are ordered by queue_name
+- Empty result if no queues have notifications enabled
+
+Example:
+
+```sql
+select * from pgmq.list_notify_insert_throttles();
+   queue_name   | throttle_interval_ms |      last_notified_at
+----------------+----------------------+----------------------------
+ my_queue       |                 1000 | 2024-01-15 10:30:45.123456
+ another_queue  |                    0 | 1970-01-01 00:00:00.000000
 ```
 
 ---

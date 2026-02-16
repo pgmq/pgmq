@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS pgmq.topic_bindings
         CONSTRAINT topic_bindings_meta_queue_name_fk
             REFERENCES pgmq.meta (queue_name)
             ON DELETE CASCADE,
+    bound_at       TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL, -- Timestamp when the binding was created
     compiled_regex text GENERATED ALWAYS AS (
         -- Pre-compile the pattern to regex for faster matching
         -- This avoids runtime compilation on every send_topic call
@@ -1644,6 +1645,47 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+CREATE OR REPLACE FUNCTION pgmq.list_notify_insert_throttles()
+    RETURNS TABLE
+            (
+                queue_name           text,
+                throttle_interval_ms integer,
+                last_notified_at     TIMESTAMP WITH TIME ZONE
+            )
+    LANGUAGE sql
+    STABLE
+AS
+$$
+    SELECT queue_name, throttle_interval_ms, last_notified_at
+    FROM pgmq.notify_insert_throttle
+    ORDER BY queue_name;
+$$;
+
+CREATE OR REPLACE FUNCTION pgmq.update_notify_insert(queue_name text, throttle_interval_ms integer)
+    RETURNS void
+    LANGUAGE plpgsql
+AS
+$$
+BEGIN
+    IF throttle_interval_ms < 0 THEN
+        RAISE EXCEPTION 'throttle_interval_ms must be non-negative, got: %', throttle_interval_ms;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pgmq.meta WHERE meta.queue_name = update_notify_insert.queue_name) THEN
+        RAISE EXCEPTION 'Queue "%" does not exist. Create the queue first using pgmq.create()', queue_name;
+    END IF;
+
+    IF NOT EXISTS (SELECT 1 FROM pgmq.notify_insert_throttle WHERE notify_insert_throttle.queue_name = update_notify_insert.queue_name) THEN
+        RAISE EXCEPTION 'Queue "%" does not have notify_insert enabled. Enable it first using pgmq.enable_notify_insert()', queue_name;
+    END IF;
+
+    UPDATE pgmq.notify_insert_throttle
+    SET throttle_interval_ms = update_notify_insert.throttle_interval_ms,
+        last_notified_at = to_timestamp(0)
+    WHERE notify_insert_throttle.queue_name = update_notify_insert.queue_name;
+END;
+$$;
+
 CREATE OR REPLACE FUNCTION pgmq.validate_routing_key(routing_key text)
     RETURNS boolean
     LANGUAGE plpgsql
@@ -1888,6 +1930,41 @@ $$
 BEGIN
     RETURN pgmq.send_topic(routing_key, msg, NULL, delay);
 END;
+$$;
+
+CREATE OR REPLACE FUNCTION pgmq.list_topic_bindings()
+    RETURNS TABLE
+            (
+                pattern        text,
+                queue_name     text,
+                bound_at       TIMESTAMP WITH TIME ZONE,
+                compiled_regex text
+            )
+    LANGUAGE sql
+    STABLE
+AS
+$$
+    SELECT pattern, queue_name, bound_at, compiled_regex
+    FROM pgmq.topic_bindings
+    ORDER BY bound_at DESC, pattern, queue_name;
+$$;
+
+CREATE OR REPLACE FUNCTION pgmq.list_topic_bindings(queue_name text)
+    RETURNS TABLE
+            (
+                pattern        text,
+                queue_name     text,
+                bound_at       TIMESTAMP WITH TIME ZONE,
+                compiled_regex text
+            )
+    LANGUAGE sql
+    STABLE
+AS
+$$
+    SELECT pattern, tb.queue_name, bound_at, compiled_regex
+    FROM pgmq.topic_bindings tb
+    WHERE tb.queue_name = list_topic_bindings.queue_name
+    ORDER BY bound_at DESC, pattern;
 $$;
 
 -- send_batch_topic: Base implementation with TIMESTAMP WITH TIME ZONE delay
