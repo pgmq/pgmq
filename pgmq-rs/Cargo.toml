@@ -31,7 +31,7 @@ log = "0.4.17"
 url = "2.3.1"
 
 # Optional dependencies for the `cli` feature
-reqwest = { version = "0.11", features = ["json", "rustls-tls"], optional = true }
+reqwest = { version = "0.11", features = ["json"], optional = true }
 futures-util = { version = "0.3.31", optional = true }
 clap = { version = "4.0", features = ["derive"], optional = true }
 
