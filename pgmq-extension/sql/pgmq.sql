@@ -279,7 +279,7 @@ BEGIN
             read_ct = read_ct + 1
         FROM cte
         WHERE m.msg_id = cte.msg_id
-        RETURNING m.*;
+        RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.last_read_at, m.vt, m.message, m.headers;
         $QUERY$,
         qtable, conditional, qtable, make_interval(secs => vt)
     );
@@ -465,7 +465,7 @@ BEGIN
               read_ct = read_ct + 1
           FROM cte
           WHERE m.msg_id = cte.msg_id
-          RETURNING m.*;
+          RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.last_read_at, m.vt, m.message, m.headers;
           $QUERY$,
           qtable, conditional, qtable, make_interval(secs => vt)
       );
@@ -889,7 +889,7 @@ BEGIN
             )
         DELETE from pgmq.%I
         WHERE msg_id IN (select msg_id from cte)
-        RETURNING *;
+        RETURNING msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers;
         $QUERY$,
         qtable, qtable
     );
@@ -910,7 +910,7 @@ BEGIN
         UPDATE pgmq.%I
         SET vt = $1
         WHERE msg_id = $2
-        RETURNING *;
+        RETURNING msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers;
         $QUERY$, 
         qtable
     );
@@ -940,7 +940,7 @@ BEGIN
         UPDATE pgmq.%I
         SET vt = $1
         WHERE msg_id = ANY($2)
-        RETURNING *;
+        RETURNING msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers;
         $QUERY$,
         qtable
     );
