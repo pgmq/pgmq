@@ -21,7 +21,7 @@ jobs:
     name: Run linters
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install minimal nightly with clippy and rustfmt
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -53,7 +53,7 @@ jobs:
     env:
       DATABASE_URL: "postgresql://postgres:postgres@0.0.0.0:5432/postgres"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install Rust stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -87,11 +87,9 @@ jobs:
     env:
       DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install Rust stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
+        uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
       - name: Set PGMQ_VERSION
         run: echo "PGMQ_VERSION=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
@@ -110,7 +108,7 @@ jobs:
     needs: [lint, tests]
     if: github.repository == 'pgmq/pgmq'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 2  # Need at least 2 commits to compare
       - name: Install Rust stable toolchain
