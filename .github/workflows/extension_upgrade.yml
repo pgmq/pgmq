@@ -29,12 +29,8 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        pg: [13, 14, 15, 16, 17, 18]
-        partman:
-          - 5.1.0
-        exclude:
-          - pg: 13
-            partman: 5.1.0
+        pg: [14, 15, 16, 17, 18]
+        partman: [5.1.0]
     env:
       DATABASE_URL: postgresql://postgres@localhost:5432/postgres
     steps:
