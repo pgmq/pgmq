@@ -31,10 +31,11 @@ SELECT pgmq.send('my_queue', '{"order": 1}', '{"x-pgmq-group": "user456"}');
 
 ### Reading FIFO Messages
 
-PGMQ provides two FIFO reading strategies. Choose the one that best fits your workload:
+PGMQ provides three FIFO reading strategies. Choose the one that best fits your workload:
 
 - `pgmq.read_grouped_rr(...)` (Round-Robin, layered interleaving): Fairly interleaves messages across groups. Great for multi-tenant and user-centric workloads.
 - `pgmq.read_grouped(...)` (SQS-style throughput): Fills batches from the oldest eligible group first, returning multiple messages from the same group for throughput.
+- `pgmq.read_grouped_head(...)` (One-per-group): Returns exactly one message per group (the head of each group), up to N groups. Ideal for parallel, per-group processing.
 
 ```sql
 -- Fair distribution across groups (round-robin, layered)
@@ -42,6 +43,9 @@ SELECT * FROM pgmq.read_grouped_rr('my_queue', 30, 5);
 
 -- Throughput-optimized, SQS-style batch filling
 SELECT * FROM pgmq.read_grouped('my_queue', 30, 5);
+
+-- One message per group, up to 5 groups
+SELECT * FROM pgmq.read_grouped_head('my_queue', 30, 5);
 ```
 
 Round-robin (RR) will:
@@ -53,6 +57,12 @@ SQS-style will:
 - Fill the batch from the earliest eligible group first
 - Return multiple messages from the same group when available
 - Move to other groups only if needed to fill the batch
+
+Head-per-group will:
+
+- Return at most one message per FIFO group (the oldest available message in that group)
+- Dispatch up to N groups in a single read call
+- Ensure strict per-group ordering while enabling parallel group processing
 
 ### Default Group Behavior
 
@@ -94,6 +104,35 @@ Read messages with AWS SQS FIFO-style batch retrieval behavior. Unlike `read_gro
 #### `pgmq.read_grouped_with_poll(queue_name, vt, qty, max_poll_seconds, poll_interval_ms)`
 
 Same as `read_grouped()` but with polling support for real-time processing.
+
+#### `pgmq.read_grouped_head(queue_name, vt, qty)`
+
+Read exactly one message per FIFO group — the head (oldest, lowest `msg_id`) message in each group — across up to `qty` groups in a single operation. Only groups with a visible, unlocked head message are included.
+
+**Parameters:**
+
+- `queue_name` (text): Name of the queue
+- `vt` (integer): Visibility timeout in seconds applied to each returned message
+- `qty` (integer): Maximum number of groups (and therefore messages) to return
+
+**Behavior:**
+
+- Determines the absolute head `msg_id` per FIFO group, regardless of current visibility
+- Skips groups whose head message is not visible (being processed by another worker)
+- Returns at most one message per group, ordered by `msg_id`
+- Uses `FOR UPDATE SKIP LOCKED` for safe concurrent access
+
+**Use when:**
+
+- Horizontal scaling: multiple processes each call `read_grouped_head()` and handle distinct groups
+- Process groups in parallel
+
+**Example:**
+
+```sql
+-- Claim the head message from up to 10 groups, locking them for 30 seconds
+SELECT * FROM pgmq.read_grouped_head('my_queue', 30, 10);
+```
 
 ### Utility Functions
 
@@ -219,6 +258,7 @@ SELECT * FROM pgmq.read_grouped_rr('queue', 30, 10);
 ```
 
 **Best for:**
+
 - Ensuring fair processing across all groups
 - Preventing starvation of groups with fewer messages
 - Load balancing across different workflows
@@ -241,6 +281,25 @@ SELECT * FROM pgmq.read_grouped('queue', 30, 3);
 - Processing workflows where batching related messages is beneficial
 - Mimicking AWS SQS FIFO behavior exactly
 
+### One-per-Group (`pgmq.read_grouped_head()`)
+
+Returns exactly one message per FIFO group, up to N groups:
+
+```sql
+-- With groups A (5 messages), B (3 messages), C (2 messages)
+SELECT * FROM pgmq.read_grouped_head('queue', 30, 10);
+-- Returns: 3 messages — 1 from A, 1 from B, 1 from C
+
+SELECT * FROM pgmq.read_grouped_head('queue', 30, 2);
+-- Returns: 2 messages — 1 from A, 1 from B (oldest two groups)
+```
+
+**Best for:**
+
+- Horizontal scaling scenarios where groups map to independent units of work (e.g. ordering key)
+- Parallel per-group processing: spawn one worker per active group
+- Strict per-group ordering with no intra-group batching
+
 ### Choosing the Right Strategy
 
 | Scenario | Recommended Function | Reason |
@@ -250,6 +309,8 @@ SELECT * FROM pgmq.read_grouped('queue', 30, 3);
 | User activity streams | `read_grouped_rr()` | Prevents one active user from blocking others |
 | Document workflows | `read_grouped()` | Process all versions of a document together |
 | Financial transactions | `read_grouped()` | Batch related transactions for efficiency |
+| Parallel per-group workers    | `read_grouped_head()` | One outstanding message per group at a time           |
+| Horizontally scaled consumers | `read_grouped_head()` | Safely dispatches distinct groups to separate workers |
 
 ## Comparison with AWS SQS FIFO
 
