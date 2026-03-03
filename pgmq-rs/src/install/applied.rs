@@ -72,8 +72,8 @@ impl AppliedMigration {
             .into_iter()
             .map(|row| -> Result<AppliedMigration, PgmqError> {
                 Ok(Self {
-                    name: row.get::<String, _>("name"),
-                    version: Version::from_str(&row.get::<String, _>("version"))?,
+                    name: row.try_get::<String, _>("name")?,
+                    version: Version::from_str(&row.try_get::<String, _>("version")?)?,
                 })
             })
             .collect::<Result<Vec<AppliedMigration>, PgmqError>>()?;
