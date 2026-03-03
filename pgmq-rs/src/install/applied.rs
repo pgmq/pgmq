@@ -3,8 +3,7 @@ use crate::install::version::Version;
 use crate::PgmqError;
 use sqlx::postgres::PgArguments;
 use sqlx::query::Query;
-use sqlx::{Acquire, Postgres, Row, Transaction};
-use std::str::FromStr;
+use sqlx::{Acquire, FromRow, Postgres, Transaction};
 
 /// Advisory lock key used to ensure only one transaction can run the `pgmq` installation process
 /// at once. Select a random large negative `bigint` value to minimize the chances of conflicting
@@ -12,6 +11,7 @@ use std::str::FromStr;
 const ADVISORY_LOCK_KEY: i64 = -9223372036854775808 + 4149;
 
 /// Struct to represent a row of the DB table that tracks which migration scripts have been applied.
+#[derive(FromRow)]
 pub struct AppliedMigration {
     /// The name of the migration script.
     pub name: String,
@@ -66,17 +66,9 @@ impl AppliedMigration {
     pub async fn fetch_all(
         tx: &mut Transaction<'static, Postgres>,
     ) -> Result<Vec<AppliedMigration>, PgmqError> {
-        let applied_migrations = sqlx::query("SELECT name, version FROM pgmq.__pgmq_migrations")
+        let applied_migrations = sqlx::query_as("SELECT name, version FROM pgmq.__pgmq_migrations")
             .fetch_all(tx.acquire().await?)
-            .await?
-            .into_iter()
-            .map(|row| -> Result<AppliedMigration, PgmqError> {
-                Ok(Self {
-                    name: row.try_get::<String, _>("name")?,
-                    version: Version::from_str(&row.try_get::<String, _>("version")?)?,
-                })
-            })
-            .collect::<Result<Vec<AppliedMigration>, PgmqError>>()?;
+            .await?;
         Ok(applied_migrations)
     }
 
@@ -87,7 +79,7 @@ impl AppliedMigration {
         let query =
             sqlx::query("INSERT INTO pgmq.__pgmq_migrations ( name, version ) VALUES ( $1, $2 );")
                 .bind(script.name.original)
-                .bind(script.name.to.to_string());
+                .bind(&script.name.to);
         Ok(query)
     }
 }
