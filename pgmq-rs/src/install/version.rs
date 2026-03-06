@@ -14,10 +14,7 @@ static VERSION_REGEX: OnceLock<Result<Regex, regex::Error>> = OnceLock::new();
 
 /// The `pgmq` extension control file. Used to determine which version of `pgmq` would be
 /// installed by running the `pgmq.sql` script.
-static EXTENSION_CONFIG: &str = include_str!(concat!(
-    env!("CARGO_MANIFEST_DIR"),
-    "/../pgmq-extension/pgmq.control"
-));
+static EXTENSION_CONFIG: &str = include_str!("pgmq.control");
 
 /// Struct to represent a basic semver version, e.g. `1.2.3`.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
