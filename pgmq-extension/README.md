@@ -353,6 +353,7 @@ Currently, officially using pgmq:
 2. [Supabase](https://supabase.com) [[@Supabase](https://github.com/supabase)]
 3. [Sprinters](https://sprinters.sh) [[@sprinters-sh](https://github.com/sprinters-sh)]
 4. [pgflow](https://pgflow.dev) [[@pgflow-dev/pgflow](https://github.com/pgflow-dev/pgflow)]
+5. [pgflow for Elixir](https://github.com/agoodway/pgflow) [[@agoodway/pgflow](https://github.com/agoodway/pgflow)]
 
 ## ✨ Contributors
 
