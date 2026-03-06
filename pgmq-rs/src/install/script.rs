@@ -16,7 +16,7 @@ use std::sync::OnceLock;
 static INIT_SCRIPT_NAME: &str = "pgmq.sql";
 
 /// All of the extension's migration scripts.
-static MIGRATION_SCRIPTS: Dir<'static> = include_dir!("$CARGO_MANIFEST_DIR/../pgmq-extension/sql/");
+static MIGRATION_SCRIPTS: Dir<'static> = include_dir!("$OUT_DIR/sql/");
 
 /// Regex to match a migration script name, e.g., `pgmq--1.2.3--1.3.4.sql`
 static MIGRATION_SCRIPT_NAME_REGEX: OnceLock<Result<Regex, regex::Error>> = OnceLock::new();
