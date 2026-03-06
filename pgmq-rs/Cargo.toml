@@ -62,10 +62,6 @@ insta = "1.46.3"
 # compile when running tests/examples.
 sqlx = { version = "0.8.1", features = ["time"] }
 
-[build-dependencies]
-anyhow = "1.0.102"
-dircpy = "0.3.19"
-
 [[example]]
 name = "install"
 path = "examples/install.rs"
