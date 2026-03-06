@@ -1,12 +1,18 @@
 # Installing PGMQ
 
-PGMQ has two installation methods: as a [Postgres extension](#postgres-extension-installation) or as a [SQL-only](#sql-only-installation) project. Using PGMQ as a Postgres extension is preferred, but the SQL-only approach can also be useful when extension installation is restricted or not available.
+PGMQ has two installation methods: as a [Postgres extension](#postgres-extension-installation) or as
+a [SQL-only](#sql-only-installation) project. Using PGMQ as a Postgres extension is preferred, but the SQL-only approach
+can also be useful when extension installation is restricted or not available.
 
 ## Postgres extension installation
 
-You will need access to the host's file system in order to install a Postgres extension. Installing as an extension involves placing PGMQ's [extension files](https://www.postgresql.org/docs/current/extend-extensions.html#EXTEND-EXTENSIONS-FILES) in Postgres's extension directory.
+You will need access to the host's file system in order to install a Postgres extension. Installing as an extension
+involves placing
+PGMQ's [extension files](https://www.postgresql.org/docs/current/extend-extensions.html#EXTEND-EXTENSIONS-FILES) in
+Postgres's extension directory.
 
-There are several tools available to install PGMQ as an extension. These commands must all be run from the same host where Postgres is installed and running.
+There are several tools available to install PGMQ as an extension. These commands must all be run from the same host
+where Postgres is installed and running.
 
 ### PGXN
 
@@ -38,7 +44,9 @@ make && make install
 Once the extension is installed, you will be able to see it in Postgres.
 
 ```sql
-select * from pg_available_extensions where name = 'pgmq';
+select *
+from pg_available_extensions
+where name = 'pgmq';
 ```
 
 ```plaintext
@@ -56,7 +64,8 @@ CREATE EXTENSION pgmq;
 PGMQ is now available. You can verify the installation by running:
 
 ```sql
-postgres=# \dx pgmq
+postgres=#
+\dx pgmq
 ```
 
 ```plaintext
@@ -68,13 +77,15 @@ postgres=# \dx pgmq
 ```
 
 ### Uninstalling the extension
+
 To uninstall the extension, you can use the `DROP EXTENSION` command:
 
 ```sql
 DROP EXTENSION pgmq;
 ```
 
-This will remove all objects created by the extension, including tables, functions, and types. The `pgmq` schema will remain, but if you have any data in the queues, it will be lost.
+This will remove all objects created by the extension, including tables, functions, and types. The `pgmq` schema will
+remain, but if you have any data in the queues, it will be lost.
 
 ## SQL-only installation
 
@@ -82,9 +93,13 @@ This will remove all objects created by the extension, including tables, functio
 
 > ⚠️ This installation approach is not versioned and only works for a fresh installation of `pgmq`.
 
-PGMQ consists of raw SQL objects and can also be installed directly into any Postgres instance. This method is preferred when extension installation or access to the server host is not available. This method will create a schema named `pgmq` and all SQL objects in that schema.
+PGMQ consists of raw SQL objects and can also be installed directly into any Postgres instance. This method is preferred
+when extension installation or access to the server host is not available. This method will create a schema named `pgmq`
+and all SQL objects in that schema.
 
-Simply executing the SQL definition file on your Postgres instance will create all the required objects. This can be accomplished by cloning the repo then running the following commands. This requires `psql` to be installed and available on your `PATH`.
+Simply executing the SQL definition file on your Postgres instance will create all the required objects. This can be
+accomplished by cloning the repo then running the following commands. This requires `psql` to be installed and available
+on your `PATH`.
 
 ```bash
 git clone https://github.com/pgmq/pgmq.git
@@ -98,7 +113,7 @@ Replace the postgres user, password, and database with the appropriate values fo
 
 ### Versioned installation
 
-Some clients provide a versioned SQL-only installation. This allows either a fresh installation or `pgmq`, or upgrading
+Some clients provide a versioned SQL-only installation. This allows either a fresh installation of `pgmq`, or upgrading
 the existing installation to the latest version. For example, the Rust client supports versioned installation via a CLI:
 
 ```bash
@@ -127,19 +142,23 @@ DROP SCHEMA pgmq CASCADE;
 
 ## Getting Started
 
-Once you have installed PGMQ, you can start using it. The [README](pgmq-extension/README.md#sql-examples) contains a quick start guide to get you up and running.
+Once you have installed PGMQ, you can start using it. The [README](pgmq-extension/README.md#sql-examples) contains a
+quick start guide to get you up and running.
 
 ## Considerations
 
-The project's core functions and features are the same regardless of how PGMQ is installed, though there are some differences in how the project is managed depending on the installation method. The following table summarizes these differences:
+The project's core functions and features are the same regardless of how PGMQ is installed, though there are some
+differences in how the project is managed depending on the installation method. The following table summarizes these
+differences:
 
-| Capability / Feature | Extension Install | SQL-only Install | Notes |
-|----------------------|-------------------|------------------|-------|
-| Version Tracking | ✅ | ❌ | Extension allows Postgres to track installed versions and users can inspect via `\dx pgmq` |
-| Supported Upgrades | ✅ | ❌ | Extensions can be upgraded with `ALTER EXTENSION pgmq UPDATE` |
-| No File System Access Needed | ❌ | ✅ | SQL-only installs work entirely within the database |
-| Managed Cloud Support | 🟡 (limited) | ✅ | SQL-only is compatible with most managed services |
-| Simple Deployment | ❌ | ✅ | SQL-only requires just executing SQL in the database |
-| Best For | Full control environments | Restricted/managed environments | |
+| Capability / Feature         | Extension Install         | SQL-only Install                | Notes                                                                                      |
+|------------------------------|---------------------------|---------------------------------|--------------------------------------------------------------------------------------------|
+| Version Tracking             | ✅                         | ❌                               | Extension allows Postgres to track installed versions and users can inspect via `\dx pgmq` |
+| Supported Upgrades           | ✅                         | ❌                               | Extensions can be upgraded with `ALTER EXTENSION pgmq UPDATE`                              |
+| No File System Access Needed | ❌                         | ✅                               | SQL-only installs work entirely within the database                                        |
+| Managed Cloud Support        | 🟡 (limited)              | ✅                               | SQL-only is compatible with most managed services                                          |
+| Simple Deployment            | ❌                         | ✅                               | SQL-only requires just executing SQL in the database                                       |
+| Best For                     | Full control environments | Restricted/managed environments |                                                                                            |
 
-Recommendation: Use the extension installation when your environment allows it. If you want to use PGMQ in a managed service that does not support extensions, then install it as raw SQL.
+Recommendation: Use the extension installation when your environment allows it. If you want to use PGMQ in a managed
+service that does not support extensions, then install it as raw SQL.

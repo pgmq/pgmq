@@ -65,7 +65,7 @@ impl ParsedScriptName {
 
     fn from_static_str(name: &'static str) -> Result<Self, PgmqError> {
         let captures = MIGRATION_SCRIPT_NAME_REGEX
-            .get_or_init(|| Regex::new(r"^pgmq--(?<from>.*)--(?<to>.*).sql$"))
+            .get_or_init(|| Regex::new(r"^pgmq--(?<from>.*)--(?<to>.*)\.sql$"))
             .as_ref()
             .map_err(install_err)?
             .captures(name)

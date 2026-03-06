@@ -152,8 +152,12 @@ def get_metrics(conn, queue_name):
     with conn.cursor() as cur:
         cur.execute(
             """
-            SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec,
-                   total_messages, scrape_time
+            SELECT queue_name,
+                   queue_length,
+                   newest_msg_age_sec,
+                   oldest_msg_age_sec,
+                   total_messages,
+                   scrape_time
             FROM pgmq.metrics(queue_name => %s::text)
             """,
             (queue_name,),
@@ -194,7 +198,7 @@ def get_pgmq_version(conn):
             cur.execute("SELECT version FROM pgmq.__pgmq_migrations")
             rows = cur.fetchall()
             rows = [semver.Version.parse(row[0]) for row in rows]
-            rows.sort()
+            rows.sort(reverse=True)
             version = rows[0] if len(rows) > 0 else None
 
     return version
