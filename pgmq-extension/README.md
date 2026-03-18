@@ -105,6 +105,7 @@ Community
 - [Python (with SQLAlchemy)](https://github.com/jason810496/pgmq-sqlalchemy)
 - [REST-API (Bun + Elysia)](https://github.com/eichenroth/pgmq-rest)
 - [Ruby](https://github.com/mensfeld/pgmq-ruby)
+- [Scala](https://github.com/matejcerny/pgmq4s)
 - [TypeScript (Deno)](https://github.com/tmountain/deno-pgmq)
 - [TypeScript (NodeJs + Prisma)](https://github.com/dvlkv/prisma-pgmq) 
 - [TypeScript (NodeJs + Midway.js)](https://github.com/waitingsong/pgmq-js)
