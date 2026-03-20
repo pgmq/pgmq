@@ -88,8 +88,12 @@ impl VisibilityTimeoutOffset {
     pub const MIN: Self = Self(i32::MIN);
     pub const MAX: Self = Self(i32::MAX);
 
-    pub fn new(seconds: i32) -> Self {
+    pub fn seconds(seconds: i32) -> Self {
         Self(seconds)
+    }
+
+    pub fn as_seconds(&self) -> i32 {
+        self.0
     }
 }
 

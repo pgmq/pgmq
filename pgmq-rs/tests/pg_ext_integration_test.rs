@@ -1,3 +1,4 @@
+use pgmq::pg_ext::VisibilityTimeoutOffset;
 use pgmq::types::{ARCHIVE_PREFIX, PGMQ_SCHEMA, QUEUE_PREFIX};
 use pgmq::util::connect;
 use rand::Rng;
@@ -115,8 +116,13 @@ async fn test_ext_create_list_drop() {
     assert!(!post_drop_q_names.contains(&test_queue));
 }
 
-#[tokio::test]
-async fn test_ext_send_read_delete() {
+async fn test_ext_send_read_delete_core<T: Into<VisibilityTimeoutOffset>>(
+    offset1: T,
+    offset2: T,
+    offset3: T,
+    offset4: T,
+    offset5: T,
+) {
     let test_queue = format!(
         "test_ext_send_read_delete_{}",
         rand::thread_rng().gen_range(0..100000)
@@ -131,7 +137,7 @@ async fn test_ext_send_read_delete() {
     assert!(msg_id >= 1);
 
     let read_message = queue
-        .read::<MyMessage>(&test_queue, 5)
+        .read::<MyMessage>(&test_queue, offset1)
         .await
         .expect("error reading message");
     assert!(read_message.is_some());
@@ -141,7 +147,7 @@ async fn test_ext_send_read_delete() {
 
     // read again, assert no messages visible
     let read_message = queue
-        .read::<MyMessage>(&test_queue, 2)
+        .read::<MyMessage>(&test_queue, offset2)
         .await
         .expect("error reading message");
     assert!(read_message.is_none());
@@ -151,7 +157,7 @@ async fn test_ext_send_read_delete() {
     let read_with_poll = queue
         .read_batch_with_poll::<MyMessage>(
             &test_queue,
-            5,
+            offset3,
             1,
             Some(std::time::Duration::from_secs(6)),
             None,
@@ -168,11 +174,11 @@ async fn test_ext_send_read_delete() {
 
     // change the VT to now
     let _vt_set = queue
-        .set_vt::<MyMessage>(&test_queue, msg_id, 0)
+        .set_vt::<MyMessage>(&test_queue, msg_id, offset4)
         .await
         .expect("failed to set VT");
     let read_message = queue
-        .read::<MyMessage>(&test_queue, 1)
+        .read::<MyMessage>(&test_queue, offset5)
         .await
         .expect("error reading message")
         .expect("expected a message");
@@ -196,7 +202,62 @@ async fn test_ext_send_read_delete() {
 }
 
 #[tokio::test]
-async fn test_ext_send_delay() {
+async fn test_ext_send_read_delete_i32() {
+    test_ext_send_read_delete_core(5i32, 2i32, 5i32, 0i32, 1i32).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_read_delete_i64() {
+    test_ext_send_read_delete_core(5i64, 2i64, 5i64, 0i64, 1i64).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_read_delete_u32() {
+    test_ext_send_read_delete_core(5u32, 2u32, 5u32, 0u32, 1u32).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_read_delete_u64() {
+    test_ext_send_read_delete_core(5u64, 2u64, 5u64, 0u64, 1u64).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_read_delete_chrono() {
+    test_ext_send_read_delete_core(
+        chrono::Duration::seconds(5),
+        chrono::Duration::seconds(2),
+        chrono::Duration::seconds(5),
+        chrono::Duration::seconds(0),
+        chrono::Duration::seconds(1),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn test_ext_send_read_delete_std() {
+    test_ext_send_read_delete_core(
+        std::time::Duration::from_secs(5),
+        std::time::Duration::from_secs(2),
+        std::time::Duration::from_secs(5),
+        std::time::Duration::from_secs(0),
+        std::time::Duration::from_secs(1),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn test_ext_send_read_delete_vt_offset() {
+    test_ext_send_read_delete_core(
+        VisibilityTimeoutOffset::seconds(5),
+        VisibilityTimeoutOffset::seconds(2),
+        VisibilityTimeoutOffset::seconds(5),
+        VisibilityTimeoutOffset::seconds(0),
+        VisibilityTimeoutOffset::seconds(1),
+    )
+    .await;
+}
+
+async fn test_ext_send_delay_core(delay: impl Into<VisibilityTimeoutOffset>) {
     let test_queue = format!(
         "test_ext_send_delay_{}",
         rand::thread_rng().gen_range(0..100000)
@@ -204,7 +265,7 @@ async fn test_ext_send_delay() {
     let vt = 1;
     let queue = init_queue_ext(&test_queue).await;
     let msg = MyMessage::default();
-    queue.send_delay(&test_queue, &msg, 5).await.unwrap();
+    queue.send_delay(&test_queue, &msg, delay).await.unwrap();
 
     // No messages are found due to visibility timeout
     let no_messages = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
@@ -214,6 +275,41 @@ async fn test_ext_send_delay() {
     tokio::time::sleep(std::time::Duration::from_secs(5)).await;
     let one_messages = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
     assert!(one_messages.is_some());
+}
+
+#[tokio::test]
+async fn test_ext_send_delay_i32() {
+    test_ext_send_delay_core(5i32).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_delay_i64() {
+    test_ext_send_delay_core(5i64).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_delay_u32() {
+    test_ext_send_delay_core(5u32).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_delay_u64() {
+    test_ext_send_delay_core(5u64).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_delay_chrono() {
+    test_ext_send_delay_core(chrono::Duration::seconds(5)).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_delay_std() {
+    test_ext_send_delay_core(std::time::Duration::from_secs(5)).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_delay_vt_offset() {
+    test_ext_send_delay_core(VisibilityTimeoutOffset::seconds(5)).await;
 }
 
 #[tokio::test]
