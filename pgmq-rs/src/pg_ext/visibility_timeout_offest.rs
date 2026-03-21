@@ -82,7 +82,6 @@ use std::ops::Deref;
 /// assert_eq!(VisibilityTimeoutOffset::MAX, VisibilityTimeoutOffset::from(std::time::Duration::MAX));
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Encode)]
-#[sqlx(transparent)]
 pub struct VisibilityTimeoutOffset(i32);
 
 impl VisibilityTimeoutOffset {
