@@ -1,3 +1,5 @@
+mod visibility_timeout_offest;
+
 use crate::errors::PgmqError;
 use crate::types::{Message, QUEUE_PREFIX};
 use crate::util::{check_input, connect};
@@ -5,6 +7,8 @@ use log::info;
 use serde::{Deserialize, Serialize};
 use sqlx::types::chrono::Utc;
 use sqlx::{Pool, Postgres, Row};
+
+pub use visibility_timeout_offest::VisibilityTimeoutOffset;
 
 const DEFAULT_POLL_TIMEOUT_S: i32 = 5;
 const DEFAULT_POLL_INTERVAL_MS: i32 = 250;
@@ -235,10 +239,11 @@ impl PGMQueueExt {
         &self,
         queue_name: &str,
         msg_id: i64,
-        vt: i32,
+        vt: impl Into<VisibilityTimeoutOffset>,
         executor: E,
     ) -> Result<Message<T>, PgmqError> {
         check_input(queue_name)?;
+        let vt: VisibilityTimeoutOffset = vt.into();
         // queue_name, created_at as "created_at: chrono::DateTime<Utc>", is_partitioned, is_unlogged
         let updated = sqlx::query(
             r#"SELECT msg_id, read_ct, enqueued_at, vt, message from pgmq.set_vt(queue_name=>$1::text, msg_id=>$2::bigint, vt=>$3::integer);"#
@@ -264,7 +269,7 @@ impl PGMQueueExt {
         &self,
         queue_name: &str,
         msg_id: i64,
-        vt: i32,
+        vt: impl Into<VisibilityTimeoutOffset>,
     ) -> Result<Message<T>, PgmqError> {
         self.set_vt_with_cxn(queue_name, msg_id, vt, &self.connection)
             .await
@@ -304,17 +309,18 @@ impl PGMQueueExt {
         &self,
         queue_name: &str,
         message: &T,
-        delay: u32,
+        delay: impl Into<VisibilityTimeoutOffset>,
         executor: E,
     ) -> Result<i64, PgmqError> {
         check_input(queue_name)?;
+        let delay: VisibilityTimeoutOffset = delay.into();
         let msg = serde_json::json!(&message);
         let sent = sqlx::query(
             "SELECT send as msg_id from pgmq.send(queue_name=>$1::text, msg=>$2::jsonb, delay=>$3::int);",
         )
         .bind(queue_name)
         .bind(msg)
-        .bind(delay as i32)
+        .bind(delay)
         .fetch_one(executor)
         .await?;
         Ok(sent.try_get("msg_id")?)
@@ -324,7 +330,7 @@ impl PGMQueueExt {
         &self,
         queue_name: &str,
         message: &T,
-        delay: u32,
+        delay: impl Into<VisibilityTimeoutOffset>,
     ) -> Result<i64, PgmqError> {
         self.send_delay_with_cxn(queue_name, message, delay, &self.connection)
             .await
@@ -337,10 +343,11 @@ impl PGMQueueExt {
     >(
         &self,
         queue_name: &str,
-        vt: i32,
+        vt: impl Into<VisibilityTimeoutOffset>,
         executor: E,
     ) -> Result<Option<Message<T>>, PgmqError> {
         check_input(queue_name)?;
+        let vt: VisibilityTimeoutOffset = vt.into();
         let row = sqlx::query(
             r#"SELECT msg_id, read_ct, enqueued_at, vt, message from pgmq.read(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer)"#,
         )
@@ -371,7 +378,7 @@ impl PGMQueueExt {
     pub async fn read<T: for<'de> Deserialize<'de>>(
         &self,
         queue_name: &str,
-        vt: i32,
+        vt: impl Into<VisibilityTimeoutOffset>,
     ) -> Result<Option<Message<T>>, PgmqError> {
         self.read_with_cxn(queue_name, vt, &self.connection).await
     }
@@ -383,13 +390,14 @@ impl PGMQueueExt {
     >(
         &self,
         queue_name: &str,
-        vt: i32,
+        vt: impl Into<VisibilityTimeoutOffset>,
         max_batch_size: i32,
         poll_timeout: Option<std::time::Duration>,
         poll_interval: Option<std::time::Duration>,
         executor: E,
     ) -> Result<Option<Vec<Message<T>>>, PgmqError> {
         check_input(queue_name)?;
+        let vt: VisibilityTimeoutOffset = vt.into();
         let poll_timeout_s = poll_timeout.map_or(DEFAULT_POLL_TIMEOUT_S, |t| t.as_secs() as i32);
         let poll_interval_ms =
             poll_interval.map_or(DEFAULT_POLL_INTERVAL_MS, |i| i.as_millis() as i32);
@@ -439,7 +447,7 @@ impl PGMQueueExt {
     pub async fn read_batch_with_poll<T: for<'de> Deserialize<'de>>(
         &self,
         queue_name: &str,
-        vt: i32,
+        vt: impl Into<VisibilityTimeoutOffset>,
         max_batch_size: i32,
         poll_timeout: Option<std::time::Duration>,
         poll_interval: Option<std::time::Duration>,
