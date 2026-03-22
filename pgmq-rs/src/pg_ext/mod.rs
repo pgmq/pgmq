@@ -45,13 +45,13 @@ impl PGMQueueExt {
     }
 
     #[cfg(feature = "install-sql")]
-    #[doc = include_str!("./install/install_sql.md")]
+    #[doc = include_str!("../install/install_sql.md")]
     pub async fn install_sql_with_cxn(&self, pool: &Pool<Postgres>) -> Result<(), PgmqError> {
         crate::install::install_sql(pool).await
     }
 
     #[cfg(feature = "install-sql")]
-    #[doc = include_str!("./install/install_sql.md")]
+    #[doc = include_str!("../install/install_sql.md")]
     pub async fn install_sql(&self) -> Result<(), PgmqError> {
         self.install_sql_with_cxn(&self.connection).await
     }
