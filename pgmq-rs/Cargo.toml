@@ -18,8 +18,10 @@ required-features = ["cli"]
 
 [features]
 default = []
-cli = ["clap", "url/serde", "install-sql"]
-install-sql = ["futures-util", "include_dir", "regex", "itertools"]
+cli = ["clap", "url/serde", "install-sql-github", "install-sql-embedded", "env_logger"]
+install-sql = ["futures-util", "regex", "itertools"]
+install-sql-github = ["install-sql", "reqwest"]
+install-sql-embedded = ["install-sql", "include_dir"]
 
 [dependencies]
 chrono = { version = "0.4.23", features = ["serde"] }
@@ -33,12 +35,14 @@ url = "2.3.1"
 
 # Optional dependencies for the `cli` feature
 clap = { version = "4.0", features = ["derive"], optional = true }
+env_logger = { version = "0.10.0", optional = true }
 
-# Optional dependencies for the `install-sql` feature
+# Optional dependencies for the `install-sql-github` and `install-sql-embedded` features
 futures-util = { version = "0.3.31", optional = true }
 include_dir = { version = "0.7.4", optional = true }
 regex = { version = "1.12.3", optional = true }
 itertools = { version = "0.14.0", optional = true }
+reqwest = { version = "0.11", features = ["json"], optional = true }
 
 [dev-dependencies]
 tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
@@ -65,4 +69,4 @@ sqlx = { version = "0.8.1", features = ["time"] }
 [[example]]
 name = "install"
 path = "examples/install.rs"
-required-features = ["install-sql"]
+required-features = ["cli"]

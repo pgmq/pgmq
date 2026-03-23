@@ -19,7 +19,7 @@ impl Default for MyMessage {
 }
 
 #[ignore]
-#[cfg(feature = "install-sql")]
+#[cfg(feature = "install-sql-embedded")]
 #[tokio::test]
 async fn test_sql_lifecycle() {
     let test_num = rand::thread_rng().gen_range(0..100000);
@@ -36,7 +36,8 @@ async fn test_sql_lifecycle() {
         .unwrap();
 
     let queue = pgmq::PGMQueueExt::new(test_db_url, 1).await.unwrap();
-    queue.install_sql().await.unwrap();
+    #[cfg(feature = "install-sql-embedded")]
+    queue.install_sql_from_embedded().await.unwrap();
     queue.create(&test_queue).await.unwrap();
 
     let sent_msg = MyMessage::default();

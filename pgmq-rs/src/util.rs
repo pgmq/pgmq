@@ -122,3 +122,21 @@ pub fn check_input(input: &str) -> Result<(), PgmqError> {
         }),
     }
 }
+
+#[cfg(feature = "install-sql-github")]
+#[deprecated(
+    note = "Use pgmq::install::install_sql_from_github or pgmq::install::install_sql_from_embedded instead.",
+    since = "0.32.2"
+)]
+pub async fn install_pgmq(
+    pool: &Pool<Postgres>,
+    version: Option<&String>,
+) -> Result<(), PgmqError> {
+    // Execute the SQL file
+    log::info!("Executing PGMQ installation SQL...");
+
+    crate::install::install_sql_from_github(pool, version.map(|v| v.as_str())).await?;
+
+    log::info!("PGMQ installation completed successfully!");
+    Ok(())
+}

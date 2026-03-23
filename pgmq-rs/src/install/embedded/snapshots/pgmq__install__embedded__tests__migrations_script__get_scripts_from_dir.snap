@@ -1,5 +1,5 @@
 ---
-source: src/install/script.rs
+source: src/install/embedded/mod.rs
 expression: script
 ---
 MigrationScript {

@@ -1,4 +1,4 @@
-use crate::install::script::MigrationScript;
+use crate::install::script::ParsedScriptName;
 use crate::install::version::Version;
 use crate::PgmqError;
 use sqlx::postgres::PgArguments;
@@ -45,7 +45,7 @@ impl AppliedMigration {
             .await?;
 
         sqlx::query(
-        "CREATE TABLE IF NOT EXISTS pgmq.__pgmq_migrations ( name TEXT PRIMARY KEY NOT NULL, version TEXT NOT NULL, run_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT CURRENT_TIMESTAMP);",
+        "CREATE TABLE IF NOT EXISTS pgmq.__pgmq_migrations ( name TEXT PRIMARY KEY NOT NULL, version TEXT NOT NULL, run_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT clock_timestamp());",
         )
         .execute(tx.acquire().await?)
         .await?;
@@ -72,14 +72,14 @@ impl AppliedMigration {
         Ok(applied_migrations)
     }
 
-    /// Record that the provided [`MigrationScript`] was applied.
+    /// Record that a script with the provided [`ParsedScriptName`] was applied.
     pub fn insert_script(
-        script: &'_ MigrationScript,
+        name: &'_ ParsedScriptName,
     ) -> Result<Query<'_, Postgres, PgArguments>, PgmqError> {
         let query =
             sqlx::query("INSERT INTO pgmq.__pgmq_migrations ( name, version ) VALUES ( $1, $2 );")
-                .bind(script.name.original)
-                .bind(&script.name.to);
+                .bind(&name.original)
+                .bind(&name.to);
         Ok(query)
     }
 }

@@ -125,7 +125,7 @@ jobs:
             sleep 2
           done
       - name: Run SQL installation test
-        run: cargo test test_sql_lifecycle --release --features cli -- --ignored
+        run: cargo test test_sql_lifecycle --release --features install-sql-embedded -- --ignored
 
   publish:
     name: Publish or validate crate

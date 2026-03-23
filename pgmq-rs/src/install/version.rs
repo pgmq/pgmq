@@ -12,10 +12,6 @@ use std::sync::OnceLock;
 /// Regex to match a basic semver string, e.g. `1.2.3`.
 static VERSION_REGEX: OnceLock<Result<Regex, regex::Error>> = OnceLock::new();
 
-/// The `pgmq` extension control file. Used to determine which version of `pgmq` would be
-/// installed by running the `pgmq.sql` script.
-static EXTENSION_CONFIG: &str = include_str!("pgmq.control");
-
 /// Struct to represent a basic semver version, e.g. `1.2.3`.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
 pub struct Version {
@@ -61,15 +57,8 @@ where
 }
 
 impl Version {
-    /// Get the current version of the `pgmq` installation scripts that are embedded in the crate.
-    pub fn get_pgmq_version() -> Result<Self, PgmqError> {
-        Self::get_pgmq_version_from_contents(EXTENSION_CONFIG)
-    }
-
-    /// Get the current version of the `pgmq` installation scripts that are embedded in the crate.
-    ///
-    /// * `extension_config`: The contents of the `pgmq.control` extension config file.
-    fn get_pgmq_version_from_contents(extension_config: &str) -> Result<Self, PgmqError> {
+    /// Get the `pgmq` version from the provided `pgmq.control` file contents.
+    pub fn get_version_from_extension_config(extension_config: &str) -> Result<Self, PgmqError> {
         let version_line = extension_config
             .lines()
             .find(|line| line.trim_start().starts_with("default_version"))
@@ -91,7 +80,7 @@ impl FromStr for Version {
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         let captures = VERSION_REGEX
-            .get_or_init(|| Regex::new(r"^(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)$"))
+            .get_or_init(|| Regex::new(r"^v?(?<major>\d+)\.(?<minor>\d+)\.(?<patch>\d+)$"))
             .as_ref()
             .map_err(install_err)?
             .captures(s)
@@ -148,56 +137,61 @@ mod tests {
     #[test]
     fn get_pgmq_version() {
         let extension_config = "default_version = '1.11.0'";
-        let pgmq_version = Version::get_pgmq_version_from_contents(extension_config).unwrap();
+        let pgmq_version = Version::get_version_from_extension_config(extension_config).unwrap();
         assert_debug_snapshot!(pgmq_version);
     }
 
     #[test]
     fn get_pgmq_version_extra_whitespace() {
         let extension_config = "    default_version   =    '1.11.0'    ";
-        let pgmq_version = Version::get_pgmq_version_from_contents(extension_config).unwrap();
+        let pgmq_version = Version::get_version_from_extension_config(extension_config).unwrap();
         assert_debug_snapshot!(pgmq_version);
     }
 
     #[test]
     fn get_pgmq_version_err_invalid_version() {
         let extension_config = "default_version = 'a.b.c'";
-        let pgmq_version = Version::get_pgmq_version_from_contents(extension_config);
+        let pgmq_version = Version::get_version_from_extension_config(extension_config);
         assert_debug_snapshot!(pgmq_version);
     }
 
     #[test]
     fn get_pgmq_version_err_version_not_present() {
         let extension_config = "";
-        let pgmq_version = Version::get_pgmq_version_from_contents(extension_config);
+        let pgmq_version = Version::get_version_from_extension_config(extension_config);
         assert_debug_snapshot!(pgmq_version);
     }
 
     #[test]
     fn get_pgmq_version_err_missing_quotes() {
         let extension_config = "default_version = 1.11.0";
-        let pgmq_version = Version::get_pgmq_version_from_contents(extension_config);
+        let pgmq_version = Version::get_version_from_extension_config(extension_config);
         assert_debug_snapshot!(pgmq_version);
     }
 
     #[test]
     fn get_pgmq_version_no_whitespace() {
         let extension_config = "default_version='1.11.0'";
-        let pgmq_version = Version::get_pgmq_version_from_contents(extension_config).unwrap();
+        let pgmq_version = Version::get_version_from_extension_config(extension_config).unwrap();
         assert_debug_snapshot!(pgmq_version);
-    }
-
-    #[test]
-    fn get_pgmq_version_actual_config_file() {
-        let version = Version::get_pgmq_version();
-        // Don't check for a specific version, just check that the version was successfully parsed.
-        // Otherwise, this test will fail every time the version is updated.
-        assert!(version.is_ok());
     }
 
     #[test]
     fn from_str() {
         let version = Version::from_str("1.11.0").unwrap();
+        assert_eq!(
+            version,
+            Version {
+                major: 1,
+                minor: 11,
+                patch: 0
+            }
+        );
+    }
+
+    #[test]
+    fn from_str_v_prefix() {
+        let version = Version::from_str("v1.11.0").unwrap();
         assert_eq!(
             version,
             Version {

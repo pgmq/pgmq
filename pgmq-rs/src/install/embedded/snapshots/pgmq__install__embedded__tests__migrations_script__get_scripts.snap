@@ -1,8 +1,24 @@
 ---
-source: src/install/script.rs
+source: src/install/embedded/mod.rs
 expression: scripts
 ---
 [
+    MigrationScript {
+        name: ParsedScriptName {
+            original: "pgmq.sql",
+            from: Version {
+                major: 0,
+                minor: 0,
+                patch: 0,
+            },
+            to: Version {
+                major: 1,
+                minor: 11,
+                patch: 0,
+            },
+        },
+        content: "",
+    },
     MigrationScript {
         name: ParsedScriptName {
             original: "pgmq--1.11.0--1.11.1.sql",

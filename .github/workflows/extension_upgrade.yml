@@ -96,7 +96,7 @@ jobs:
           # Build and run the rust client to install pgmq from sql
           # Note: Because we're re-building the new rust client while an old version of the repo is checked out,
           # the client will embed the migration scripts from the old version.
-          cargo run --features cli -- install "$DATABASE_URL"
+          cargo run --features cli -- install install-from-embedded
 
           # Restore the old rust client
           cd "$original_dir"
@@ -129,7 +129,7 @@ jobs:
       - name: Install and upgrade pgmq to CI branch version using sql
         if: ${{ matrix.install == 'sql' }}
         working-directory: ./pgmq-rs
-        run: cargo run --features cli -- install $DATABASE_URL
+        run: cargo run --features cli -- install install-from-embedded
 
       - name: Run post-upgrade tests
         working-directory: ./pgmq-extension/client-tests

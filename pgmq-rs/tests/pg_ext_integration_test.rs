@@ -81,8 +81,8 @@ async fn archive_rowcount(qname: &str, connection: &Pool<Postgres>) -> i64 {
 }
 
 async fn install_pgmq(queue: &pgmq::PGMQueueExt) -> bool {
-    #[cfg(feature = "install-sql")]
-    let result = queue.install_sql().await.map(|_| true);
+    #[cfg(feature = "install-sql-embedded")]
+    let result = queue.install_sql_from_embedded().await.map(|_| true);
     #[cfg(not(feature = "install-sql"))]
     let result = queue.init().await;
 
