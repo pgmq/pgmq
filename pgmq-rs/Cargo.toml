@@ -24,17 +24,17 @@ install-sql-github = ["install-sql", "reqwest"]
 install-sql-embedded = ["install-sql", "include_dir"]
 
 [dependencies]
-chrono = { version = "0.4.23", features = ["serde"] }
+chrono = { version = "0.4.34", features = ["serde"] }
 serde = { version = "1.0.152" }
 serde_json = { version = "1.0.91", features = ["raw_value"] }
 sqlx = { version = "0.8.1", features = ["runtime-tokio", "postgres", "chrono", "json"] }
 thiserror = "1.0.38"
-tokio = { version = "1", default-features = false, features = ["macros", "time"] }
-log = "0.4.17"
-url = "2.3.1"
+tokio = { version = "1.38.0", default-features = false, features = ["macros", "time"] }
+log = "0.4.18"
+url = "2.4.0"
 
 # Optional dependencies for the `cli` feature
-clap = { version = "4.0", features = ["derive"], optional = true }
+clap = { version = "4.1", features = ["derive"], optional = true }
 env_logger = { version = "0.10.0", optional = true }
 
 # Optional dependencies for the `install-sql-github` and `install-sql-embedded` features
@@ -42,10 +42,10 @@ futures-util = { version = "0.3.31", optional = true }
 include_dir = { version = "0.7.4", optional = true }
 regex = { version = "1.12.3", optional = true }
 itertools = { version = "0.14.0", optional = true }
-reqwest = { version = "0.11", features = ["json"], optional = true }
+reqwest = { version = "0.13.0", features = ["json"], optional = true }
 
 [dev-dependencies]
-tokio = { version = "1", features = ["macros", "rt-multi-thread"] }
+tokio = { version = "1.38.0", features = ["macros", "rt-multi-thread"] }
 cargo-readme = "3.2.0"
 criterion = "0.4"
 env_logger = "0.10.0"

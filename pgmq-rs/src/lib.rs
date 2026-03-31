@@ -669,13 +669,13 @@ impl PGMQueue {
         Ok(messages)
     }
 
-    /// Similar to [`read_batch`], but allows waiting until a message is available
+    /// Similar to [`Self::read_batch`], but allows waiting until a message is available
     ///
     /// You can specify a maximum duration for polling (defaults to 5 seconds),
     /// and an interval between calls (defaults to 250ms). A lower interval
     /// implies higher maximum latency, but less load on the database.
     ///
-    /// Refer to the [`read_batch`] function for more details.
+    /// Refer to the [`Self::read_batch`] function for more details.
     ///
     pub async fn read_batch_with_poll<T: for<'de> Deserialize<'de>>(
         &self,

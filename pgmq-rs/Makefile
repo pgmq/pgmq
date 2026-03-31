@@ -4,7 +4,7 @@ EXTENSION_DB:=postgres://postgres:postgres@0.0.0.0:5432/pgmq_ext_test
 
 # Initialize a new installation of the repo (e.g., install deps)
 init:
-	cargo binstall cargo-insta cargo-semver-checks sqlx-cli cargo-readme
+	cargo binstall cargo-insta cargo-semver-checks sqlx-cli cargo-readme cargo-minimal-versions cargo-hack
 
 update.readme:
 	cargo readme \
@@ -47,3 +47,11 @@ check.clippy:
 # Check that the crate is formatted correctly
 check.fmt:
 	cargo fmt --all --check
+
+check.docs:
+	RUSTDOCFLAGS="-D rustdoc::all" cargo doc --all-features --lib --no-deps
+
+# Check that our dependencies are declared as the correct minimal versions. For example, if we depend on a crate
+# with version "1.0.0", ensure we don’t accidentally depend on a feature added in version "1.5.0".
+check.minimal-versions:
+	cargo minimal-versions check --direct --all-features

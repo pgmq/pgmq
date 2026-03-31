@@ -33,6 +33,8 @@ jobs:
         run: make check.fmt
       - name: Clippy
         run: make check.clippy
+      - name: Check docs
+        run: make check.docs
 
   semver:
     name: Check SemVer compatibility
@@ -44,6 +46,17 @@ jobs:
           tool: cargo-semver-checks
       - name: Check SemVer
         run: make check.semver
+
+  minimal-versions:
+    name: Check dependency minimal versions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: taiki-e/install-action@9adcff13829681f1e2f4a678b775043ab5c7fc2c
+        with:
+          tool: cargo-minimal-versions,cargo-hack
+      - name: Check versions
+        run: make check.minimal-versions
 
   tests:
     name: Run tests

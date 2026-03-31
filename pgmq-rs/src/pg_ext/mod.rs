@@ -46,7 +46,7 @@ impl PGMQueueExt {
     #[cfg(feature = "install-sql-github")]
     #[deprecated(
         note = "Use install_sql_from_github_with_cxn/install_sql_from_github or install_sql_embedded_with_cxn/install_sql_embedded instead.",
-        since = "0.32.2"
+        since = "0.33.0"
     )]
     pub async fn install_sql_with_cxn(
         &self,
@@ -60,7 +60,7 @@ impl PGMQueueExt {
     #[cfg(feature = "install-sql-github")]
     #[deprecated(
         note = "Use install_sql_from_github_with_cxn/install_sql_from_github or install_sql_embedded_with_cxn/install_sql_embedded instead.",
-        since = "0.32.2"
+        since = "0.33.0"
     )]
     pub async fn install_sql(&self, version: Option<&String>) -> Result<(), PgmqError> {
         self.install_sql_from_github(version.map(|v| v.as_str()))
