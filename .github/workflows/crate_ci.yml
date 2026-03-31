@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
-      - name: Install minimal nightly with clippy and rustfmt
+      - name: Install minimal rust toolchain with clippy and rustfmt
         uses: dtolnay/rust-toolchain@stable
         with:
           profile: minimal
@@ -30,9 +30,20 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - name: Cargo format
-        run: cargo fmt --all --check
+        run: make check-fmt
       - name: Clippy
-        run: cargo clippy --all-features
+        run: make check-clippy
+
+  semver:
+    name: Check SemVer compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: taiki-e/install-action@9adcff13829681f1e2f4a678b775043ab5c7fc2c
+        with:
+          tool: cargo-semver-checks
+      - name: Check SemVer
+        run: make check-semver
 
   tests:
     name: Run tests

@@ -2,10 +2,9 @@ POSTGRES_PASSWORD:=postgres
 DATABASE_URL:=postgres://postgres:postgres@0.0.0.0:5432/postgres
 EXTENSION_DB:=postgres://postgres:postgres@0.0.0.0:5432/pgmq_ext_test
 
-format:
-	cargo sqlx prepare --database-url ${DATABASE_URL}
-	cargo +nightly fmt --all
-	cargo clippy --all-features
+# Initialize a new installation of the repo (e.g., install deps)
+init:
+	cargo binstall cargo-insta cargo-semver-checks sqlx-cli cargo-readme
 
 update.readme:
 	cargo readme \
@@ -30,3 +29,21 @@ test.pgmqext_sql:
 
 setup.env:
 	sqlx migrate run --database-url ${DATABASE_URL}
+
+# Reformat all rust code
+fmt:
+	cargo fmt --all
+
+# Check if there are any semver-incompatible changes. If there are, the crate's first non-zero semver value will need be
+# bumped in order to release the changes.
+# Note: This will catch most semver-incompatible changes, but not all.
+check-semver:
+	cargo semver-checks
+
+# Check the crate does not have any Clippy errors
+check-clippy:
+	cargo clippy --all-features
+
+# Check that the crate is formatted correctly
+check-fmt:
+	cargo fmt --all --check
