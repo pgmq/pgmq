@@ -30,9 +30,9 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - name: Cargo format
-        run: make check-fmt
+        run: make check.fmt
       - name: Clippy
-        run: make check-clippy
+        run: make check.clippy
 
   semver:
     name: Check SemVer compatibility
@@ -43,7 +43,7 @@ jobs:
         with:
           tool: cargo-semver-checks
       - name: Check SemVer
-        run: make check-semver
+        run: make check.semver
 
   tests:
     name: Run tests

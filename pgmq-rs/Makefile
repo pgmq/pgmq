@@ -37,13 +37,13 @@ fmt:
 # Check if there are any semver-incompatible changes. If there are, the crate's first non-zero semver value will need be
 # bumped in order to release the changes.
 # Note: This will catch most semver-incompatible changes, but not all.
-check-semver:
+check.semver:
 	cargo semver-checks
 
 # Check the crate does not have any Clippy errors
-check-clippy:
+check.clippy:
 	cargo clippy --all-features
 
 # Check that the crate is formatted correctly
-check-fmt:
+check.fmt:
 	cargo fmt --all --check
