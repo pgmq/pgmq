@@ -92,7 +92,7 @@ jobs:
         run: cargo sqlx prepare --check
 
   pgmq_ext_init_race_condition:
-    name: PGMQ Extension Init Race Conditino
+    name: PGMQ Extension Init Race Condition
     runs-on: ubuntu-22.04
     needs: lint
     services:

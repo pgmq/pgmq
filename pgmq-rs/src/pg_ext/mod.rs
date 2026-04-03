@@ -139,7 +139,7 @@ impl PGMQueueExt {
         executor: E,
     ) -> Result<bool, PgmqError> {
         let mut tx = executor.begin().await?;
-        // crate::util::init_lock(&mut tx).await?;
+        crate::util::init_lock(&mut tx).await?;
         sqlx::query("CREATE EXTENSION IF NOT EXISTS pgmq CASCADE;")
             .execute(tx.acquire().await?)
             .await
