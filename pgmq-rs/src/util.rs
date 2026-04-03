@@ -7,8 +7,8 @@ use serde::Deserialize;
 use sqlx::error::Error;
 use sqlx::postgres::PgRow;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
-use sqlx::ConnectOptions;
-use sqlx::Row;
+use sqlx::{Acquire, Row};
+use sqlx::{ConnectOptions, Transaction};
 use sqlx::{Pool, Postgres};
 use url::{ParseError, Url};
 
@@ -138,5 +138,23 @@ pub async fn install_pgmq(
     crate::install::install_sql_from_github(pool, version.map(|v| v.as_str())).await?;
 
     log::info!("PGMQ installation completed successfully!");
+    Ok(())
+}
+
+/// Advisory lock key used to ensure only one transaction can run the `pgmq` installation process
+/// at once. Select a random large negative `bigint` value to minimize the chances of conflicting
+/// with another advisory lock used by the actual application.
+const ADVISORY_LOCK_KEY: i64 = -9223372036854775808 + 4149;
+
+/// Acquire an advisory lock to be sure that only one transaction can run the pgmq SQL
+/// installation/upgrade process at once. Without this, it's possible for multiple transactions
+/// to attempt to perform the `pgmq` SQL installation/upgrade process at the same time, and they
+/// may conflict when creating the `pgmq` schema and/or `pgmq.__pgmq_migrations` table. This is
+/// the case even with `IF NOT EXISTS` in the SQL query.
+pub(crate) async fn init_lock<'c>(tx: &mut Transaction<'c, Postgres>) -> Result<(), PgmqError> {
+    sqlx::query("SELECT pg_advisory_xact_lock($1);")
+        .bind(ADVISORY_LOCK_KEY)
+        .execute(tx.acquire().await?)
+        .await?;
     Ok(())
 }

@@ -1,14 +1,10 @@
 use crate::install::script::ParsedScriptName;
 use crate::install::version::Version;
+use crate::util::init_lock;
 use crate::PgmqError;
 use sqlx::postgres::PgArguments;
 use sqlx::query::Query;
 use sqlx::{Acquire, FromRow, Postgres, Transaction};
-
-/// Advisory lock key used to ensure only one transaction can run the `pgmq` installation process
-/// at once. Select a random large negative `bigint` value to minimize the chances of conflicting
-/// with another advisory lock used by the actual application.
-const ADVISORY_LOCK_KEY: i64 = -9223372036854775808 + 4149;
 
 /// Struct to represent a row of the DB table that tracks which migration scripts have been applied.
 #[derive(FromRow)]
@@ -24,17 +20,7 @@ pub struct AppliedMigration {
 impl AppliedMigration {
     /// Create the DB table used to keep track of which migration scripts have been applied.
     pub async fn create_table(tx: &mut Transaction<'static, Postgres>) -> Result<(), PgmqError> {
-        /*
-        Acquire an advisory lock to be sure that only one transaction can run the pgmq SQL
-        installation/upgrade process at once. Without this, it's possible for multiple transactions
-        to attempt to perform the `pgmq` SQL installation/upgrade process at the same time, and they
-        may conflict when creating the `pgmq` schema and/or `pgmq.__pgmq_migrations` table. This is
-        the case even with `IF NOT EXISTS` in the SQL query.
-         */
-        sqlx::query("SELECT pg_advisory_xact_lock($1);")
-            .bind(ADVISORY_LOCK_KEY)
-            .execute(tx.acquire().await?)
-            .await?;
+        init_lock(tx).await?;
 
         /*
         The `pgmq` schema will not exist yet if we're currently performing a fresh installation

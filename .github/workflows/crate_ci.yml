@@ -91,6 +91,34 @@ jobs:
         # ensure migration cache is up to date
         run: cargo sqlx prepare --check
 
+  pgmq_ext_init_race_condition:
+    name: PGMQ Extension Init Race Conditino
+    runs-on: ubuntu-22.04
+    needs: lint
+    services:
+      postgres:
+        image: ghcr.io/pgmq/pg17-pgmq:latest
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      DATABASE_URL: "postgresql://postgres:postgres@0.0.0.0:5432/postgres"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run PGMQ extension integration tests
+        run: cargo test --test pg_ext_integration_test
+
   tests_ext_sql_install:
     name: Run PGMQueueExt tests with sql installation
     runs-on: ubuntu-22.04

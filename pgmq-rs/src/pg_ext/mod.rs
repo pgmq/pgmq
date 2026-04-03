@@ -6,7 +6,7 @@ use crate::util::{check_input, connect};
 use log::info;
 use serde::{Deserialize, Serialize};
 use sqlx::types::chrono::Utc;
-use sqlx::{Pool, Postgres, Row};
+use sqlx::{Acquire, Pool, Postgres, Row};
 pub use visibility_timeout_offest::VisibilityTimeoutOffset;
 
 const DEFAULT_POLL_TIMEOUT_S: i32 = 5;
@@ -134,15 +134,18 @@ impl PGMQueueExt {
             .await
     }
 
-    pub async fn init_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres>>(
+    pub async fn init_with_cxn<'c, E: sqlx::Acquire<'c, Database = Postgres>>(
         &self,
         executor: E,
     ) -> Result<bool, PgmqError> {
+        let mut tx = executor.begin().await?;
+        // crate::util::init_lock(&mut tx).await?;
         sqlx::query("CREATE EXTENSION IF NOT EXISTS pgmq CASCADE;")
-            .execute(executor)
+            .execute(tx.acquire().await?)
             .await
-            .map(|_| true)
-            .map_err(PgmqError::from)
+            .map(|_| true)?;
+        tx.commit().await?;
+        Ok(true)
     }
 
     pub async fn init(&self) -> Result<bool, PgmqError> {
