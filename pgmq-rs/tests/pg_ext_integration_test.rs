@@ -599,3 +599,30 @@ async fn test_transactional() {
         .get::<i64, usize>(0);
     assert_eq!(rows, 1);
 }
+
+#[tokio::test]
+async fn test_create_queue_race_condition() {
+    let queue_name = format!("test_tx_{}", rand::thread_rng().gen_range(0..100000));
+    let db_url = env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/postgres".to_owned());
+    let pool = connect(&db_url, 2)
+        .await
+        .expect("failed to connect to postgres");
+
+    let queue = pgmq::PGMQueueExt::new_with_pool(pool).await;
+    let init = install_pgmq(&queue).await;
+    assert!(init, "failed to create extension");
+
+    let mut conn1 = queue.connection.acquire().await.unwrap();
+    let mut conn2 = queue.connection.acquire().await.unwrap();
+
+    let (result1, result2) = tokio::try_join!(
+        queue.create_with_cxn(&queue_name, &mut conn1),
+        queue.create_with_cxn(&queue_name, &mut conn2)
+    )
+    .unwrap();
+
+    // If there's a race condition in `PGMQueueExt#create`, both results could be `true` (this
+    // may not always occur due to the non-deterministic nature of race conditions).
+    assert_ne!(result1, result2);
+}
