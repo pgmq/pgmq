@@ -161,13 +161,18 @@ impl PGMQueueExt {
         E: sqlx::Acquire<'c, Database = Postgres>,
     {
         check_input(queue_name)?;
-        let mut conn = executor.acquire().await?;
+        let mut tx = executor.begin().await?;
+
+        sqlx::query("SELECT * from pgmq.acquire_queue_lock(queue_name=>$1::text);")
+            .bind(queue_name)
+            .execute(tx.acquire().await?)
+            .await?;
 
         let exists = sqlx::query_scalar::<_, bool>(
             "SELECT EXISTS(SELECT 1 FROM pgmq.meta WHERE queue_name = $1::text);",
         )
         .bind(queue_name)
-        .fetch_one(&mut *conn)
+        .fetch_one(tx.acquire().await?)
         .await?;
 
         if exists {
@@ -176,8 +181,11 @@ impl PGMQueueExt {
 
         sqlx::query("SELECT * from pgmq.create(queue_name=>$1::text);")
             .bind(queue_name)
-            .execute(&mut *conn)
+            .execute(tx.acquire().await?)
             .await?;
+
+        tx.commit().await?;
+
         Ok(true)
     }
     /// Errors when there is any database error and Ok(false) when the queue already exists.
