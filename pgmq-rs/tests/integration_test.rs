@@ -708,7 +708,7 @@ async fn test_parsing_error_modes() {
     // we expect a parse error
     match read_msg {
         Err(e) => {
-            if let PgmqError::JsonParsingError { .. } = e {
+            if let PgmqError::DatabaseError(sqlx::Error::ColumnDecode { .. }) = e {
                 // got the parsing error. good.
             } else {
                 // got some other error. bad.

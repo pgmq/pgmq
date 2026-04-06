@@ -6,7 +6,7 @@ use crate::util::{check_input, connect};
 use log::info;
 use serde::{Deserialize, Serialize};
 use sqlx::types::chrono::Utc;
-use sqlx::{Acquire, Pool, Postgres, Row};
+use sqlx::{Acquire, FromRow, Pool, Postgres, Row};
 pub use visibility_timeout_offest::VisibilityTimeoutOffset;
 
 const DEFAULT_POLL_TIMEOUT_S: i32 = 5;
@@ -337,21 +337,14 @@ impl PGMQueueExt {
         let updated = sqlx::query(
             r#"SELECT msg_id, read_ct, enqueued_at, vt, message from pgmq.set_vt(queue_name=>$1::text, msg_id=>$2::bigint, vt=>$3::integer);"#
         )
-        .bind(queue_name)
-        .bind(msg_id)
-        .bind(vt)
-        .fetch_one(executor)
-        .await?;
-        let raw_msg = updated.try_get("message")?;
-        let parsed_msg = serde_json::from_value::<T>(raw_msg)?;
+            .bind(queue_name)
+            .bind(msg_id)
+            .bind(vt)
+            .fetch_one(executor)
+            .await
+            .and_then(|row| Message::<T>::from_row(&row))?;
 
-        Ok(Message {
-            msg_id: updated.try_get("msg_id")?,
-            vt: updated.try_get("vt")?,
-            read_ct: updated.try_get("read_ct")?,
-            enqueued_at: updated.try_get("enqueued_at")?,
-            message: parsed_msg,
-        })
+        Ok(updated)
     }
     // Set the visibility time on an existing message.
     pub async fn set_vt<T: for<'de> Deserialize<'de>>(
@@ -440,23 +433,15 @@ impl PGMQueueExt {
         let row = sqlx::query(
             r#"SELECT msg_id, read_ct, enqueued_at, vt, message from pgmq.read(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer)"#,
         )
-        .bind(queue_name)
-        .bind(vt)
-        .bind(1)
-        .fetch_optional(executor)
-        .await?;
+            .bind(queue_name)
+            .bind(vt)
+            .bind(1)
+            .fetch_optional(executor)
+            .await?;
         match row {
             Some(row) => {
                 // happy path - successfully read a message
-                let raw_msg = row.try_get("message")?;
-                let parsed_msg = serde_json::from_value::<T>(raw_msg)?;
-                Ok(Some(Message {
-                    msg_id: row.try_get("msg_id")?,
-                    vt: row.try_get("vt")?,
-                    read_ct: row.try_get("read_ct")?,
-                    enqueued_at: row.try_get("enqueued_at")?,
-                    message: parsed_msg,
-                }))
+                Ok(Some(Message::<T>::from_row(&row)?))
             }
             None => {
                 // no message found
@@ -512,22 +497,10 @@ impl PGMQueueExt {
             Err(e) => Err(e)?,
             Ok(rows) => {
                 // happy path - successfully read messages
-                let mut messages: Vec<Message<T>> = Vec::new();
-                for row in rows.iter() {
-                    let raw_msg = row.try_get("message")?;
-                    let parsed_msg = serde_json::from_value::<T>(raw_msg);
-                    if let Err(e) = parsed_msg {
-                        return Err(PgmqError::JsonParsingError(e));
-                    } else if let Ok(parsed_msg) = parsed_msg {
-                        messages.push(Message {
-                            msg_id: row.try_get("msg_id")?,
-                            vt: row.try_get("vt")?,
-                            read_ct: row.try_get("read_ct")?,
-                            enqueued_at: row.try_get("enqueued_at")?,
-                            message: parsed_msg,
-                        })
-                    }
-                }
+                let messages = rows
+                    .into_iter()
+                    .map(|row| Message::<T>::from_row(&row))
+                    .collect::<Result<Vec<Message<T>>, sqlx::Error>>()?;
                 Ok(Some(messages))
             }
         }
@@ -619,15 +592,7 @@ impl PGMQueueExt {
         match row {
             Some(row) => {
                 // happy path - successfully read a message
-                let raw_msg = row.try_get("message")?;
-                let parsed_msg = serde_json::from_value::<T>(raw_msg)?;
-                Ok(Some(Message {
-                    msg_id: row.try_get("msg_id")?,
-                    vt: row.try_get("vt")?,
-                    read_ct: row.try_get("read_ct")?,
-                    enqueued_at: row.try_get("enqueued_at")?,
-                    message: parsed_msg,
-                }))
+                Ok(Some(Message::<T>::from_row(&row)?))
             }
             None => {
                 // no message found

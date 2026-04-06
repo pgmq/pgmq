@@ -7,7 +7,7 @@ use serde::Deserialize;
 use sqlx::error::Error;
 use sqlx::postgres::PgRow;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
-use sqlx::{Acquire, Row};
+use sqlx::{Acquire, FromRow, Row};
 use sqlx::{ConnectOptions, Transaction};
 use sqlx::{Pool, Postgres};
 use url::{ParseError, Url};
@@ -45,23 +45,12 @@ pub async fn fetch_one_message<T: for<'de> Deserialize<'de>>(
     connection: &Pool<Postgres>,
 ) -> Result<Option<Message<T>>, PgmqError> {
     // explore: .fetch_optional()
-    let row: Result<PgRow, Error> = sqlx::query(query).fetch_one(connection).await;
+    let row = sqlx::query(query)
+        .fetch_one(connection)
+        .await
+        .and_then(|row| Message::<T>::from_row(&row));
     match row {
-        Ok(row) => {
-            // happy path - successfully read a message
-            let raw_msg = row.get("message");
-            let parsed_msg = serde_json::from_value::<T>(raw_msg);
-            match parsed_msg {
-                Ok(parsed_msg) => Ok(Some(Message {
-                    msg_id: row.get("msg_id"),
-                    vt: row.get("vt"),
-                    read_ct: row.get("read_ct"),
-                    enqueued_at: row.get("enqueued_at"),
-                    message: parsed_msg,
-                })),
-                Err(e) => Err(PgmqError::JsonParsingError(e)),
-            }
-        }
+        Ok(row) => Ok(Some(row)),
         Err(sqlx::error::Error::RowNotFound) => Ok(None),
         Err(e) => Err(e)?,
     }
