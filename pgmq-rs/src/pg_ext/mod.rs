@@ -363,15 +363,8 @@ impl PGMQueueExt {
         message: &T,
         executor: E,
     ) -> Result<i64, PgmqError> {
-        check_input(queue_name)?;
-        let msg = serde_json::json!(&message);
-        let prepared = sqlx::query(
-            "SELECT send as msg_id from pgmq.send(queue_name=>$1::text, msg=>$2::jsonb, delay=>0::integer);",
-        )
-        .bind(queue_name)
-        .bind(msg);
-        let sent = prepared.fetch_one(executor).await?;
-        Ok(sent.try_get("msg_id")?)
+        self.send_delay_with_cxn(queue_name, message, 0, executor)
+            .await
     }
 
     pub async fn send<T: Serialize>(
@@ -396,15 +389,15 @@ impl PGMQueueExt {
     ) -> Result<i64, PgmqError> {
         check_input(queue_name)?;
         let delay: VisibilityTimeoutOffset = delay.into();
-        let msg = serde_json::json!(&message);
+        let msg = serde_json::to_value(message)?;
         let sent = sqlx::query(
             "SELECT send as msg_id from pgmq.send(queue_name=>$1::text, msg=>$2::jsonb, delay=>$3::int);",
         )
-        .bind(queue_name)
-        .bind(msg)
-        .bind(delay)
-        .fetch_one(executor)
-        .await?;
+            .bind(queue_name)
+            .bind(msg)
+            .bind(delay)
+            .fetch_one(executor)
+            .await?;
         Ok(sent.try_get("msg_id")?)
     }
 
@@ -415,6 +408,71 @@ impl PGMQueueExt {
         delay: impl Into<VisibilityTimeoutOffset>,
     ) -> Result<i64, PgmqError> {
         self.send_delay_with_cxn(queue_name, message, delay, &self.connection)
+            .await
+    }
+
+    pub async fn send_batch_with_cxn<
+        'c,
+        E: sqlx::Executor<'c, Database = Postgres>,
+        T: Serialize,
+    >(
+        &self,
+        queue_name: &str,
+        messages: &[T],
+        executor: E,
+    ) -> Result<Vec<i64>, PgmqError> {
+        self.send_batch_with_delay_with_cxn(queue_name, messages, 0, executor)
+            .await
+    }
+
+    pub async fn send_batch<T: Serialize>(
+        &self,
+        queue_name: &str,
+        messages: &[T],
+    ) -> Result<Vec<i64>, PgmqError> {
+        self.send_batch_with_cxn(queue_name, messages, &self.connection)
+            .await
+    }
+
+    pub async fn send_batch_with_delay_with_cxn<
+        'c,
+        E: sqlx::Executor<'c, Database = Postgres>,
+        T: Serialize,
+    >(
+        &self,
+        queue_name: &str,
+        messages: &[T],
+        delay: impl Into<VisibilityTimeoutOffset>,
+        executor: E,
+    ) -> Result<Vec<i64>, PgmqError> {
+        check_input(queue_name)?;
+        let delay: VisibilityTimeoutOffset = delay.into();
+        let msgs = messages
+            .iter()
+            .map(serde_json::to_value)
+            .collect::<Result<Vec<serde_json::Value>, _>>()?;
+        let sent = sqlx::query(
+            "SELECT send_batch as msg_id from pgmq.send_batch(queue_name=>$1::text, msgs=>$2::jsonb[], delay=>$3::integer);",
+        )
+            .bind(queue_name)
+            .bind(msgs)
+            .bind(delay)
+            .fetch_all(executor)
+            .await?;
+        let sent = sent
+            .into_iter()
+            .map(|row| row.try_get("msg_id"))
+            .collect::<Result<Vec<i64>, _>>()?;
+        Ok(sent)
+    }
+
+    pub async fn send_batch_with_delay<T: Serialize>(
+        &self,
+        queue_name: &str,
+        messages: &[T],
+        delay: impl Into<VisibilityTimeoutOffset>,
+    ) -> Result<Vec<i64>, PgmqError> {
+        self.send_batch_with_delay_with_cxn(queue_name, messages, delay, &self.connection)
             .await
     }
 

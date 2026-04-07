@@ -4,10 +4,8 @@ use crate::{errors::PgmqError, types::Message};
 
 use log::LevelFilter;
 use serde::Deserialize;
-use sqlx::error::Error;
-use sqlx::postgres::PgRow;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
-use sqlx::{Acquire, FromRow, Row};
+use sqlx::{Acquire, FromRow};
 use sqlx::{ConnectOptions, Transaction};
 use sqlx::{Pool, Postgres};
 use url::{ParseError, Url};

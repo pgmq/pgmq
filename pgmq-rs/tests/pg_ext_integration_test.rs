@@ -5,6 +5,7 @@ use rand::Rng;
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres, Row};
 use std::env;
+use std::time::Duration;
 
 // always test extension sdk in its own database
 // to avoid conflict with client only sdk
@@ -266,12 +267,12 @@ async fn test_ext_send_read_delete_vt_offset() {
     .await;
 }
 
-async fn test_ext_send_delay_core(delay: impl Into<VisibilityTimeoutOffset>) {
+async fn test_ext_send_delay_core(delay: impl Copy + Into<VisibilityTimeoutOffset>) {
     let test_queue = format!(
         "test_ext_send_delay_{}",
         rand::thread_rng().gen_range(0..100000)
     );
-    let vt = 1;
+    let vt = 4;
     let queue = init_queue_ext(&test_queue).await;
     let msg = MyMessage::default();
     queue.send_delay(&test_queue, &msg, delay).await.unwrap();
@@ -280,8 +281,10 @@ async fn test_ext_send_delay_core(delay: impl Into<VisibilityTimeoutOffset>) {
     let no_messages = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
     assert!(no_messages.is_none());
 
-    // After 5 seconds, message is found
-    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+    // After the delay, message is found
+    let duration: VisibilityTimeoutOffset = delay.into();
+    tokio::time::sleep(Duration::from_secs(duration.as_seconds() as u64)).await;
+
     let one_messages = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
     assert!(one_messages.is_some());
 }
@@ -319,6 +322,103 @@ async fn test_ext_send_delay_std() {
 #[tokio::test]
 async fn test_ext_send_delay_vt_offset() {
     test_ext_send_delay_core(VisibilityTimeoutOffset::seconds(5)).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_batch() {
+    let test_queue = format!(
+        "test_ext_send_batch_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+    let msgs = [
+        MyMessage::default(),
+        MyMessage::default(),
+        MyMessage::default(),
+    ];
+    let msg_ids = queue.send_batch(&test_queue, &msgs).await.unwrap();
+    assert_eq!(3, msg_ids.len());
+
+    let vt = 4;
+    let msg1 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    let msg2 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    let msg3 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    let msg4 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    assert!(msg1.is_some());
+    assert!(msg2.is_some());
+    assert!(msg3.is_some());
+    assert!(msg4.is_none());
+}
+
+async fn test_ext_send_batch_delay_core(delay: impl Copy + Into<VisibilityTimeoutOffset>) {
+    let test_queue = format!(
+        "test_ext_send_batch_delay_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+    let msgs = [
+        MyMessage::default(),
+        MyMessage::default(),
+        MyMessage::default(),
+    ];
+    let msg_ids = queue
+        .send_batch_with_delay(&test_queue, &msgs, delay)
+        .await
+        .unwrap();
+    assert_eq!(3, msg_ids.len());
+
+    // No messages are found due to visibility timeout
+    let vt = 4;
+    let no_messages = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    assert!(no_messages.is_none());
+
+    // After the delay, messages are found
+    let duration: VisibilityTimeoutOffset = delay.into();
+    tokio::time::sleep(Duration::from_secs(duration.as_seconds() as u64)).await;
+
+    let msg1 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    let msg2 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    let msg3 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    let msg4 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    assert!(msg1.is_some());
+    assert!(msg2.is_some());
+    assert!(msg3.is_some());
+    assert!(msg4.is_none());
+}
+
+#[tokio::test]
+async fn test_ext_send_batch_delay_i32() {
+    test_ext_send_batch_delay_core(5i32).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_batch_delay_i64() {
+    test_ext_send_batch_delay_core(5i64).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_batch_delay_u32() {
+    test_ext_send_batch_delay_core(5u32).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_batch_delay_u64() {
+    test_ext_send_batch_delay_core(5u64).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_batch_delay_chrono() {
+    test_ext_send_batch_delay_core(chrono::Duration::seconds(5)).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_batch_delay_std() {
+    test_ext_send_batch_delay_core(std::time::Duration::from_secs(5)).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_batch_delay_vt_offset() {
+    test_ext_send_batch_delay_core(VisibilityTimeoutOffset::seconds(5)).await;
 }
 
 #[tokio::test]

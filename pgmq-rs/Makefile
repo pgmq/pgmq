@@ -42,7 +42,7 @@ check.semver:
 
 # Check the crate does not have any Clippy errors
 check.clippy:
-	cargo clippy --all-features
+	cargo clippy --all-features -- -D warnings
 
 # Check that the crate is formatted correctly
 check.fmt:
