@@ -390,15 +390,15 @@ impl PGMQueueExt {
         check_input(queue_name)?;
         let delay: VisibilityTimeoutOffset = delay.into();
         let msg = serde_json::to_value(message)?;
-        let sent = sqlx::query(
-            "SELECT send as msg_id from pgmq.send(queue_name=>$1::text, msg=>$2::jsonb, delay=>$3::int);",
+        let msg_id: i64 = sqlx::query_scalar(
+            "SELECT * from pgmq.send(queue_name=>$1::text, msg=>$2::jsonb, delay=>$3::int);",
         )
-            .bind(queue_name)
-            .bind(msg)
-            .bind(delay)
-            .fetch_one(executor)
-            .await?;
-        Ok(sent.try_get("msg_id")?)
+        .bind(queue_name)
+        .bind(msg)
+        .bind(delay)
+        .fetch_one(executor)
+        .await?;
+        Ok(msg_id)
     }
 
     pub async fn send_delay<T: Serialize>(
@@ -451,18 +451,14 @@ impl PGMQueueExt {
             .iter()
             .map(serde_json::to_value)
             .collect::<Result<Vec<serde_json::Value>, _>>()?;
-        let sent = sqlx::query(
-            "SELECT send_batch as msg_id from pgmq.send_batch(queue_name=>$1::text, msgs=>$2::jsonb[], delay=>$3::integer);",
+        let sent: Vec<i64> = sqlx::query_scalar(
+            "SELECT * from pgmq.send_batch(queue_name=>$1::text, msgs=>$2::jsonb[], delay=>$3::integer);",
         )
             .bind(queue_name)
             .bind(msgs)
             .bind(delay)
             .fetch_all(executor)
             .await?;
-        let sent = sent
-            .into_iter()
-            .map(|row| row.try_get("msg_id"))
-            .collect::<Result<Vec<i64>, _>>()?;
         Ok(sent)
     }
 
