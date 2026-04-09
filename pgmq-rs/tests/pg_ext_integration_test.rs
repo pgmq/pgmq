@@ -350,6 +350,48 @@ async fn test_ext_send_batch() {
     assert!(msg4.is_none());
 }
 
+#[tokio::test]
+async fn test_ext_send_batch_read_batch() {
+    let test_queue = format!(
+        "test_ext_send_batch_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let vt = 4;
+    let msgs_read = queue
+        .read_batch::<MyMessage>(&test_queue, vt, 1)
+        .await
+        .unwrap();
+    assert!(msgs_read.is_empty());
+
+    let msgs_sent = [
+        MyMessage::default(),
+        MyMessage::default(),
+        MyMessage::default(),
+    ];
+    let msg_ids = queue.send_batch(&test_queue, &msgs_sent).await.unwrap();
+    assert_eq!(3, msg_ids.len());
+
+    let msgs_read = queue
+        .read_batch::<MyMessage>(&test_queue, vt, (msgs_sent.len() as i32) - 1)
+        .await
+        .expect("Should successfully read a batch of messages");
+    assert_eq!(msgs_sent.len() - 1, msgs_read.len());
+
+    let msgs_read = queue
+        .read_batch::<MyMessage>(&test_queue, vt, 1)
+        .await
+        .unwrap();
+    assert_eq!(1, msgs_read.len());
+
+    let msgs_read = queue
+        .read_batch::<MyMessage>(&test_queue, vt, 1)
+        .await
+        .unwrap();
+    assert!(msgs_read.is_empty());
+}
+
 async fn test_ext_send_batch_delay_core(delay: impl Copy + Into<VisibilityTimeoutOffset>) {
     let test_queue = format!(
         "test_ext_send_batch_delay_{}",
