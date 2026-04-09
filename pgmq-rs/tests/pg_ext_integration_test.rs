@@ -353,7 +353,7 @@ async fn test_ext_send_batch() {
 #[tokio::test]
 async fn test_ext_send_batch_read_batch() {
     let test_queue = format!(
-        "test_ext_send_batch_{}",
+        "test_ext_send_batch_read_batch_{}",
         rand::thread_rng().gen_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
@@ -390,6 +390,26 @@ async fn test_ext_send_batch_read_batch() {
         .await
         .unwrap();
     assert!(msgs_read.is_empty());
+}
+
+#[tokio::test]
+async fn test_ext_read_batch_with_poll_empty_queue() {
+    let test_queue = format!(
+        "test_ext_read_batch_with_poll_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let vt = 4;
+
+    // read_batch_with_poll should return Ok(Some(<empty vec>)) if no items are available to be read.
+    // Todo: In a future SemVer breaking change, the expected return value would be Ok(<empty vec>)
+    let msg_read = queue
+        .read_batch_with_poll::<MyMessage>(&test_queue, vt, 1, Some(Duration::from_secs(1)), None)
+        .await
+        .unwrap();
+    assert!(msg_read.is_some());
+    assert!(msg_read.unwrap().is_empty());
 }
 
 async fn test_ext_send_batch_delay_core(delay: impl Copy + Into<VisibilityTimeoutOffset>) {
