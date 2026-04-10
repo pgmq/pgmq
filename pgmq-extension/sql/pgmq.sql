@@ -21,6 +21,16 @@ CREATE TABLE IF NOT EXISTS pgmq.meta (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
 );
 
+-- Grant permission to pg_monitor to all tables and sequences
+-- These grants are intentionally placed here (after creating `pgmq.meta` but before creating other tables). This
+-- allows the `pg_dump` output for a fresh installation to match the output for an installation that followed the
+-- upgrade path.
+GRANT USAGE ON SCHEMA pgmq TO pg_monitor;
+GRANT SELECT ON ALL TABLES IN SCHEMA pgmq TO pg_monitor;
+GRANT SELECT ON ALL SEQUENCES IN SCHEMA pgmq TO pg_monitor;
+ALTER DEFAULT PRIVILEGES IN SCHEMA pgmq GRANT SELECT ON TABLES TO pg_monitor;
+ALTER DEFAULT PRIVILEGES IN SCHEMA pgmq GRANT SELECT ON SEQUENCES TO pg_monitor;
+
 -- Table to track notification throttling for queues
 CREATE UNLOGGED TABLE IF NOT EXISTS pgmq.notify_insert_throttle (
     queue_name           VARCHAR UNIQUE NOT NULL -- Queue name (without 'q_' prefix)
@@ -62,7 +72,7 @@ CREATE TABLE IF NOT EXISTS pgmq.topic_bindings
 -- Includes queue_name and compiled_regex to allow index-only scans (no table access needed)
 CREATE INDEX IF NOT EXISTS idx_topic_bindings_covering ON pgmq.topic_bindings (pattern) INCLUDE (queue_name, compiled_regex);
 
--- Allow pgmq.meta to be dumped by `pg_dump` when pgmq is installed as an extension
+-- Allow the following `pgmq` tables to be dumped by `pg_dump` when pgmq is installed as an extension
 DO
 $$
 BEGIN
@@ -73,13 +83,6 @@ BEGIN
     END IF;
 END
 $$;
-
--- Grant permission to pg_monitor to all tables and sequences
-GRANT USAGE ON SCHEMA pgmq TO pg_monitor;
-GRANT SELECT ON ALL TABLES IN SCHEMA pgmq TO pg_monitor;
-GRANT SELECT ON ALL SEQUENCES IN SCHEMA pgmq TO pg_monitor;
-ALTER DEFAULT PRIVILEGES IN SCHEMA pgmq GRANT SELECT ON TABLES TO pg_monitor;
-ALTER DEFAULT PRIVILEGES IN SCHEMA pgmq GRANT SELECT ON SEQUENCES TO pg_monitor;
 
 -- This type has the shape of a message in a queue, and is often returned by
 -- pgmq functions that return messages

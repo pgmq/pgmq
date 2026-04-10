@@ -144,3 +144,106 @@ jobs:
         if: failure()
         working-directory: ./pgmq-extension
         run: cat regression.diffs
+
+  upgrade_scripts_do_not_diverge:
+    name: Confirm upgrade scripts do not diverge from fresh install (pg ${{ matrix.pg }})
+    runs-on: ubuntu-latest
+    container: pgxn/pgxn-tools
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: [ 14, 15, 16, 17, 18 ]
+    env:
+      DATABASE_URL: postgresql://postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get current branch
+        id: current-version
+        run: echo "CI_BRANCH=$(git name-rev --name-only HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Start PostgreSQL ${{ matrix.pg }}
+        run: pg-start ${{ matrix.pg }}
+
+      - name: Checkout old version (v1.5.0)
+        run: git checkout tags/v1.5.0
+
+      - name: Install pgmq v1.5.0 as an extension
+        working-directory: ./pgmq-extension
+        run: |
+          make clean || true
+          make
+          make install
+          psql -c "CREATE EXTENSION pgmq;"
+
+      - name: Checkout CI branch
+        env:
+          CI_BRANCH: ${{ steps.current-version.outputs.CI_BRANCH }}
+        run: git checkout $CI_BRANCH
+
+      - name: Install and upgrade pgmq extension to CI branch version
+        working-directory: ./pgmq-extension
+        run: |
+          make clean || true
+          make
+          make install
+          psql -c "ALTER EXTENSION pgmq UPDATE;"
+
+      - name: Dump the extension schema (upgrade path)
+        run: |
+          file_name=/tmp/pg_dump_upgrade.txt
+          echo "--- pgmq extension version ---" >> $file_name
+          psql "$DATABASE_URL" -A -t -c "SELECT extversion FROM pg_extension where extname = 'pgmq';" >> $file_name
+          echo "--- pg_dump ---" >> $file_name
+          pg_dump -n pgmq -e pgmq "$DATABASE_URL" >> $file_name
+          # `pg_dump` does not dump all data, so we need to manually dump the other data we care about
+          echo "--- pgmq functions ---" >> $file_name
+          psql "$DATABASE_URL" -A -t -c "SELECT pg_get_functiondef(f.oid) FROM pg_catalog.pg_proc f INNER JOIN pg_catalog.pg_namespace n ON (f.pronamespace = n.oid) WHERE n.nspname = 'pgmq' ORDER BY pg_get_functiondef(f.oid);" >> $file_name
+          echo "--- pgmq tables ---" >> $file_name
+          psql "$DATABASE_URL" -A -c "SELECT table_name, column_name, ordinal_position, column_default, is_nullable, data_type FROM information_schema.columns WHERE table_schema = 'pgmq' ORDER BY table_name, ordinal_position;" >> $file_name
+          echo "--- pgmq types ---" >> $file_name
+          psql "$DATABASE_URL" -A -c "SELECT udt_name, attribute_name, ordinal_position, attribute_default, is_nullable, data_type FROM information_schema.attributes where udt_schema = 'pgmq' ORDER BY udt_name, ordinal_position;" >> $file_name
+
+      - name: Drop the extension and perform a fresh installation
+        run: |
+          psql "$DATABASE_URL" -c "DROP EXTENSION pgmq;"
+          psql "$DATABASE_URL" -c "CREATE EXTENSION pgmq;"
+
+      - name: Dump the extension schema (fresh install)
+        run: |
+          file_name=/tmp/pg_dump_fresh.txt
+          echo "--- pgmq extension version ---" >> $file_name
+          psql "$DATABASE_URL" -A -t -c "SELECT extversion FROM pg_extension where extname = 'pgmq';" >> $file_name
+          echo "--- pg_dump ---" >> $file_name
+          pg_dump -n pgmq -e pgmq "$DATABASE_URL" >> $file_name
+          # `pg_dump` does not dump all data, so we need to manually dump the other data we care about
+          echo "--- pgmq functions ---" >> $file_name
+          psql "$DATABASE_URL" -A -t -c "SELECT pg_get_functiondef(f.oid) FROM pg_catalog.pg_proc f INNER JOIN pg_catalog.pg_namespace n ON (f.pronamespace = n.oid) WHERE n.nspname = 'pgmq' ORDER BY pg_get_functiondef(f.oid);" >> $file_name
+          echo "--- pgmq tables ---" >> $file_name
+          psql "$DATABASE_URL" -A -c "SELECT table_name, column_name, ordinal_position, column_default, is_nullable, data_type FROM information_schema.columns WHERE table_schema = 'pgmq' ORDER BY table_name, ordinal_position;" >> $file_name
+          echo "--- pgmq types ---" >> $file_name
+          psql "$DATABASE_URL" -A -c "SELECT udt_name, attribute_name, ordinal_position, attribute_default, is_nullable, data_type FROM information_schema.attributes where udt_schema = 'pgmq' ORDER BY udt_name, ordinal_position;" >> $file_name
+
+      - name: Compare output
+        run: |
+          # `pg_dump` outputs two random lines that will always be different for every output. They look something like this:
+          #
+          # ```
+          # \restrict JHbd1xebXKAq2dfkAGAXWi7b1B3ifORyKWdIrTcwerJibjA54EsYymeEFrIQNmc
+          # \unrestrict JHbd1xebXKAq2dfkAGAXWi7b1B3ifORyKWdIrTcwerJibjA54EsYymeEFrIQNmc
+          # ```
+          num_lines_different=$(! diff -y --suppress-common-lines --ignore-all-space /tmp/pg_dump_upgrade.txt /tmp/pg_dump_fresh.txt | wc -l)
+          if [[ $num_lines_different -gt 2 ]]; then
+            echo "PGMQ upgrade diverges from a fresh installation. Diff:"
+            ! diff --suppress-common-lines --ignore-all-space /tmp/pg_dump_upgrade.txt /tmp/pg_dump_fresh.txt
+
+            echo "Upgrade path:"
+            cat /tmp/pg_dump_upgrade.txt
+
+            echo "Fresh install:"
+            cat /tmp/pg_dump_fresh.txt
+
+            exit 1
+          fi
