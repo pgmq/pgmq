@@ -40,3 +40,16 @@ install-pg-partman:
 	make && \
 	make install PG_CONFIG=$(PG_CONFIG) && \
 	cd ../ && rm -rf pg_partman
+
+dump.extension-schema:
+	echo "--- pgmq extension version ---" > $(FILE_PATH)
+	psql $(DATABASE_URL) -A -t -c "SELECT extversion FROM pg_extension where extname = 'pgmq';" >> $(FILE_PATH)
+	echo "--- pg_dump ---" >> $(FILE_PATH)
+	pg_dump -n pgmq -e pgmq $(DATABASE_URL) >> $(FILE_PATH)
+	# `pg_dump` does not dump all data, so we need to manually dump the other data we care about
+	echo "--- pgmq functions ---" >> $(FILE_PATH)
+	psql $(DATABASE_URL) -A -t -c "SELECT pg_get_functiondef(f.oid) FROM pg_catalog.pg_proc f INNER JOIN pg_catalog.pg_namespace n ON (f.pronamespace = n.oid) WHERE n.nspname = 'pgmq' ORDER BY pg_get_functiondef(f.oid);" >> $(FILE_PATH)
+	echo "--- pgmq tables ---" >> $(FILE_PATH)
+	psql $(DATABASE_URL) -A -c "SELECT table_name, column_name, ordinal_position, column_default, is_nullable, data_type FROM information_schema.columns WHERE table_schema = 'pgmq' ORDER BY table_name, ordinal_position;" >> $(FILE_PATH)
+	echo "--- pgmq types ---" >> $(FILE_PATH)
+	psql $(DATABASE_URL) -A -c "SELECT udt_name, attribute_name, ordinal_position, attribute_default, is_nullable, data_type FROM information_schema.attributes where udt_schema = 'pgmq' ORDER BY udt_name, ordinal_position;" >> $(FILE_PATH)
