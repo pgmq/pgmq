@@ -3,7 +3,6 @@ DO
 $$
 BEGIN
     IF EXISTS(SELECT 1 FROM pg_extension WHERE extname = 'pgmq') THEN
-        PERFORM pg_catalog.pg_extension_config_dump('pgmq.notify_insert_throttle', '');
         PERFORM pg_catalog.pg_extension_config_dump('pgmq.topic_bindings', '');
     END IF;
 END
