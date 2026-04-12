@@ -1,4 +1,4 @@
--- Allow `pgmq.notify_insert_throttle` and `pgmq.topic_bindings` to be dumped by `pg_dump` when pgmq is installed as an extension
+-- Allow `pgmq.topic_bindings` to be dumped by `pg_dump` when pgmq is installed as an extension
 DO
 $$
 BEGIN
