@@ -122,11 +122,6 @@ impl PartialOrd for MigrationScript {
 
 #[cfg(test)]
 mod tests {
-    use include_dir::{include_dir, Dir};
-
-    static TEST_MIGRATION_SCRIPTS: Dir<'static> =
-        include_dir!("$CARGO_MANIFEST_DIR/src/install/embedded/test_migrations/");
-
     mod parsed_script_name {
         use crate::install::script::ParsedScriptName;
         use crate::install::version::Version;

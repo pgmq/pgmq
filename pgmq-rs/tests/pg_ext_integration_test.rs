@@ -393,9 +393,42 @@ async fn test_ext_send_batch_read_batch() {
 }
 
 #[tokio::test]
+async fn test_ext_read_with_poll() {
+    let test_queue = format!(
+        "test_ext_read_with_poll_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let vt = 4;
+    let msg = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    assert!(msg.is_none());
+
+    let msgs_sent = [
+        MyMessage::default(),
+        MyMessage::default(),
+        MyMessage::default(),
+    ];
+    let msg_ids = queue.send_batch(&test_queue, &msgs_sent).await.unwrap();
+    assert_eq!(3, msg_ids.len());
+
+    let msg = queue
+        .read_with_poll::<MyMessage>(&test_queue, vt, Some(Duration::from_secs(1)), None)
+        .await
+        .unwrap();
+    assert!(msg.is_some());
+
+    let msgs_read = queue
+        .read_batch::<MyMessage>(&test_queue, vt, msgs_sent.len() as i32)
+        .await
+        .unwrap();
+    assert_eq!(msgs_sent.len() - 1, msgs_read.len());
+}
+
+#[tokio::test]
 async fn test_ext_read_batch_with_poll_empty_queue() {
     let test_queue = format!(
-        "test_ext_read_batch_with_poll_{}",
+        "test_ext_read_batch_with_poll_empty_queue_{}",
         rand::thread_rng().gen_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
@@ -410,6 +443,23 @@ async fn test_ext_read_batch_with_poll_empty_queue() {
         .unwrap();
     assert!(msg_read.is_some());
     assert!(msg_read.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn test_ext_read_with_poll_empty_queue() {
+    let test_queue = format!(
+        "test_ext_read_with_poll_empty_queue_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let vt = 4;
+
+    let msg = queue
+        .read_with_poll::<MyMessage>(&test_queue, vt, Some(Duration::from_secs(1)), None)
+        .await
+        .unwrap();
+    assert!(msg.is_none());
 }
 
 async fn test_ext_send_batch_delay_core(delay: impl Copy + Into<VisibilityTimeoutOffset>) {

@@ -531,6 +531,40 @@ impl PGMQueueExt {
             .await
     }
 
+    pub async fn read_with_poll_with_cxn<
+        'c,
+        E: sqlx::Executor<'c, Database = Postgres>,
+        T: for<'de> Deserialize<'de>,
+    >(
+        &self,
+        queue_name: &str,
+        vt: impl Into<VisibilityTimeoutOffset>,
+        poll_timeout: Option<std::time::Duration>,
+        poll_interval: Option<std::time::Duration>,
+        executor: E,
+    ) -> Result<Option<Message<T>>, PgmqError> {
+        self.read_batch_with_poll_with_cxn(queue_name, vt, 1, poll_timeout, poll_interval, executor)
+            .await
+            .map(|result| result.and_then(|result| result.into_iter().next()))
+    }
+
+    pub async fn read_with_poll<'c, T: for<'de> Deserialize<'de>>(
+        &self,
+        queue_name: &str,
+        vt: impl Into<VisibilityTimeoutOffset>,
+        poll_timeout: Option<std::time::Duration>,
+        poll_interval: Option<std::time::Duration>,
+    ) -> Result<Option<Message<T>>, PgmqError> {
+        self.read_with_poll_with_cxn(
+            queue_name,
+            vt,
+            poll_timeout,
+            poll_interval,
+            &self.connection,
+        )
+        .await
+    }
+
     // Todo: In a future SemVer-breaking release, we can update this to return
     //  `Result<Vec<Message<T>>, PgmqError>` to match `read_batch`/`read_batch_with_cxn`.
     pub async fn read_batch_with_poll_with_cxn<

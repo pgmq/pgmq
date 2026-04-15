@@ -134,7 +134,6 @@ mod tests {
 
     mod parsed_script_name {
         use crate::install::embedded::{list_all_scripts_in_dir, MIGRATION_SCRIPTS};
-        use crate::install::script::ParsedScriptName;
         use itertools::Itertools;
 
         #[test]
@@ -169,7 +168,7 @@ mod tests {
     mod migrations_script {
         use super::TEST_MIGRATION_SCRIPTS;
         use crate::install::embedded::{get_migration_scripts_from_dir, get_script_from_dir};
-        use crate::install::script::{MigrationScript, ParsedScriptName};
+        use crate::install::script::ParsedScriptName;
         use crate::install::version::Version;
         use insta::assert_debug_snapshot;
         use itertools::Itertools;
