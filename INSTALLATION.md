@@ -140,7 +140,7 @@ Once you have installed PGMQ, you can start using it. The [README](pgmq-extensio
 The project's core functions and features are the same regardless of how PGMQ is installed, though there are some differences in how the project is managed depending on the installation method. The following table summarizes these differences:
 
 | Capability / Feature | Extension Install | SQL-only Install | Versioned SQL-only Install (E.g., the Rust crate) | Notes |
-|----------------------|-------------------|---------------------------------|-------|
+|----------------------|-------------------|---------------------------------|-------|----|
 | Version Tracking | ✅ | ❌| ✅ | Extension allows Postgres to track installed versions and users can inspect via `\dx pgmq`. Versioned SQL-only installations allow inspecting the current version with client-defined APIs. |
 | Supported Upgrades | ✅ | ❌ | ✅ | Extensions can be upgraded with `ALTER EXTENSION pgmq UPDATE`. Versioned SQL-only installations can be upgraded with client-defined APIs. |
 | No File System Access Needed | ❌ | ✅ | ✅ | SQL-only installs work entirely within the database |
