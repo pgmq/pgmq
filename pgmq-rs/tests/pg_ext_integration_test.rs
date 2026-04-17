@@ -3,7 +3,7 @@ use pgmq::types::{ARCHIVE_PREFIX, PGMQ_SCHEMA, QUEUE_PREFIX};
 use pgmq::util::connect;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use sqlx::{Pool, Postgres, Row};
+use sqlx::{Acquire, Pool, Postgres, Row};
 use std::env;
 use std::time::Duration;
 
@@ -837,4 +837,59 @@ async fn test_create_queue_race_condition() {
     // If there's a race condition in `PGMQueueExt#create`, both results could be `true` (this
     // may not always occur due to the non-deterministic nature of race conditions).
     assert_ne!(result1, result2);
+}
+
+#[tokio::test]
+async fn test_create_fifo_index() {
+    let test_queue = format!(
+        "test_create_fifo_index_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+
+    let queue = init_queue_ext(&test_queue).await;
+    queue.create_fifo_index(&test_queue).await.unwrap();
+
+    let index_name = format!("q_{test_queue}_fifo_idx");
+    let index_count = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM pg_indexes WHERE schemaname = 'pgmq' AND indexname = $1;",
+    )
+    .bind(&index_name)
+    .fetch_one(&queue.connection)
+    .await
+    .unwrap();
+
+    assert_eq!(1, index_count, "FIFO index does not exist");
+}
+
+#[tokio::test]
+async fn test_create_fifo_indexes_all() {
+    let test_queue_prefix = format!(
+        "test_create_fifo_indexes_all_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue_prefix).await;
+    queue.drop_queue(&test_queue_prefix).await.unwrap();
+
+    let queue_names: Vec<String> = (0..5).map(|i| format!("{test_queue_prefix}_{i}")).collect();
+
+    for queue_name in queue_names.iter() {
+        queue.create(queue_name).await.unwrap();
+    }
+
+    let indexes_to_create: Vec<String> = queue_names
+        .iter()
+        .map(|queue_name| format!("q_{queue_name}_fifo_idx"))
+        .collect();
+
+    queue.create_fifo_indexes_all().await.unwrap();
+
+    let indexes = sqlx::query_scalar::<_, String>(
+        "SELECT indexname FROM pg_indexes WHERE schemaname = 'pgmq' AND starts_with(indexname, $1) AND indexname LIKE '%_fifo_idx' ORDER BY indexname;",
+    )
+    .bind(format!("q_{test_queue_prefix}"))
+    .fetch_all(&queue.connection)
+    .await
+    .unwrap();
+
+    assert_eq!(indexes_to_create, indexes);
 }

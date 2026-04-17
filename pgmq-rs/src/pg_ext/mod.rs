@@ -768,4 +768,41 @@ impl PGMQueueExt {
         self.delete_batch_with_cxn(queue_name, msg_id, &self.connection)
             .await
     }
+
+    pub async fn create_fifo_index_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres>>(
+        &self,
+        queue_name: &str,
+        executor: E,
+    ) -> Result<(), PgmqError> {
+        sqlx::query("SELECT * from pgmq.create_fifo_index(queue_name=>$1::text);")
+            .bind(queue_name)
+            .execute(executor)
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn create_fifo_index(&self, queue_name: &str) -> Result<(), PgmqError> {
+        self.create_fifo_index_with_cxn(queue_name, &self.connection)
+            .await
+    }
+
+    pub async fn create_fifo_indexes_all_with_cxn<
+        'c,
+        E: sqlx::Executor<'c, Database = Postgres>,
+    >(
+        &self,
+        executor: E,
+    ) -> Result<(), PgmqError> {
+        sqlx::query("SELECT * from pgmq.create_fifo_indexes_all();")
+            .execute(executor)
+            .await?;
+
+        Ok(())
+    }
+
+    pub async fn create_fifo_indexes_all(&self) -> Result<(), PgmqError> {
+        self.create_fifo_indexes_all_with_cxn(&self.connection)
+            .await
+    }
 }
