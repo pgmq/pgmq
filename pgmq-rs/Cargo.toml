@@ -70,3 +70,7 @@ sqlx = { version = "0.8.1", features = ["time"] }
 name = "install"
 path = "examples/install.rs"
 required-features = ["cli"]
+
+[package.metadata.docs.rs]
+# Have docs.rs pass `--all-features` to ensure all features have their documentation built.
+all-features = true
