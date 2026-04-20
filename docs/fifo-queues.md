@@ -22,11 +22,11 @@ FIFO ordering is controlled by the `x-pgmq-group` header value:
 
 ```sql
 -- Send messages to the same FIFO group
-SELECT pgmq.send('my_queue', '{"order": 1}', '{"x-pgmq-group": "user123"}');
-SELECT pgmq.send('my_queue', '{"order": 2}', '{"x-pgmq-group": "user123"}');
+SELECT pgmq.send('my_queue', '{"order": 1}', headers=>'{"x-pgmq-group": "user123"}');
+SELECT pgmq.send('my_queue', '{"order": 2}', headers=>'{"x-pgmq-group": "user123"}');
 
 -- Send message to different FIFO group
-SELECT pgmq.send('my_queue', '{"order": 1}', '{"x-pgmq-group": "user456"}');
+SELECT pgmq.send('my_queue', '{"order": 1}', headers=>'{"x-pgmq-group": "user456"}');
 ```
 
 ### Reading FIFO Messages
@@ -152,11 +152,11 @@ Ensure messages for each user are processed in order:
 
 ```sql
 -- User 1 messages
-SELECT pgmq.send('user_events', '{"action": "login"}', '{"x-pgmq-group": "user_123"}');
-SELECT pgmq.send('user_events', '{"action": "purchase"}', '{"x-pgmq-group": "user_123"}');
+SELECT pgmq.send('user_events', '{"action": "login"}', headers=>'{"x-pgmq-group": "user_123"}');
+SELECT pgmq.send('user_events', '{"action": "purchase"}', headers=>'{"x-pgmq-group": "user_123"}');
 
 -- User 2 messages (can be processed in parallel)
-SELECT pgmq.send('user_events', '{"action": "login"}', '{"x-pgmq-group": "user_456"}');
+SELECT pgmq.send('user_events', '{"action": "login"}', headers=>'{"x-pgmq-group": "user_456"}');
 ```
 
 ### 2. Order Processing
@@ -165,9 +165,9 @@ Maintain order integrity for financial transactions:
 
 ```sql
 -- Order lifecycle events
-SELECT pgmq.send('orders', '{"order_id": "ord_1", "action": "create"}', '{"x-pgmq-group": "ord_1"}');
-SELECT pgmq.send('orders', '{"order_id": "ord_1", "action": "payment"}', '{"x-pgmq-group": "ord_1"}');
-SELECT pgmq.send('orders', '{"order_id": "ord_1", "action": "fulfill"}', '{"x-pgmq-group": "ord_1"}');
+SELECT pgmq.send('orders', '{"order_id": "ord_1", "action": "create"}', headers=>'{"x-pgmq-group": "ord_1"}');
+SELECT pgmq.send('orders', '{"order_id": "ord_1", "action": "payment"}', headers=>'{"x-pgmq-group": "ord_1"}');
+SELECT pgmq.send('orders', '{"order_id": "ord_1", "action": "fulfill"}', headers=>'{"x-pgmq-group": "ord_1"}');
 ```
 
 ### 3. Document Processing
@@ -176,8 +176,8 @@ Process document versions in sequence:
 
 ```sql
 -- Document updates
-SELECT pgmq.send('docs', '{"doc_id": "doc_1", "version": 1}', '{"x-pgmq-group": "doc_1"}');
-SELECT pgmq.send('docs', '{"doc_id": "doc_1", "version": 2}', '{"x-pgmq-group": "doc_1"}');
+SELECT pgmq.send('docs', '{"doc_id": "doc_1", "version": 1}', headers=>'{"x-pgmq-group": "doc_1"}');
+SELECT pgmq.send('docs', '{"doc_id": "doc_1", "version": 2}', headers=>'{"x-pgmq-group": "doc_1"}');
 ```
 
 ## Performance Considerations
