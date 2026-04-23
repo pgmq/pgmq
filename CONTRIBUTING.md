@@ -238,4 +238,4 @@ The required extension files are publish to and hosted at [PGXN](https://pgxn.or
 
 ### Client SDKs
 
-See subdirectories for the [Rust](https://github.com/pgmq/pgmq/tree/main/core) and [Python](https://github.com/pgmq/pgmq/tree/main/tembo-pgmq-python) SDK release processes.
+See subdirectories for the [Rust](https://github.com/pgmq/pgmq/tree/main/core) and [Python](https://github.com/pgmq/pgmq-py) SDK release processes.
