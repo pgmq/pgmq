@@ -7,7 +7,7 @@ use log::info;
 use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgRow;
 use sqlx::types::chrono::Utc;
-use sqlx::{Acquire, FromRow, Pool, Postgres, Row};
+use sqlx::{FromRow, Pool, Postgres, Row};
 pub use visibility_timeout_offest::VisibilityTimeoutOffset;
 
 const DEFAULT_POLL_TIMEOUT_S: i32 = 5;
@@ -139,18 +139,70 @@ impl PGMQueueExt {
         &self,
         executor: E,
     ) -> Result<bool, PgmqError> {
-        let mut tx = executor.begin().await?;
-        crate::util::init_lock(&mut tx).await?;
+        let mut txn = executor.begin().await?;
+        crate::util::init_lock(&mut txn).await?;
         sqlx::query("CREATE EXTENSION IF NOT EXISTS pgmq CASCADE;")
-            .execute(tx.acquire().await?)
+            .execute(&mut *txn)
             .await
             .map(|_| true)?;
-        tx.commit().await?;
+        txn.commit().await?;
         Ok(true)
     }
 
     pub async fn init(&self) -> Result<bool, PgmqError> {
         self.init_with_cxn(&self.connection).await
+    }
+
+    /// Acquire a transaction-level advisory lock specific to the provided queue. Useful to prevent
+    /// race conditions when performing queue/table-level operations, such as creating an index
+    /// for the queue (e.g., with [`Self::create_fifo_index`].
+    pub async fn acquire_queue_lock_with_txn<'c>(
+        &self,
+        queue_name: &str,
+        txn: &mut sqlx::Transaction<'c, Postgres>,
+    ) -> Result<(), PgmqError> {
+        sqlx::query("SELECT * from pgmq.acquire_queue_lock(queue_name=>$1::text);")
+            .bind(queue_name)
+            .execute(&mut **txn)
+            .await?;
+        Ok(())
+    }
+
+    /// Acquire a transaction-level advisory lock specific to the provided queue. Useful to prevent
+    /// race conditions when performing queue/table-level operations, such as creating an index
+    /// for the queue (e.g., with [`Self::create_fifo_index`].
+    ///
+    /// Returns the [`sqlx::Transaction`] that should be used to perform the queue/table-level
+    /// operations. Remember to call [`sqlx::Transaction::commit`] after performing the desired
+    /// operations.
+    pub async fn acquire_queue_lock_with_cxn<'c, E: sqlx::Acquire<'c, Database = Postgres>>(
+        &self,
+        queue_name: &str,
+        executor: E,
+    ) -> Result<sqlx::Transaction<'c, Postgres>, PgmqError> {
+        let mut txn = executor.begin().await?;
+
+        self.acquire_queue_lock_with_txn(queue_name, &mut txn)
+            .await?;
+
+        Ok(txn)
+    }
+
+    /// Acquire a transaction-level advisory lock specific to the provided queue. Useful to prevent
+    /// race conditions when performing queue/table-level operations, such as creating an index
+    /// for the queue (e.g., with [`Self::create_fifo_index_with_cxn`]).
+    ///
+    /// Returns the [`sqlx::Transaction`] that should be used to perform the queue/table-level
+    /// operations. Remember to call [`sqlx::Transaction::commit`] after performing the desired
+    /// operations.
+    pub async fn acquire_queue_lock<'c>(
+        &self,
+        queue_name: &str,
+    ) -> Result<sqlx::Transaction<'c, Postgres>, PgmqError> {
+        let txn = self
+            .acquire_queue_lock_with_cxn(queue_name, &self.connection)
+            .await?;
+        Ok(txn)
     }
 
     pub async fn create_with_cxn<'c, E>(
@@ -162,18 +214,15 @@ impl PGMQueueExt {
         E: sqlx::Acquire<'c, Database = Postgres>,
     {
         check_input(queue_name)?;
-        let mut tx = executor.begin().await?;
-
-        sqlx::query("SELECT * from pgmq.acquire_queue_lock(queue_name=>$1::text);")
-            .bind(queue_name)
-            .execute(tx.acquire().await?)
+        let mut txn = self
+            .acquire_queue_lock_with_cxn(queue_name, executor)
             .await?;
 
         let exists = sqlx::query_scalar::<_, bool>(
             "SELECT EXISTS(SELECT 1 FROM pgmq.meta WHERE queue_name = $1::text);",
         )
         .bind(queue_name)
-        .fetch_one(tx.acquire().await?)
+        .fetch_one(&mut *txn)
         .await?;
 
         if exists {
@@ -182,10 +231,10 @@ impl PGMQueueExt {
 
         sqlx::query("SELECT * from pgmq.create(queue_name=>$1::text);")
             .bind(queue_name)
-            .execute(tx.acquire().await?)
+            .execute(&mut *txn)
             .await?;
 
-        tx.commit().await?;
+        txn.commit().await?;
 
         Ok(true)
     }

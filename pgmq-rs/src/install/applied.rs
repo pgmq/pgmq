@@ -19,21 +19,21 @@ pub struct AppliedMigration {
 
 impl AppliedMigration {
     /// Create the DB table used to keep track of which migration scripts have been applied.
-    pub async fn create_table(tx: &mut Transaction<'static, Postgres>) -> Result<(), PgmqError> {
-        init_lock(tx).await?;
+    pub async fn create_table(txn: &mut Transaction<'static, Postgres>) -> Result<(), PgmqError> {
+        init_lock(txn).await?;
 
         /*
         The `pgmq` schema will not exist yet if we're currently performing a fresh installation
         of `pgmq`, so we first need to make sure the schema exists.
          */
         sqlx::query("CREATE SCHEMA IF NOT EXISTS pgmq;")
-            .execute(tx.acquire().await?)
+            .execute(&mut **txn)
             .await?;
 
         sqlx::query(
         "CREATE TABLE IF NOT EXISTS pgmq.__pgmq_migrations ( name TEXT PRIMARY KEY NOT NULL, version TEXT NOT NULL, run_at TIMESTAMP WITH TIME ZONE NOT NULL DEFAULT clock_timestamp());",
         )
-        .execute(tx.acquire().await?)
+        .execute(&mut **txn)
         .await?;
 
         /*
@@ -42,7 +42,7 @@ impl AppliedMigration {
         list of applied migrations at once.
          */
         sqlx::query("LOCK TABLE pgmq.__pgmq_migrations IN ACCESS EXCLUSIVE MODE;")
-            .execute(tx.acquire().await?)
+            .execute(&mut **txn)
             .await?;
 
         Ok(())

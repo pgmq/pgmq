@@ -12,7 +12,7 @@ use crate::errors::PgmqError;
 use crate::install::applied::AppliedMigration;
 use crate::install::script::{ParsedScriptName, ScriptFetcher};
 use itertools::Itertools;
-use sqlx::{Acquire, Pool, Postgres};
+use sqlx::{Pool, Postgres};
 
 #[cfg(feature = "install-sql")]
 #[doc = include_str!("init_migrations_table.md")]
@@ -20,17 +20,17 @@ pub async fn init_migrations_table(
     pool: &Pool<Postgres>,
     version: Version,
 ) -> Result<(), PgmqError> {
-    let mut tx = pool.begin().await?;
-    AppliedMigration::create_table(&mut tx).await?;
-    if !AppliedMigration::fetch_all(&mut tx).await?.is_empty() {
+    let mut txn = pool.begin().await?;
+    AppliedMigration::create_table(&mut txn).await?;
+    if !AppliedMigration::fetch_all(&mut txn).await?.is_empty() {
         // If the migration table already has items in it, it does not need to be initialized
         return Ok(());
     }
     AppliedMigration::insert_script(&ParsedScriptName::init_script(version))?
-        .execute(tx.acquire().await?)
+        .execute(&mut *txn)
         .await?;
 
-    tx.commit().await?;
+    txn.commit().await?;
     Ok(())
 }
 

@@ -5,7 +5,7 @@ use crate::{errors::PgmqError, types::Message};
 use log::LevelFilter;
 use serde::Deserialize;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
-use sqlx::{Acquire, FromRow};
+use sqlx::FromRow;
 use sqlx::{ConnectOptions, Transaction};
 use sqlx::{Pool, Postgres};
 use url::{ParseError, Url};
@@ -138,10 +138,10 @@ const ADVISORY_LOCK_KEY: i64 = -9223372036854775808 + 4149;
 /// to attempt to perform the `pgmq` SQL installation/upgrade process at the same time, and they
 /// may conflict when creating the `pgmq` schema and/or `pgmq.__pgmq_migrations` table. This is
 /// the case even with `IF NOT EXISTS` in the SQL query.
-pub(crate) async fn init_lock<'c>(tx: &mut Transaction<'c, Postgres>) -> Result<(), PgmqError> {
+pub(crate) async fn init_lock<'c>(txn: &mut Transaction<'c, Postgres>) -> Result<(), PgmqError> {
     sqlx::query("SELECT pg_advisory_xact_lock($1);")
         .bind(ADVISORY_LOCK_KEY)
-        .execute(tx.acquire().await?)
+        .execute(&mut **txn)
         .await?;
     Ok(())
 }

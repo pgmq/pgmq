@@ -847,7 +847,12 @@ async fn test_create_fifo_index() {
     );
 
     let queue = init_queue_ext(&test_queue).await;
-    queue.create_fifo_index(&test_queue).await.unwrap();
+    let mut txn = queue.acquire_queue_lock(&test_queue).await.unwrap();
+    queue
+        .create_fifo_index_with_cxn(&test_queue, &mut *txn)
+        .await
+        .unwrap();
+    txn.commit().await.unwrap();
 
     let index_name = format!("q_{test_queue}_fifo_idx");
     let index_count = sqlx::query_scalar::<_, i64>(
