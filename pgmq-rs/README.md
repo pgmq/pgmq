@@ -4,6 +4,27 @@
 
 The Rust client for PGMQ. This gives you an ORM-like experience with the Postgres extension and makes managing connection pools, transactions, and serialization/deserialization much easier.
 
+PGMQ is a lightweight, distributed message queue.
+It's like [AWS SQS](https://aws.amazon.com/sqs/) and [RSMQ](https://github.com/smrchy/rsmq) but native to Postgres.
+
+Message queues allow you to decouple and connect microservices.
+Send, store, and receive messages between components scalably, without dropping messages or
+needing other services to be available.
+
+PGMQ was created by Tembo. Our goal is to make the full Postgres ecosystem accessible to everyone.
+We're building a radically simplified Postgres platform designed to be developer-first and easily extensible.
+PGMQ is a part of that project.
+
+Not building in Rust? Try the [Tembo pgmq Postgres extension](https://pgt.dev/extensions/pgmq).
+
+## Features
+
+- Lightweight - Rust and Postgres only
+- Guaranteed delivery of messages to exactly one consumer within a visibility timeout
+- API parity with [AWS SQS](https://aws.amazon.com/sqs/) and [RSMQ](https://github.com/smrchy/rsmq)
+- Messages stay in the queue until deleted
+- Messages can be archived, instead of deleted, for long-term retention and replayability
+- Completely asynchronous API
 
 ## Installing PGMQ
 
