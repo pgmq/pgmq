@@ -203,6 +203,20 @@ Community
 
 ## Quick Start
 
+The project contains several [examples](./examples/). You can run these using Cargo.
+
+A basic example displaying the primary features:
+
+```bash
+cargo run --example basic
+```
+
+How to install PGMQ using the Rust client from within your application:
+
+```bash
+cargo run --example install --features install-sql-github,install-sql-embedded
+```
+
 First, you will need Postgres. We use a container in this example.
 
 ```bash
