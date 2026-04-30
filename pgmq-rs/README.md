@@ -247,65 +247,7 @@ cargo run
 
 ### Minimal example at a glance
 
-```rust
-use pgmq::{PgmqError, Message, PGMQueue};
-use serde::{Deserialize, Serialize};
-use serde_json::Value;
-
-#[tokio::main]
-async fn main() -> Result<(), PgmqError> {
-
-    // Initialize a connection to Postgres
-    println!("Connecting to Postgres");
-    let queue: PGMQueue = PGMQueue::new("postgres://postgres:***@0.0.0.0:5432".to_owned())
-        .await
-        .expect("Failed to connect to postgres");
-
-    // Create a queue
-    println!("Creating a queue 'my_queue'");
-    let my_queue = "my_example_queue".to_owned();
-    queue.create(&my_queue)
-        .await
-        .expect("Failed to create queue");
-
-    // Structure a message
-    #[derive(Serialize, Debug, Deserialize)]
-    struct MyMessage {
-        foo: String,
-    }
-    let message = MyMessage {
-        foo: "bar".to_owned(),
-    };
-    // Send the message
-    let message_id: i64 = queue
-        .send(&my_queue, &message)
-        .await
-        .expect("Failed to enqueue message");
-
-    // Use a visibility timeout of 30 seconds
-    // Once read, the message will be unable to be read
-    // until the visibility timeout expires
-    let visibility_timeout_seconds: i32 = 30;
-
-    // Read a message
-    let received_message: Message<MyMessage> = queue
-        .read::<MyMessage>(&my_queue, Some(visibility_timeout_seconds))
-        .await
-        .unwrap()
-        .expect("No messages in the queue");
-    println!("Received a message: {:?}", received_message);
-
-    assert_eq!(received_message.msg_id, message_id);
-
-    // archive the messages
-    let _ = queue.archive(&my_queue, received_message.msg_id)
-        .await
-        .expect("Failed to archive message");
-    println!("archived the messages from the queue");
-    Ok(())
-
-}
-```
+See the [basic example](https://github.com/pgmq/pgmq/blob/main/pgmq-rs/examples/basic.rs) for a complete, working example.
 
 ## Sending messages
 
