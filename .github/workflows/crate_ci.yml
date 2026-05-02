@@ -58,6 +58,29 @@ jobs:
       - name: Check versions
         run: make check.minimal-versions
 
+  check-readme:
+    name: Check readme
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install minimal rust toolchain with clippy and rustfmt
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          profile: minimal
+          toolchain: stable
+      - uses: taiki-e/install-action@9adcff13829681f1e2f4a678b775043ab5c7fc2c
+        with:
+          tool: cargo-readme
+      - name: Regenerate README.md
+        run: make update.readme
+      - name: Verify README.md is in sync with doc comment
+        run: |
+          num_files_modified=$(git status -s -uno | wc -l)
+          if [[ $num_files_modified -gt 0 ]]; then
+            echo "README.md is out of sync with the crate's lib.rs doc comment. Run 'make update.readme' to synchronize the README.md"
+            exit 1
+          fi
+
   tests:
     name: Run tests
     runs-on: ubuntu-22.04
