@@ -2,13 +2,11 @@
 
 [![Latest Version](https://img.shields.io/crates/v/pgmq.svg)](https://crates.io/crates/pgmq)
 
-A lightweight message queue. Like [AWS SQS](https://aws.amazon.com/sqs/) and [RSMQ](https://github.com/smrchy/rsmq) but on Postgres.
+PGMQ is a lightweight, distributed message queue. Like [AWS SQS](https://aws.amazon.com/sqs/) and [RSMQ](https://github.com/smrchy/rsmq) but native to Postgres.
 
-The Rust client for PGMQ. This gives you an ORM-like experience with the Postgres extension and makes managing connection pools, transactions, and serialization/deserialization much easier.
+This crate is the official Rust client for PGMQ. It provides an ORM-like experience with the Postgres extension and makes managing connection pools, transactions, and serialization/deserialization much easier.
 
-**Documentation**: https://pgmq.github.io/pgmq/
-
-**Source**: https://github.com/pgmq/pgmq
+**Extension Documentation**: https://pgmq.github.io/pgmq/
 
 ## Features
 
@@ -19,7 +17,7 @@ The Rust client for PGMQ. This gives you an ORM-like experience with the Postgre
 - [Topic-based](https://github.com/pgmq/pgmq/blob/main/docs/topics.md#topic-based-routing) routing with wildcard patterns for publish-subscribe and content-based routing
 - Messages stay in the queue until explicitly removed
 - Messages can be archived, instead of deleted, for long-term retention and replayability
-- Completely asynchronous API
+- Asynchronous API
 
 Supported on Postgres 14-18.
 
@@ -36,7 +34,7 @@ Supported on Postgres 14-18.
       - [Install using the embedded scripts](#install-using-the-embedded-scripts)
       - [Install using the scripts fetched from GitHub](#install-using-the-scripts-fetched-from-github)
   - [Client Libraries](#client-libraries)
-  - [Quick Start](#quick-start)
+  - [Examples](#examples)
     - [Minimal example at a glance](#minimal-example-at-a-glance)
   - [Sending messages](#sending-messages)
   - [Reading messages](#reading-messages)
@@ -45,6 +43,8 @@ Supported on Postgres 14-18.
   - [License](#license)
 
 ## Installation
+
+PGMQ can be run on any existing Postgres instance or installed as a Postgres Extension. See [INSTALLATION.md](https://github.com/pgmq/pgmq/blob/main/INSTALLATION.md) for the full installation guide including a [comparison](https://github.com/pgmq/pgmq/blob/main/INSTALLATION.md#considerations) of the Postgres Extension vs the SQL-only installation.
 
 ### Docker
 
@@ -66,6 +66,8 @@ CREATE EXTENSION pgmq;
 
 ### SQL Only
 
+> ⚠️ This installation approach is not versioned and only works for a fresh installation of `pgmq`.
+
 You can also use [psql](https://www.tigerdata.com/blog/how-to-install-psql-on-mac-ubuntu-debian-windows) to install PGMQ's objects directly into the pgmq schema in Postgres. Use this method if you are running someplace that does not natively support the PGMQ Extension.
 
 ```bash
@@ -85,49 +87,9 @@ the SQL scripts from the PGMQ GitHub repo. The embedded approach does not requir
 installing (or upgrading to) the version bundled with the crate. The GitHub approach requires several network requests to GitHub,
 but allows installing (or upgrading to) any version available in the repo.
 
-#### Create the DB
+#### Unversioned Installation
 
-Run standard Postgres using Docker:
-
-```bash
-docker run -d -e POSTGRES_PASSWORD=*** -p 5432:5432 postgres:latest
-```
-
-#### Initialize applied migrations table
-
-In crate versions <= 0.32.1, the crate did not track which SQL scripts had already been run, which makes upgrading to a
-new version difficult. To switch from the old approach to the new approach, first perform the "initialize applied migrations table"
-workflow.
-
-This method is not needed for fresh installations, or if the new SQL-only installation method was used to install PGMQ.
-
-##### Via the CLI
-
-```shell
-# Install the PGMQ Rust CLI
-cargo install pgmq --features cli --bin pgmq-cli
-# Replace the DB url and the version
-pgmq-cli install -d postgres://postgres:***@localhost:5432/postgres init-migrations-table -v 1.9.0
-```
-
-##### In Rust
-
-Add PGMQ to your `Cargo.toml` with the `install-sql` feature enabled:
-
-```bash
-cargo add pgmq --features install-sql
-```
-
-```rust
-async fn init_migrations_table(pool: sqlx::Pool<sqlx::Postgres>) -> Result<(), pgmq::PgmqError> {
-    let queue = pgmq::PGMQueueExt::new_with_pool(pool).await;
-    // Replace the version
-    queue.init_migrations_table("1.9.0").await?;
-    Ok(())
-}
-```
-
-#### Install using the embedded scripts
+The following installation methods are unversioned and only work for a fresh installation of `pgmq`.
 
 ##### Via CLI
 
@@ -156,7 +118,9 @@ async fn install_sql(pool: sqlx::Pool<sqlx::Postgres>) -> Result<(), pgmq::PgmqE
 }
 ```
 
-#### Install using the scripts fetched from GitHub
+#### Versioned Installation
+
+The following installation methods are versioned and can be used to perform a fresh installation of PGMQ, or to upgrade an existing installation to a newer version.
 
 ##### Via CLI
 
@@ -189,10 +153,13 @@ async fn install_sql(pool: sqlx::Pool<sqlx::Postgres>) -> Result<(), pgmq::PgmqE
 
 - [Rust](https://github.com/pgmq/pgmq/tree/main/pgmq-rs) (this crate)
 - [Python (only for psycopg3)](https://github.com/pgmq/pgmq-py)
+- [TypeScript / Node.js](https://github.com/tembo-io/pgmq-ts)
 
 Community
 
 - [.NET](https://github.com/brianpursley/Npgmq)
+- [C++](https://github.com/Ferdi265/pgmqpp)
+- [C#](https://github.com/tmckenna-petro/Npgmq)
 - [Dart](https://github.com/Ofceab-Studio/dart_pgmq)
 - [Elixir + Broadway](https://github.com/v0idpwn/off_broadway_pgmq)
 - [Elixir](https://github.com/v0idpwn/pgmq-elixir)
@@ -200,8 +167,11 @@ Community
 - [Haskell](https://github.com/MichelBoucey/stakhanov)
 - [Java (JDBC)](https://github.com/roy20021/pgmq-jdbc-client)
 - [Java (Spring Boot)](https://github.com/adamalexandru4/pgmq-spring)
+- [Lua](https://github.com/waynegemmell/pgmq-lua)
+- [PHP](https://github.com/tembo-io/pgmq-php)
+- [Ruby](https://github.com/tembo-io/pgmq-ruby)
 
-## Quick Start
+## Examples
 
 The project contains several [examples](./examples/). You can run these using Cargo.
 
@@ -215,34 +185,6 @@ How to install PGMQ using the Rust client from within your application:
 
 ```bash
 cargo run --example install --features install-sql-github,install-sql-embedded
-```
-
-First, you will need Postgres. We use a container in this example.
-
-```bash
-docker run -d --name postgres -e POSTGRES_PASSWORD=*** -p 5432:5432 postgres
-```
-
-If you don't have Docker installed, it can be found [here](https://docs.docker.com/get-docker/).
-
-Make sure you have the Rust toolchain installed:
-
-```bash
-cargo --version
-```
-
-This example was written with version 1.67.0, but the latest stable should work. You can go [here](https://www.rust-lang.org/tools/install) to install Rust if you don't have it already, then run `rustup install stable` to install the latest, stable toolchain.
-
-Change directory to the example project:
-
-```bash
-cd examples/basic
-```
-
-Run the project!
-
-```bash
-cargo run
 ```
 
 ### Minimal example at a glance
@@ -260,29 +202,29 @@ Reading a message will make it invisible (unavailable for consumption) for the d
 No messages are returned when the queue is empty or all messages are invisible.
 
 Messages can be parsed as `serde_json::Value` or into a struct of your design. `queue.read()` returns an `Result<Option<Message<T>>, PgmqError>`
-where `T` is the type of the message on the queue. It returns an error when there is an issue parsing the message (`PgmqError::JsonParsingError`) or if PGMQ is unable to reach postgres (`PgmqError::DatabaseError`).
+where `T` is the type of the message on the queue.
 
 Note that when parsing into a `struct`, the operation will return an error if
-parsed as the type specified. For example, if the message expected is
-`MyMessage{foo: "bar"}` but `{"hello": "world"}` is received, the application will panic.
+the message can not be parsed as the type specified. For example, if the message expected is
+`MyMessage{foo: "bar"}` but `{"hello": "world"}` is received, the operation will return an error.
 
 Read a single message with `queue.read()` or as many as you want with `queue.read_batch()`.
 
 ## Archive or Delete a message
 
-Remove the message from the queue when you are done with it. You can either completely `.delete()`, or `.archive()` the message. Archived messages are deleted from the queue and inserted to the queue's archive table. Deleted messages are just deleted.
+Remove the message from the queue when you are done with it. You can either `.delete()`, or `.archive()` the message. Archived messages are deleted from the queue and inserted to the queue's archive table. Deleted messages are just deleted.
 
-Read messages from the queue archive with SQL:
+Archive tables can be inspected directly with SQL. Archive tables have the prefix `a_` in the pgmq schema.
 
 ```sql
 SELECT *
-FROM pgmq_{your_queue_name}_archive;
+FROM a_{your_queue_name};
 ```
 
 ## Serialization and Deserialization
 
 Messages can be parsed as `serde_json::Value` or into a struct of your design. `queue.read()` returns an `Result<Option<Message<T>>, PgmqError>`
-where `T` is the type of the message on the queue. It returns an error when there is an issue parsing the message (`PgmqError::JsonParsingError`) or if PGMQ is unable to reach postgres (`PgmqError::DatabaseError`).
+where `T` is the type of the message on the queue.
 
 ## License
 
