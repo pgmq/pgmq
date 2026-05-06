@@ -898,3 +898,373 @@ async fn test_create_fifo_indexes_all() {
 
     assert_eq!(indexes_to_create, indexes);
 }
+
+#[tokio::test]
+async fn test_read_grouped_default_group() {
+    let test_queue = format!(
+        "test_read_grouped_default_group_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let msg1 = MyMessage::default();
+    let id1 = queue.send(&test_queue, &msg1).await.unwrap();
+    let msg2 = MyMessage::default();
+    let _ = queue.send(&test_queue, &msg2).await.unwrap();
+
+    {
+        let read_msg1 = queue
+            .read_grouped::<MyMessage>(&test_queue, 100, 1)
+            .await
+            .unwrap()
+            .into_iter()
+            .next();
+        let read_msg2 = queue
+            .read_grouped::<MyMessage>(&test_queue, 100, 1)
+            .await
+            .unwrap()
+            .into_iter()
+            .next();
+        assert!(read_msg1.is_some());
+        assert!(read_msg2.is_none(), "The second message should not become available until the first message has been processed");
+    }
+
+    {
+        queue.archive(&test_queue, id1).await.unwrap();
+        let read_msg2 = queue
+            .read_grouped::<MyMessage>(&test_queue, 100, 1)
+            .await
+            .unwrap()
+            .into_iter()
+            .next();
+        assert!(read_msg2.is_some());
+    }
+}
+
+#[tokio::test]
+async fn test_read_grouped_default_group_many() {
+    let test_queue = format!(
+        "read_grouped_default_group_many_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let msg1 = MyMessage::default();
+    queue.send(&test_queue, &msg1).await.unwrap();
+    let msg2 = MyMessage::default();
+    queue.send(&test_queue, &msg2).await.unwrap();
+
+    let read_msgs = queue
+        .read_grouped::<MyMessage>(&test_queue, 100, 2)
+        .await
+        .unwrap();
+    assert_eq!(2, read_msgs.len());
+}
+
+#[tokio::test]
+async fn test_read_grouped_custom_group() {
+    let test_queue = format!(
+        "test_read_grouped_custom_group_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let msg1 = MyMessage {
+        foo: "a".to_string(),
+        num: 1,
+    };
+    let headers1 = serde_json::json!({
+        "x-pgmq-group": msg1.num
+    });
+    let msg2 = MyMessage {
+        foo: "b".to_string(),
+        num: 2,
+    };
+    let headers2 = serde_json::json!({
+        "x-pgmq-group": msg2.num
+    });
+    queue
+        .send_batch_with_delay_with_headers(
+            &test_queue,
+            &[msg1, msg2],
+            Some(&[headers1, headers2]),
+            0,
+        )
+        .await
+        .unwrap();
+
+    let read_msg1 = queue
+        .read_grouped::<MyMessage>(&test_queue, 100, 1)
+        .await
+        .unwrap()
+        .into_iter()
+        .next();
+    let read_msg2 = queue
+        .read_grouped::<MyMessage>(&test_queue, 100, 1)
+        .await
+        .unwrap()
+        .into_iter()
+        .next();
+    assert!(read_msg1.is_some());
+    assert!(read_msg2.is_some());
+}
+
+#[tokio::test]
+async fn test_read_grouped_rr_diff_groups() {
+    let test_queue = format!(
+        "test_read_grouped_rr_diff_groups_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let msg1 = MyMessage {
+        foo: "a".to_string(),
+        num: 1,
+    };
+    let headers1 = serde_json::json!({
+        "x-pgmq-group": msg1.num
+    });
+    let msg2 = MyMessage {
+        foo: "b".to_string(),
+        num: 1,
+    };
+    let headers2 = serde_json::json!({
+        "x-pgmq-group": msg2.num
+    });
+    let msg3 = MyMessage {
+        foo: "c".to_string(),
+        num: 2,
+    };
+    let headers3 = serde_json::json!({
+        "x-pgmq-group": msg3.num
+    });
+    let msg4 = MyMessage {
+        foo: "d".to_string(),
+        num: 2,
+    };
+    let headers4 = serde_json::json!({
+        "x-pgmq-group": msg4.num
+    });
+    queue
+        .send_batch_with_delay_with_headers(
+            &test_queue,
+            &[msg1, msg2, msg3, msg4],
+            Some(&[headers1, headers2, headers3, headers4]),
+            0,
+        )
+        .await
+        .unwrap();
+
+    let read_msgs = queue
+        .read_grouped_rr::<MyMessage>(&test_queue, 100, 2)
+        .await
+        .unwrap();
+    assert_eq!(2, read_msgs.len());
+    assert_ne!(
+        read_msgs.first().unwrap().message.num,
+        read_msgs.get(1).unwrap().message.num
+    );
+
+    let read_msgs2 = queue
+        .read_grouped_rr::<MyMessage>(&test_queue, 100, 2)
+        .await
+        .unwrap();
+    assert!(read_msgs2.is_empty(), "The second message in each group should not become available until the first message has been processed");
+
+    queue
+        .archive_batch(
+            &test_queue,
+            &read_msgs.iter().map(|msg| msg.msg_id).collect::<Vec<_>>(),
+        )
+        .await
+        .unwrap();
+
+    let read_msgs = queue
+        .read_grouped_rr::<MyMessage>(&test_queue, 100, 2)
+        .await
+        .unwrap();
+    assert_eq!(2, read_msgs.len());
+    assert_ne!(
+        read_msgs.first().unwrap().message.num,
+        read_msgs.get(1).unwrap().message.num
+    );
+}
+
+#[tokio::test]
+async fn test_read_grouped_head_diff_groups() {
+    let test_queue = format!(
+        "test_read_grouped_head_diff_groups_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let msg1 = MyMessage {
+        foo: "a".to_string(),
+        num: 1,
+    };
+    let headers1 = serde_json::json!({
+        "x-pgmq-group": msg1.num
+    });
+    let msg2 = MyMessage {
+        foo: "b".to_string(),
+        num: 1,
+    };
+    let headers2 = serde_json::json!({
+        "x-pgmq-group": msg2.num
+    });
+    let msg3 = MyMessage {
+        foo: "c".to_string(),
+        num: 2,
+    };
+    let headers3 = serde_json::json!({
+        "x-pgmq-group": msg3.num
+    });
+    let msg4 = MyMessage {
+        foo: "d".to_string(),
+        num: 2,
+    };
+    let headers4 = serde_json::json!({
+        "x-pgmq-group": msg4.num
+    });
+    queue
+        .send_batch_with_delay_with_headers(
+            &test_queue,
+            &[msg1, msg2, msg3, msg4],
+            Some(&[headers1, headers2, headers3, headers4]),
+            0,
+        )
+        .await
+        .unwrap();
+
+    let read_msgs = queue
+        .read_grouped_head::<MyMessage>(&test_queue, 100, 2)
+        .await
+        .unwrap();
+    assert_eq!(2, read_msgs.len());
+    assert_ne!(
+        read_msgs.first().unwrap().message.num,
+        read_msgs.get(1).unwrap().message.num
+    );
+
+    let read_msgs2 = queue
+        .read_grouped_head::<MyMessage>(&test_queue, 100, 2)
+        .await
+        .unwrap();
+    assert!(read_msgs2.is_empty(), "The second message in each group should not become available until the first message has been processed");
+
+    queue
+        .archive_batch(
+            &test_queue,
+            &read_msgs.iter().map(|msg| msg.msg_id).collect::<Vec<_>>(),
+        )
+        .await
+        .unwrap();
+
+    let read_msgs = queue
+        .read_grouped_head::<MyMessage>(&test_queue, 100, 2)
+        .await
+        .unwrap();
+    assert_eq!(2, read_msgs.len());
+    assert_ne!(
+        read_msgs.first().unwrap().message.num,
+        read_msgs.get(1).unwrap().message.num
+    );
+}
+
+#[tokio::test]
+async fn test_read_grouped_with_poll() {
+    let test_queue = format!(
+        "test_read_grouped_with_poll_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let msg1 = MyMessage {
+        foo: "a".to_string(),
+        num: 1,
+    };
+    let headers1 = serde_json::json!({
+        "x-pgmq-group": msg1.num
+    });
+    let msg2 = MyMessage {
+        foo: "b".to_string(),
+        num: 2,
+    };
+    let headers2 = serde_json::json!({
+        "x-pgmq-group": msg2.num
+    });
+    queue
+        .send_batch_with_delay_with_headers(
+            &test_queue,
+            &[msg1, msg2],
+            Some(&[headers1, headers2]),
+            5,
+        )
+        .await
+        .unwrap();
+
+    let read_msgs = queue
+        .read_grouped_with_poll::<MyMessage>(
+            &test_queue,
+            100,
+            2,
+            Some(Duration::from_secs(10)),
+            Some(Duration::from_secs(1)),
+        )
+        .await
+        .unwrap();
+    assert_eq!(2, read_msgs.len());
+    assert_ne!(
+        read_msgs.first().unwrap().message.num,
+        read_msgs.get(1).unwrap().message.num
+    );
+}
+
+#[tokio::test]
+async fn test_read_grouped_rr_with_poll() {
+    let test_queue = format!(
+        "test_read_grouped_rr_with_poll_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let msg1 = MyMessage {
+        foo: "a".to_string(),
+        num: 1,
+    };
+    let headers1 = serde_json::json!({
+        "x-pgmq-group": msg1.num
+    });
+    let msg2 = MyMessage {
+        foo: "b".to_string(),
+        num: 2,
+    };
+    let headers2 = serde_json::json!({
+        "x-pgmq-group": msg2.num
+    });
+    queue
+        .send_batch_with_delay_with_headers(
+            &test_queue,
+            &[msg1, msg2],
+            Some(&[headers1, headers2]),
+            5,
+        )
+        .await
+        .unwrap();
+
+    let read_msgs = queue
+        .read_grouped_rr_with_poll::<MyMessage>(
+            &test_queue,
+            100,
+            2,
+            Some(Duration::from_secs(10)),
+            Some(Duration::from_secs(1)),
+        )
+        .await
+        .unwrap();
+    assert_eq!(2, read_msgs.len());
+    assert_ne!(
+        read_msgs.first().unwrap().message.num,
+        read_msgs.get(1).unwrap().message.num
+    );
+}
