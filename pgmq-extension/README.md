@@ -86,7 +86,8 @@ To update PGMQ versions, follow the instructions in [UPDATING.md](pgmq-extension
 ## Client Libraries
 
 - [Rust](https://github.com/pgmq/pgmq/tree/main/pgmq-rs)
-- [Python (only for psycopg3)](https://github.com/pgmq/pgmq-py)
+- [Python](https://github.com/pgmq/pgmq-py)
+  - **Documentation**: https://pgmq.github.io/pgmq-py/ 
 
 Community
 
