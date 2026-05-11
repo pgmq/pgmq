@@ -3,7 +3,7 @@ use pgmq::types::{ARCHIVE_PREFIX, PGMQ_SCHEMA, QUEUE_PREFIX};
 use pgmq::util::connect;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use sqlx::{Acquire, Pool, Postgres, Row};
+use sqlx::{Pool, Postgres, Row};
 use std::env;
 use std::time::Duration;
 
@@ -1267,4 +1267,125 @@ async fn test_read_grouped_rr_with_poll() {
         read_msgs.first().unwrap().message.num,
         read_msgs.get(1).unwrap().message.num
     );
+}
+
+#[tokio::test]
+async fn test_bind_list_topics() {
+    let test_queue = format!(
+        "test_bind_list_topics_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+    let pattern = format!("{test_queue}.*");
+
+    queue.bind_topic(&pattern, &test_queue).await.unwrap();
+    let topic_binding = queue
+        .list_topic_bindings(&test_queue)
+        .await
+        .unwrap()
+        .into_iter()
+        .next();
+    assert!(topic_binding.is_some());
+    let topic_binding = topic_binding.unwrap();
+    assert_eq!(topic_binding.queue_name, test_queue);
+    assert_eq!(topic_binding.pattern, pattern);
+    assert_eq!(
+        topic_binding.compiled_regex,
+        format!("^{test_queue}\\.[^.]+$")
+    );
+}
+
+#[tokio::test]
+async fn test_list_topics_all() {
+    let test_queue = format!(
+        "test_list_topics_all_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+    let pattern = format!("{test_queue}.*");
+
+    queue.bind_topic(&pattern, &test_queue).await.unwrap();
+    let topic_bindings = queue.list_topic_bindings_all().await.unwrap();
+    let topic_binding = topic_bindings
+        .into_iter()
+        .find(|binding| binding.queue_name == test_queue)
+        .unwrap();
+    assert_eq!(topic_binding.queue_name, test_queue);
+    assert_eq!(topic_binding.pattern, pattern);
+    assert_eq!(
+        topic_binding.compiled_regex,
+        format!("^{test_queue}\\.[^.]+$")
+    );
+}
+
+#[tokio::test]
+async fn test_unbind_topic() {
+    let test_queue = format!(
+        "test_unbind_topic_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+    let pattern = format!("{test_queue}.*");
+
+    queue.bind_topic(&pattern, &test_queue).await.unwrap();
+    queue.unbind_topic(&pattern, &test_queue).await.unwrap();
+    let topic_binding = queue
+        .list_topic_bindings(&test_queue)
+        .await
+        .unwrap()
+        .into_iter()
+        .next();
+    assert!(topic_binding.is_none());
+}
+
+#[tokio::test]
+async fn test_send_topic() {
+    let test_queue = format!(
+        "test_send_topic_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+    let pattern = format!("{test_queue}.*");
+
+    queue.bind_topic(&pattern, &test_queue).await.unwrap();
+
+    let msg = MyMessage::default();
+    let matched_queues = queue
+        .send_topic(&format!("{test_queue}.foo"), &msg, Option::<&()>::None, 0)
+        .await
+        .unwrap();
+    assert_eq!(1, matched_queues);
+
+    let read_msg = queue.read::<MyMessage>(&test_queue, 100).await.unwrap();
+    assert!(read_msg.is_some());
+}
+
+#[tokio::test]
+async fn test_send_batch_topic() {
+    let test_queue = format!(
+        "test_send_batch_topic_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+    let pattern = format!("{test_queue}.*");
+
+    queue.bind_topic(&pattern, &test_queue).await.unwrap();
+
+    let msgs = [MyMessage::default(), MyMessage::default()];
+    let send_batch_rows = queue
+        .send_batch_topic(
+            &format!("{test_queue}.foo"),
+            &msgs,
+            Option::<&[()]>::None,
+            0,
+        )
+        .await
+        .unwrap();
+    assert_eq!(msgs.len(), send_batch_rows.len());
+
+    let read_msgs = queue
+        .read_batch::<MyMessage>(&test_queue, 100, 2)
+        .await
+        .unwrap();
+    assert_eq!(msgs.len(), read_msgs.len());
 }

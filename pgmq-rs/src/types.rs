@@ -38,3 +38,21 @@ pub struct Message<T = serde_json::Value> {
     #[sqlx(json)]
     pub message: T,
 }
+
+/// A row returned by the `pgmq.send_batch_topic` SQL function(s).
+#[derive(Clone, Debug, Deserialize, FromRow)]
+#[non_exhaustive]
+pub struct SendBatchTopicRow {
+    pub queue_name: String,
+    pub msg_id: i64,
+}
+
+/// A row returned by the `pgmq.list_topic_bindings` SQL function(s).
+#[derive(Clone, Debug, Deserialize, FromRow)]
+#[non_exhaustive]
+pub struct ListTopicBindingsRow {
+    pub pattern: String,
+    pub queue_name: String,
+    pub bound_at: chrono::DateTime<Utc>,
+    pub compiled_regex: String,
+}
