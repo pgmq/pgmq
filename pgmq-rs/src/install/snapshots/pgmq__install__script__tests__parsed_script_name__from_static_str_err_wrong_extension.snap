@@ -1,0 +1,9 @@
+---
+source: src/install/script.rs
+expression: name
+---
+Err(
+    InstallationError(
+        "Invalid script name: 'pgmq--1.2.3--4.5.6.sqlx'",
+    ),
+)

@@ -1,0 +1,9 @@
+---
+source: src/install/version.rs
+expression: pgmq_version
+---
+Version {
+    major: 1,
+    minor: 11,
+    patch: 0,
+}

@@ -1,9 +1,11 @@
+use pgmq::pg_ext::VisibilityTimeoutOffset;
 use pgmq::types::{ARCHIVE_PREFIX, PGMQ_SCHEMA, QUEUE_PREFIX};
 use pgmq::util::connect;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 use sqlx::{Pool, Postgres, Row};
 use std::env;
+use std::time::Duration;
 
 // always test extension sdk in its own database
 // to avoid conflict with client only sdk
@@ -31,7 +33,7 @@ async fn init_queue_ext(qname: &str) -> pgmq::PGMQueueExt {
     let queue = pgmq::PGMQueueExt::new(test_db_str.clone(), 2)
         .await
         .expect("failed to connect to test db");
-    queue.init().await.expect("failed to init pgmq");
+    install_pgmq(&queue).await;
     // make sure queue doesn't exist before the test
     let _ = queue.drop_queue(qname).await;
     // CREATE QUEUE
@@ -79,6 +81,15 @@ async fn archive_rowcount(qname: &str, connection: &Pool<Postgres>) -> i64 {
         .get::<i64, usize>(0)
 }
 
+async fn install_pgmq(queue: &pgmq::PGMQueueExt) -> bool {
+    #[cfg(feature = "install-sql-embedded")]
+    let result = queue.install_sql_from_embedded().await.map(|_| true);
+    #[cfg(not(feature = "install-sql"))]
+    let result = queue.init().await;
+
+    result.expect("failed to init pgmq")
+}
+
 #[tokio::test]
 async fn test_ext_create_list_drop() {
     let test_queue = format!(
@@ -115,8 +126,13 @@ async fn test_ext_create_list_drop() {
     assert!(!post_drop_q_names.contains(&test_queue));
 }
 
-#[tokio::test]
-async fn test_ext_send_read_delete() {
+async fn test_ext_send_read_delete_core<T: Into<VisibilityTimeoutOffset>>(
+    offset1: T,
+    offset2: T,
+    offset3: T,
+    offset4: T,
+    offset5: T,
+) {
     let test_queue = format!(
         "test_ext_send_read_delete_{}",
         rand::thread_rng().gen_range(0..100000)
@@ -131,7 +147,7 @@ async fn test_ext_send_read_delete() {
     assert!(msg_id >= 1);
 
     let read_message = queue
-        .read::<MyMessage>(&test_queue, 5)
+        .read::<MyMessage>(&test_queue, offset1)
         .await
         .expect("error reading message");
     assert!(read_message.is_some());
@@ -141,7 +157,7 @@ async fn test_ext_send_read_delete() {
 
     // read again, assert no messages visible
     let read_message = queue
-        .read::<MyMessage>(&test_queue, 2)
+        .read::<MyMessage>(&test_queue, offset2)
         .await
         .expect("error reading message");
     assert!(read_message.is_none());
@@ -151,7 +167,7 @@ async fn test_ext_send_read_delete() {
     let read_with_poll = queue
         .read_batch_with_poll::<MyMessage>(
             &test_queue,
-            5,
+            offset3,
             1,
             Some(std::time::Duration::from_secs(6)),
             None,
@@ -168,11 +184,11 @@ async fn test_ext_send_read_delete() {
 
     // change the VT to now
     let _vt_set = queue
-        .set_vt::<MyMessage>(&test_queue, msg_id, 0)
+        .set_vt::<MyMessage>(&test_queue, msg_id, offset4)
         .await
         .expect("failed to set VT");
     let read_message = queue
-        .read::<MyMessage>(&test_queue, 1)
+        .read::<MyMessage>(&test_queue, offset5)
         .await
         .expect("error reading message")
         .expect("expected a message");
@@ -196,24 +212,325 @@ async fn test_ext_send_read_delete() {
 }
 
 #[tokio::test]
-async fn test_ext_send_delay() {
+async fn test_ext_send_read_delete_i32() {
+    test_ext_send_read_delete_core(5i32, 2i32, 5i32, 0i32, 1i32).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_read_delete_i64() {
+    test_ext_send_read_delete_core(5i64, 2i64, 5i64, 0i64, 1i64).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_read_delete_u32() {
+    test_ext_send_read_delete_core(5u32, 2u32, 5u32, 0u32, 1u32).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_read_delete_u64() {
+    test_ext_send_read_delete_core(5u64, 2u64, 5u64, 0u64, 1u64).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_read_delete_chrono() {
+    test_ext_send_read_delete_core(
+        chrono::Duration::seconds(5),
+        chrono::Duration::seconds(2),
+        chrono::Duration::seconds(5),
+        chrono::Duration::seconds(0),
+        chrono::Duration::seconds(1),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn test_ext_send_read_delete_std() {
+    test_ext_send_read_delete_core(
+        std::time::Duration::from_secs(5),
+        std::time::Duration::from_secs(2),
+        std::time::Duration::from_secs(5),
+        std::time::Duration::from_secs(0),
+        std::time::Duration::from_secs(1),
+    )
+    .await;
+}
+
+#[tokio::test]
+async fn test_ext_send_read_delete_vt_offset() {
+    test_ext_send_read_delete_core(
+        VisibilityTimeoutOffset::seconds(5),
+        VisibilityTimeoutOffset::seconds(2),
+        VisibilityTimeoutOffset::seconds(5),
+        VisibilityTimeoutOffset::seconds(0),
+        VisibilityTimeoutOffset::seconds(1),
+    )
+    .await;
+}
+
+async fn test_ext_send_delay_core(delay: impl Copy + Into<VisibilityTimeoutOffset>) {
     let test_queue = format!(
         "test_ext_send_delay_{}",
         rand::thread_rng().gen_range(0..100000)
     );
-    let vt = 1;
+    let vt = 4;
     let queue = init_queue_ext(&test_queue).await;
     let msg = MyMessage::default();
-    queue.send_delay(&test_queue, &msg, 5).await.unwrap();
+    queue.send_delay(&test_queue, &msg, delay).await.unwrap();
 
     // No messages are found due to visibility timeout
     let no_messages = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
     assert!(no_messages.is_none());
 
-    // After 5 seconds, message is found
-    tokio::time::sleep(std::time::Duration::from_secs(5)).await;
+    // After the delay, message is found
+    let duration: VisibilityTimeoutOffset = delay.into();
+    tokio::time::sleep(Duration::from_secs(duration.as_seconds() as u64)).await;
+
     let one_messages = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
     assert!(one_messages.is_some());
+}
+
+#[tokio::test]
+async fn test_ext_send_delay_i32() {
+    test_ext_send_delay_core(5i32).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_delay_i64() {
+    test_ext_send_delay_core(5i64).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_delay_u32() {
+    test_ext_send_delay_core(5u32).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_delay_u64() {
+    test_ext_send_delay_core(5u64).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_delay_chrono() {
+    test_ext_send_delay_core(chrono::Duration::seconds(5)).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_delay_std() {
+    test_ext_send_delay_core(std::time::Duration::from_secs(5)).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_delay_vt_offset() {
+    test_ext_send_delay_core(VisibilityTimeoutOffset::seconds(5)).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_batch() {
+    let test_queue = format!(
+        "test_ext_send_batch_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+    let msgs = [
+        MyMessage::default(),
+        MyMessage::default(),
+        MyMessage::default(),
+    ];
+    let msg_ids = queue.send_batch(&test_queue, &msgs).await.unwrap();
+    assert_eq!(3, msg_ids.len());
+
+    let vt = 4;
+    let msg1 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    let msg2 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    let msg3 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    let msg4 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    assert!(msg1.is_some());
+    assert!(msg2.is_some());
+    assert!(msg3.is_some());
+    assert!(msg4.is_none());
+}
+
+#[tokio::test]
+async fn test_ext_send_batch_read_batch() {
+    let test_queue = format!(
+        "test_ext_send_batch_read_batch_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let vt = 4;
+    let msgs_read = queue
+        .read_batch::<MyMessage>(&test_queue, vt, 1)
+        .await
+        .unwrap();
+    assert!(msgs_read.is_empty());
+
+    let msgs_sent = [
+        MyMessage::default(),
+        MyMessage::default(),
+        MyMessage::default(),
+    ];
+    let msg_ids = queue.send_batch(&test_queue, &msgs_sent).await.unwrap();
+    assert_eq!(3, msg_ids.len());
+
+    let msgs_read = queue
+        .read_batch::<MyMessage>(&test_queue, vt, (msgs_sent.len() as i32) - 1)
+        .await
+        .expect("Should successfully read a batch of messages");
+    assert_eq!(msgs_sent.len() - 1, msgs_read.len());
+
+    let msgs_read = queue
+        .read_batch::<MyMessage>(&test_queue, vt, 1)
+        .await
+        .unwrap();
+    assert_eq!(1, msgs_read.len());
+
+    let msgs_read = queue
+        .read_batch::<MyMessage>(&test_queue, vt, 1)
+        .await
+        .unwrap();
+    assert!(msgs_read.is_empty());
+}
+
+#[tokio::test]
+async fn test_ext_read_with_poll() {
+    let test_queue = format!(
+        "test_ext_read_with_poll_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let vt = 4;
+    let msg = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    assert!(msg.is_none());
+
+    let msgs_sent = [
+        MyMessage::default(),
+        MyMessage::default(),
+        MyMessage::default(),
+    ];
+    let msg_ids = queue.send_batch(&test_queue, &msgs_sent).await.unwrap();
+    assert_eq!(3, msg_ids.len());
+
+    let msg = queue
+        .read_with_poll::<MyMessage>(&test_queue, vt, Some(Duration::from_secs(1)), None)
+        .await
+        .unwrap();
+    assert!(msg.is_some());
+
+    let msgs_read = queue
+        .read_batch::<MyMessage>(&test_queue, vt, msgs_sent.len() as i32)
+        .await
+        .unwrap();
+    assert_eq!(msgs_sent.len() - 1, msgs_read.len());
+}
+
+#[tokio::test]
+async fn test_ext_read_batch_with_poll_empty_queue() {
+    let test_queue = format!(
+        "test_ext_read_batch_with_poll_empty_queue_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let vt = 4;
+
+    // read_batch_with_poll should return Ok(Some(<empty vec>)) if no items are available to be read.
+    // Todo: In a future SemVer breaking change, the expected return value would be Ok(<empty vec>)
+    let msg_read = queue
+        .read_batch_with_poll::<MyMessage>(&test_queue, vt, 1, Some(Duration::from_secs(1)), None)
+        .await
+        .unwrap();
+    assert!(msg_read.is_some());
+    assert!(msg_read.unwrap().is_empty());
+}
+
+#[tokio::test]
+async fn test_ext_read_with_poll_empty_queue() {
+    let test_queue = format!(
+        "test_ext_read_with_poll_empty_queue_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let vt = 4;
+
+    let msg = queue
+        .read_with_poll::<MyMessage>(&test_queue, vt, Some(Duration::from_secs(1)), None)
+        .await
+        .unwrap();
+    assert!(msg.is_none());
+}
+
+async fn test_ext_send_batch_delay_core(delay: impl Copy + Into<VisibilityTimeoutOffset>) {
+    let test_queue = format!(
+        "test_ext_send_batch_delay_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+    let msgs = [
+        MyMessage::default(),
+        MyMessage::default(),
+        MyMessage::default(),
+    ];
+    let msg_ids = queue
+        .send_batch_with_delay(&test_queue, &msgs, delay)
+        .await
+        .unwrap();
+    assert_eq!(3, msg_ids.len());
+
+    // No messages are found due to visibility timeout
+    let vt = 4;
+    let no_messages = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    assert!(no_messages.is_none());
+
+    // After the delay, messages are found
+    let duration: VisibilityTimeoutOffset = delay.into();
+    tokio::time::sleep(Duration::from_secs(duration.as_seconds() as u64)).await;
+
+    let msg1 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    let msg2 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    let msg3 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    let msg4 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    assert!(msg1.is_some());
+    assert!(msg2.is_some());
+    assert!(msg3.is_some());
+    assert!(msg4.is_none());
+}
+
+#[tokio::test]
+async fn test_ext_send_batch_delay_i32() {
+    test_ext_send_batch_delay_core(5i32).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_batch_delay_i64() {
+    test_ext_send_batch_delay_core(5i64).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_batch_delay_u32() {
+    test_ext_send_batch_delay_core(5u32).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_batch_delay_u64() {
+    test_ext_send_batch_delay_core(5u64).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_batch_delay_chrono() {
+    test_ext_send_batch_delay_core(chrono::Duration::seconds(5)).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_batch_delay_std() {
+    test_ext_send_batch_delay_core(std::time::Duration::from_secs(5)).await;
+}
+
+#[tokio::test]
+async fn test_ext_send_batch_delay_vt_offset() {
+    test_ext_send_batch_delay_core(VisibilityTimeoutOffset::seconds(5)).await;
 }
 
 #[tokio::test]
@@ -422,7 +739,7 @@ async fn test_byop() {
 
     // use the pool to create a new queue
     let queue = pgmq::PGMQueueExt::new_with_pool(pool).await;
-    let init = queue.init().await.expect("failed to create extension");
+    let init = install_pgmq(&queue).await;
     assert!(init, "failed to create extension");
 
     // first time must return true
@@ -457,7 +774,7 @@ async fn test_transactional() {
 
     // create queue using pool_0
     let queue = pgmq::PGMQueueExt::new_with_pool(pool_0.clone()).await;
-    let init = queue.init().await.expect("failed to create extension");
+    let init = install_pgmq(&queue).await;
     assert!(init, "failed to create extension");
 
     let created = queue
@@ -493,4 +810,582 @@ async fn test_transactional() {
         .expect("failed to fetch row")
         .get::<i64, usize>(0);
     assert_eq!(rows, 1);
+}
+
+#[tokio::test]
+async fn test_create_queue_race_condition() {
+    let queue_name = format!("test_tx_{}", rand::thread_rng().gen_range(0..100000));
+    let db_url = env::var("DATABASE_URL")
+        .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/postgres".to_owned());
+    let pool = connect(&db_url, 2)
+        .await
+        .expect("failed to connect to postgres");
+
+    let queue = pgmq::PGMQueueExt::new_with_pool(pool).await;
+    let init = install_pgmq(&queue).await;
+    assert!(init, "failed to create extension");
+
+    let mut conn1 = queue.connection.acquire().await.unwrap();
+    let mut conn2 = queue.connection.acquire().await.unwrap();
+
+    let (result1, result2) = tokio::try_join!(
+        queue.create_with_cxn(&queue_name, &mut conn1),
+        queue.create_with_cxn(&queue_name, &mut conn2)
+    )
+    .unwrap();
+
+    // If there's a race condition in `PGMQueueExt#create`, both results could be `true` (this
+    // may not always occur due to the non-deterministic nature of race conditions).
+    assert_ne!(result1, result2);
+}
+
+#[tokio::test]
+async fn test_create_fifo_index() {
+    let test_queue = format!(
+        "test_create_fifo_index_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+
+    let queue = init_queue_ext(&test_queue).await;
+    let mut txn = queue.acquire_queue_lock(&test_queue).await.unwrap();
+    queue
+        .create_fifo_index_with_cxn(&test_queue, &mut *txn)
+        .await
+        .unwrap();
+    txn.commit().await.unwrap();
+
+    let index_name = format!("q_{test_queue}_fifo_idx");
+    let index_count = sqlx::query_scalar::<_, i64>(
+        "SELECT COUNT(*) FROM pg_indexes WHERE schemaname = 'pgmq' AND indexname = $1;",
+    )
+    .bind(&index_name)
+    .fetch_one(&queue.connection)
+    .await
+    .unwrap();
+
+    assert_eq!(1, index_count, "FIFO index does not exist");
+}
+
+#[tokio::test]
+async fn test_create_fifo_indexes_all() {
+    let test_queue_prefix = format!(
+        "test_create_fifo_indexes_all_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue_prefix).await;
+    queue.drop_queue(&test_queue_prefix).await.unwrap();
+
+    let queue_names: Vec<String> = (0..5).map(|i| format!("{test_queue_prefix}_{i}")).collect();
+
+    for queue_name in queue_names.iter() {
+        queue.create(queue_name).await.unwrap();
+    }
+
+    let indexes_to_create: Vec<String> = queue_names
+        .iter()
+        .map(|queue_name| format!("q_{queue_name}_fifo_idx"))
+        .collect();
+
+    queue.create_fifo_indexes_all().await.unwrap();
+
+    let indexes = sqlx::query_scalar::<_, String>(
+        "SELECT indexname FROM pg_indexes WHERE schemaname = 'pgmq' AND starts_with(indexname, $1) AND indexname LIKE '%_fifo_idx' ORDER BY indexname;",
+    )
+    .bind(format!("q_{test_queue_prefix}"))
+    .fetch_all(&queue.connection)
+    .await
+    .unwrap();
+
+    assert_eq!(indexes_to_create, indexes);
+}
+
+#[tokio::test]
+async fn test_read_grouped_default_group() {
+    let test_queue = format!(
+        "test_read_grouped_default_group_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let msg1 = MyMessage::default();
+    let id1 = queue.send(&test_queue, &msg1).await.unwrap();
+    let msg2 = MyMessage::default();
+    let _ = queue.send(&test_queue, &msg2).await.unwrap();
+
+    {
+        let read_msg1 = queue
+            .read_grouped::<MyMessage>(&test_queue, 100, 1)
+            .await
+            .unwrap()
+            .into_iter()
+            .next();
+        let read_msg2 = queue
+            .read_grouped::<MyMessage>(&test_queue, 100, 1)
+            .await
+            .unwrap()
+            .into_iter()
+            .next();
+        assert!(read_msg1.is_some());
+        assert!(read_msg2.is_none(), "The second message should not become available until the first message has been processed");
+    }
+
+    {
+        queue.archive(&test_queue, id1).await.unwrap();
+        let read_msg2 = queue
+            .read_grouped::<MyMessage>(&test_queue, 100, 1)
+            .await
+            .unwrap()
+            .into_iter()
+            .next();
+        assert!(read_msg2.is_some());
+    }
+}
+
+#[tokio::test]
+async fn test_read_grouped_default_group_many() {
+    let test_queue = format!(
+        "read_grouped_default_group_many_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let msg1 = MyMessage::default();
+    queue.send(&test_queue, &msg1).await.unwrap();
+    let msg2 = MyMessage::default();
+    queue.send(&test_queue, &msg2).await.unwrap();
+
+    let read_msgs = queue
+        .read_grouped::<MyMessage>(&test_queue, 100, 2)
+        .await
+        .unwrap();
+    assert_eq!(2, read_msgs.len());
+}
+
+#[tokio::test]
+async fn test_read_grouped_custom_group() {
+    let test_queue = format!(
+        "test_read_grouped_custom_group_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let msg1 = MyMessage {
+        foo: "a".to_string(),
+        num: 1,
+    };
+    let headers1 = serde_json::json!({
+        "x-pgmq-group": msg1.num
+    });
+    let msg2 = MyMessage {
+        foo: "b".to_string(),
+        num: 2,
+    };
+    let headers2 = serde_json::json!({
+        "x-pgmq-group": msg2.num
+    });
+    queue
+        .send_batch_with_delay_with_headers(
+            &test_queue,
+            &[msg1, msg2],
+            Some(&[headers1, headers2]),
+            0,
+        )
+        .await
+        .unwrap();
+
+    let read_msg1 = queue
+        .read_grouped::<MyMessage>(&test_queue, 100, 1)
+        .await
+        .unwrap()
+        .into_iter()
+        .next();
+    let read_msg2 = queue
+        .read_grouped::<MyMessage>(&test_queue, 100, 1)
+        .await
+        .unwrap()
+        .into_iter()
+        .next();
+    assert!(read_msg1.is_some());
+    assert!(read_msg2.is_some());
+}
+
+#[tokio::test]
+async fn test_read_grouped_rr_diff_groups() {
+    let test_queue = format!(
+        "test_read_grouped_rr_diff_groups_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let msg1 = MyMessage {
+        foo: "a".to_string(),
+        num: 1,
+    };
+    let headers1 = serde_json::json!({
+        "x-pgmq-group": msg1.num
+    });
+    let msg2 = MyMessage {
+        foo: "b".to_string(),
+        num: 1,
+    };
+    let headers2 = serde_json::json!({
+        "x-pgmq-group": msg2.num
+    });
+    let msg3 = MyMessage {
+        foo: "c".to_string(),
+        num: 2,
+    };
+    let headers3 = serde_json::json!({
+        "x-pgmq-group": msg3.num
+    });
+    let msg4 = MyMessage {
+        foo: "d".to_string(),
+        num: 2,
+    };
+    let headers4 = serde_json::json!({
+        "x-pgmq-group": msg4.num
+    });
+    queue
+        .send_batch_with_delay_with_headers(
+            &test_queue,
+            &[msg1, msg2, msg3, msg4],
+            Some(&[headers1, headers2, headers3, headers4]),
+            0,
+        )
+        .await
+        .unwrap();
+
+    let read_msgs = queue
+        .read_grouped_rr::<MyMessage>(&test_queue, 100, 2)
+        .await
+        .unwrap();
+    assert_eq!(2, read_msgs.len());
+    assert_ne!(
+        read_msgs.first().unwrap().message.num,
+        read_msgs.get(1).unwrap().message.num
+    );
+
+    let read_msgs2 = queue
+        .read_grouped_rr::<MyMessage>(&test_queue, 100, 2)
+        .await
+        .unwrap();
+    assert!(read_msgs2.is_empty(), "The second message in each group should not become available until the first message has been processed");
+
+    queue
+        .archive_batch(
+            &test_queue,
+            &read_msgs.iter().map(|msg| msg.msg_id).collect::<Vec<_>>(),
+        )
+        .await
+        .unwrap();
+
+    let read_msgs = queue
+        .read_grouped_rr::<MyMessage>(&test_queue, 100, 2)
+        .await
+        .unwrap();
+    assert_eq!(2, read_msgs.len());
+    assert_ne!(
+        read_msgs.first().unwrap().message.num,
+        read_msgs.get(1).unwrap().message.num
+    );
+}
+
+#[tokio::test]
+async fn test_read_grouped_head_diff_groups() {
+    let test_queue = format!(
+        "test_read_grouped_head_diff_groups_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let msg1 = MyMessage {
+        foo: "a".to_string(),
+        num: 1,
+    };
+    let headers1 = serde_json::json!({
+        "x-pgmq-group": msg1.num
+    });
+    let msg2 = MyMessage {
+        foo: "b".to_string(),
+        num: 1,
+    };
+    let headers2 = serde_json::json!({
+        "x-pgmq-group": msg2.num
+    });
+    let msg3 = MyMessage {
+        foo: "c".to_string(),
+        num: 2,
+    };
+    let headers3 = serde_json::json!({
+        "x-pgmq-group": msg3.num
+    });
+    let msg4 = MyMessage {
+        foo: "d".to_string(),
+        num: 2,
+    };
+    let headers4 = serde_json::json!({
+        "x-pgmq-group": msg4.num
+    });
+    queue
+        .send_batch_with_delay_with_headers(
+            &test_queue,
+            &[msg1, msg2, msg3, msg4],
+            Some(&[headers1, headers2, headers3, headers4]),
+            0,
+        )
+        .await
+        .unwrap();
+
+    let read_msgs = queue
+        .read_grouped_head::<MyMessage>(&test_queue, 100, 2)
+        .await
+        .unwrap();
+    assert_eq!(2, read_msgs.len());
+    assert_ne!(
+        read_msgs.first().unwrap().message.num,
+        read_msgs.get(1).unwrap().message.num
+    );
+
+    let read_msgs2 = queue
+        .read_grouped_head::<MyMessage>(&test_queue, 100, 2)
+        .await
+        .unwrap();
+    assert!(read_msgs2.is_empty(), "The second message in each group should not become available until the first message has been processed");
+
+    queue
+        .archive_batch(
+            &test_queue,
+            &read_msgs.iter().map(|msg| msg.msg_id).collect::<Vec<_>>(),
+        )
+        .await
+        .unwrap();
+
+    let read_msgs = queue
+        .read_grouped_head::<MyMessage>(&test_queue, 100, 2)
+        .await
+        .unwrap();
+    assert_eq!(2, read_msgs.len());
+    assert_ne!(
+        read_msgs.first().unwrap().message.num,
+        read_msgs.get(1).unwrap().message.num
+    );
+}
+
+#[tokio::test]
+async fn test_read_grouped_with_poll() {
+    let test_queue = format!(
+        "test_read_grouped_with_poll_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let msg1 = MyMessage {
+        foo: "a".to_string(),
+        num: 1,
+    };
+    let headers1 = serde_json::json!({
+        "x-pgmq-group": msg1.num
+    });
+    let msg2 = MyMessage {
+        foo: "b".to_string(),
+        num: 2,
+    };
+    let headers2 = serde_json::json!({
+        "x-pgmq-group": msg2.num
+    });
+    queue
+        .send_batch_with_delay_with_headers(
+            &test_queue,
+            &[msg1, msg2],
+            Some(&[headers1, headers2]),
+            5,
+        )
+        .await
+        .unwrap();
+
+    let read_msgs = queue
+        .read_grouped_with_poll::<MyMessage>(
+            &test_queue,
+            100,
+            2,
+            Some(Duration::from_secs(10)),
+            Some(Duration::from_secs(1)),
+        )
+        .await
+        .unwrap();
+    assert_eq!(2, read_msgs.len());
+    assert_ne!(
+        read_msgs.first().unwrap().message.num,
+        read_msgs.get(1).unwrap().message.num
+    );
+}
+
+#[tokio::test]
+async fn test_read_grouped_rr_with_poll() {
+    let test_queue = format!(
+        "test_read_grouped_rr_with_poll_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let msg1 = MyMessage {
+        foo: "a".to_string(),
+        num: 1,
+    };
+    let headers1 = serde_json::json!({
+        "x-pgmq-group": msg1.num
+    });
+    let msg2 = MyMessage {
+        foo: "b".to_string(),
+        num: 2,
+    };
+    let headers2 = serde_json::json!({
+        "x-pgmq-group": msg2.num
+    });
+    queue
+        .send_batch_with_delay_with_headers(
+            &test_queue,
+            &[msg1, msg2],
+            Some(&[headers1, headers2]),
+            5,
+        )
+        .await
+        .unwrap();
+
+    let read_msgs = queue
+        .read_grouped_rr_with_poll::<MyMessage>(
+            &test_queue,
+            100,
+            2,
+            Some(Duration::from_secs(10)),
+            Some(Duration::from_secs(1)),
+        )
+        .await
+        .unwrap();
+    assert_eq!(2, read_msgs.len());
+    assert_ne!(
+        read_msgs.first().unwrap().message.num,
+        read_msgs.get(1).unwrap().message.num
+    );
+}
+
+#[tokio::test]
+async fn test_bind_list_topics() {
+    let test_queue = format!(
+        "test_bind_list_topics_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+    let pattern = format!("{test_queue}.*");
+
+    queue.bind_topic(&pattern, &test_queue).await.unwrap();
+    let topic_binding = queue
+        .list_topic_bindings(&test_queue)
+        .await
+        .unwrap()
+        .into_iter()
+        .next();
+    assert!(topic_binding.is_some());
+    let topic_binding = topic_binding.unwrap();
+    assert_eq!(topic_binding.queue_name, test_queue);
+    assert_eq!(topic_binding.pattern, pattern);
+    assert_eq!(
+        topic_binding.compiled_regex,
+        format!("^{test_queue}\\.[^.]+$")
+    );
+}
+
+#[tokio::test]
+async fn test_list_topics_all() {
+    let test_queue = format!(
+        "test_list_topics_all_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+    let pattern = format!("{test_queue}.*");
+
+    queue.bind_topic(&pattern, &test_queue).await.unwrap();
+    let topic_bindings = queue.list_topic_bindings_all().await.unwrap();
+    let topic_binding = topic_bindings
+        .into_iter()
+        .find(|binding| binding.queue_name == test_queue)
+        .unwrap();
+    assert_eq!(topic_binding.queue_name, test_queue);
+    assert_eq!(topic_binding.pattern, pattern);
+    assert_eq!(
+        topic_binding.compiled_regex,
+        format!("^{test_queue}\\.[^.]+$")
+    );
+}
+
+#[tokio::test]
+async fn test_unbind_topic() {
+    let test_queue = format!(
+        "test_unbind_topic_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+    let pattern = format!("{test_queue}.*");
+
+    queue.bind_topic(&pattern, &test_queue).await.unwrap();
+    queue.unbind_topic(&pattern, &test_queue).await.unwrap();
+    let topic_binding = queue
+        .list_topic_bindings(&test_queue)
+        .await
+        .unwrap()
+        .into_iter()
+        .next();
+    assert!(topic_binding.is_none());
+}
+
+#[tokio::test]
+async fn test_send_topic() {
+    let test_queue = format!(
+        "test_send_topic_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+    let pattern = format!("{test_queue}.*");
+
+    queue.bind_topic(&pattern, &test_queue).await.unwrap();
+
+    let msg = MyMessage::default();
+    let matched_queues = queue
+        .send_topic(&format!("{test_queue}.foo"), &msg, Option::<&()>::None, 0)
+        .await
+        .unwrap();
+    assert_eq!(1, matched_queues);
+
+    let read_msg = queue.read::<MyMessage>(&test_queue, 100).await.unwrap();
+    assert!(read_msg.is_some());
+}
+
+#[tokio::test]
+async fn test_send_batch_topic() {
+    let test_queue = format!(
+        "test_send_batch_topic_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+    let pattern = format!("{test_queue}.*");
+
+    queue.bind_topic(&pattern, &test_queue).await.unwrap();
+
+    let msgs = [MyMessage::default(), MyMessage::default()];
+    let send_batch_rows = queue
+        .send_batch_topic(
+            &format!("{test_queue}.foo"),
+            &msgs,
+            Option::<&[()]>::None,
+            0,
+        )
+        .await
+        .unwrap();
+    assert_eq!(msgs.len(), send_batch_rows.len());
+
+    let read_msgs = queue
+        .read_batch::<MyMessage>(&test_queue, 100, 2)
+        .await
+        .unwrap();
+    assert_eq!(msgs.len(), read_msgs.len());
 }

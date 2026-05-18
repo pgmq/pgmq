@@ -3,7 +3,6 @@ name: PGMQ Extension Upgrade
 defaults:
   run:
     shell: bash
-    working-directory: ./pgmq-extension
 
 on:
   pull_request:
@@ -24,74 +23,207 @@ on:
 
 jobs:
   test:
-    name: Upgrade Test
-    runs-on: ubuntu-22.04
+    name: Upgrade Test (pg ${{ matrix.pg }}) - partman ${{ matrix.partman }} - installed with ${{ matrix.install }}
+    runs-on: ubuntu-latest
+    container: pgxn/pgxn-tools
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: [ 14, 15, 16, 17, 18 ]
+        partman: [ 5.1.0 ]
+        install: [ ext, sql ]
+    env:
+      DATABASE_URL: postgresql://postgres@localhost:5432/postgres
     steps:
       - uses: actions/checkout@v4
-      - name: Install Rust stable toolchain
-        uses: actions-rs/toolchain@v1
         with:
-          toolchain: stable
-      - uses: Swatinem/rust-cache@v2
-        with:
-          prefix-key: "pgmq-extension-upgrade-test"
-          workspaces: |
-            pgmq
-          # Additional directories to cache
-          cache-directories: |
-            /home/runner/.pgrx
-      - name: Get current version
+          fetch-depth: 0
+
+      - name: Get current branch
         id: current-version
         run: echo "CI_BRANCH=$(git name-rev --name-only HEAD)" >> $GITHUB_OUTPUT
-      - uses: ./.github/actions/pgx-init
-      - name: Install dependencies
-        run: sudo apt-get update && sudo apt-get install -y postgresql-server-dev-14
-      - name: Set PG_CONFIG environment variable
-        run: echo "PG_CONFIG=$(cargo pgrx info pg-config pg16)" >> $GITHUB_ENV
+
+      - name: Start PostgreSQL ${{ matrix.pg }}
+        run: pg-start ${{ matrix.pg }}
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+
+      # upgrade_test.py may not exist on earlier branches, so copy it to a
+      # temp location that survives the git checkout to the old tag.
+      - name: Stash test files from CI branch
+        run: cp -r pgmq-extension/client-tests /tmp/upgrade-client-tests
+
+      # The sql-only installation method in the rust client that we're testing was added at version `1.11.0` and
+      # therefore does not exist on earlier branches, so copy it to a temp location that survives the
+      # `git checkout` to the old tag.
+      - name: Stash rust client from CI branch
+        if: ${{ matrix.install == 'sql' }}
+        run: |
+          cp -r pgmq-rs /tmp/pgmq-rs
+
+      - name: Checkout old version (v1.5.0)
+        if: ${{ matrix.install == 'ext' }}
+        run: git checkout tags/v1.5.0
+
+      - name: Checkout old version (v1.9.0)
+        if: ${{ matrix.install == 'sql' }}
+        run: git checkout tags/v1.9.0
+
       - name: Install pg_partman
         run: |
-          git clone https://github.com/pgpartman/pg_partman.git && \
-          cd pg_partman && \
-          git checkout v4.7.4 && \
-          sed -i "s|PG_CONFIG = pg_config|PG_CONFIG = ${PG_CONFIG}|" Makefile && \
-          make && \
-          make install
-      - name: Checkout old version (1.0.0)
+          pgxn install "pg_partman=${{ matrix.partman }}"
+          psql -c "CREATE EXTENSION pg_partman;"
+
+      - name: Install pgmq v1.5.0 as an extension
+        if: ${{ matrix.install == 'ext' }}
+        working-directory: ./pgmq-extension
         run: |
-          git fetch --tags
-          git checkout tags/v1.0.0
-      - name: Run old version (1.0.0)
-        run: |
-          rm -rf ./target/pgrx-test-data-* || true
-          cargo install cargo-pgrx --version 0.11.0
-          SQLX_OFFLINE=true cargo pgrx run pg16 --pgcli || true
-          export DATABASE_URL=postgres://$USER:postgres@localhost:28816/pgmq
-          psql $DATABASE_URL -c "DROP SCHEMA IF EXISTS pgmq CASCADE;"
-          psql $DATABASE_URL -c "DROP EXTENSION IF EXISTS pgmq CASCADE;"
-          psql $DATABASE_URL -c "DROP EXTENSION IF EXISTS pg_partman CASCADE;"
-          psql $DATABASE_URL -c "CREATE EXTENSION pg_partman;"
-          psql $DATABASE_URL -c "CREATE EXTENSION pgmq;"
-          psql $DATABASE_URL -c "select * from pgmq.create('test_queue_1')"
-          psql $DATABASE_URL -c "select * from pgmq.create_partitioned('test_partitioned_queue_1');"
-      - name: Checkout branch's version
-        env:
-          CI_BRANCH: ${{ steps.current-version.outputs.CI_BRANCH }}
-        run: |
-          git checkout $CI_BRANCH
-      - name: Upgrade extension version
-        run: |
-          make clean
+          make clean || true
           make
           make install
-          psql postgres://$USER:postgres@localhost:28816/pgmq -c "ALTER EXTENSION pgmq UPDATE;"
-      - name: Run tests
-        env:
-          PGPASSWORD: postgres
-          PGHOST: localhost
-          PGPORT: 28816
-          REGRESS_OPTS: --inputdir=test --dbname=pgmq
+          psql -c "CREATE EXTENSION pgmq;"
+
+      - name: Install pgmq v1.9.0 from sql
+        if: ${{ matrix.install == 'sql' }}
         run: |
-          status=0
-          make installcheck || status=$?
-          [ $status != 0 ] && find . -name regression.diffs -exec cat {} +
-          exit $status
+          # Replace the old rust client code with the current one
+          original_dir=$(pwd)
+          rm -rf pgmq-rs
+          cp -r /tmp/pgmq-rs pgmq-rs
+          cd "$original_dir/pgmq-rs"
+
+          # Build and run the rust client to install pgmq from sql
+          # Note: Because we're re-building the new rust client while an old version of the repo is checked out,
+          # the client will embed the migration scripts from the old version.
+          cargo run --features cli -- install install-from-embedded
+
+          # Restore the old rust client
+          cd "$original_dir"
+          rm -rf pgmq-rs
+          git restore .
+
+      - name: Run SQL tests
+        if: ${{ matrix.install == 'ext' }}
+        working-directory: ./pgmq-extension
+        run: pg-build-test
+
+      - name: Run pre-upgrade tests
+        working-directory: /tmp/upgrade-client-tests
+        run: UPGRADE_PHASE=pre uv run pytest upgrade_test.py -v
+
+      - name: Checkout CI branch
+        env:
+          CI_BRANCH: ${{ steps.current-version.outputs.CI_BRANCH }}
+        run: git checkout $CI_BRANCH
+
+      - name: Install and upgrade pgmq extension to CI branch version
+        if: ${{ matrix.install == 'ext' }}
+        working-directory: ./pgmq-extension
+        run: |
+          make clean || true
+          make
+          make install
+          psql -c "ALTER EXTENSION pgmq UPDATE;"
+
+      - name: Install and upgrade pgmq to CI branch version using sql
+        if: ${{ matrix.install == 'sql' }}
+        working-directory: ./pgmq-rs
+        run: cargo run --features cli -- install install-from-embedded
+
+      - name: Run post-upgrade tests
+        working-directory: ./pgmq-extension/client-tests
+        run: UPGRADE_PHASE=post uv run pytest upgrade_test.py -v
+
+      - name: Run SQL tests
+        if: ${{ matrix.install == 'ext' }}
+        working-directory: ./pgmq-extension
+        run: pg-build-test
+
+      - name: Show regression diffs
+        if: failure()
+        working-directory: ./pgmq-extension
+        run: cat regression.diffs
+
+  upgrade_scripts_do_not_diverge:
+    name: Confirm upgrade scripts do not diverge from fresh install (pg ${{ matrix.pg }})
+    runs-on: ubuntu-latest
+    container: pgxn/pgxn-tools
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: [ 14, 15, 16, 17, 18 ]
+    env:
+      DATABASE_URL: postgresql://postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get current branch
+        id: current-version
+        run: echo "CI_BRANCH=$(git name-rev --name-only HEAD)" >> $GITHUB_OUTPUT
+
+      - name: Start PostgreSQL ${{ matrix.pg }}
+        run: pg-start ${{ matrix.pg }}
+
+      - name: Checkout old version (v1.5.0)
+        run: git checkout tags/v1.5.0
+
+      - name: Install pgmq v1.5.0 as an extension
+        working-directory: ./pgmq-extension
+        run: |
+          make clean || true
+          make
+          make install
+          psql -c "CREATE EXTENSION pgmq;"
+
+      - name: Checkout CI branch
+        env:
+          CI_BRANCH: ${{ steps.current-version.outputs.CI_BRANCH }}
+        run: git checkout $CI_BRANCH
+
+      - name: Install and upgrade pgmq extension to CI branch version
+        working-directory: ./pgmq-extension
+        run: |
+          make clean || true
+          make
+          make install
+          psql -c "ALTER EXTENSION pgmq UPDATE;"
+
+      - name: Dump the extension schema (upgrade path)
+        working-directory: ./pgmq-extension
+        run: |
+          make dump.extension-schema FILE_PATH=/tmp/pg_dump_upgrade.txt
+
+      - name: Drop the extension and perform a fresh installation
+        run: |
+          psql "$DATABASE_URL" -c "DROP EXTENSION pgmq;"
+          psql "$DATABASE_URL" -c "CREATE EXTENSION pgmq;"
+
+      - name: Dump the extension schema (fresh install)
+        working-directory: ./pgmq-extension
+        run: |
+          make dump.extension-schema FILE_PATH=/tmp/pg_dump_fresh.txt
+
+      - name: Compare output
+        run: |
+          # `pg_dump` outputs two random lines that will always be different for every output. They look something like this:
+          #
+          # ```
+          # \restrict JHbd1xebXKAq2dfkAGAXWi7b1B3ifORyKWdIrTcwerJibjA54EsYymeEFrIQNmc
+          # \unrestrict JHbd1xebXKAq2dfkAGAXWi7b1B3ifORyKWdIrTcwerJibjA54EsYymeEFrIQNmc
+          # ```
+          num_lines_different=$(! diff -y --suppress-common-lines --ignore-all-space /tmp/pg_dump_upgrade.txt /tmp/pg_dump_fresh.txt | wc -l)
+          if [[ $num_lines_different -gt 2 ]]; then
+            echo "PGMQ upgrade diverges from a fresh installation. Diff:"
+            ! diff --suppress-common-lines --ignore-all-space /tmp/pg_dump_upgrade.txt /tmp/pg_dump_fresh.txt
+
+            echo "Upgrade path:"
+            cat /tmp/pg_dump_upgrade.txt
+
+            echo "Fresh install:"
+            cat /tmp/pg_dump_fresh.txt
+
+            exit 1
+          fi

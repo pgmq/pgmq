@@ -1,0 +1,9 @@
+---
+source: src/install/version.rs
+expression: version
+---
+Err(
+    InstallationError(
+        "Invalid version: '1.2'",
+    ),
+)

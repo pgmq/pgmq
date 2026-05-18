@@ -14,4 +14,5 @@ dependencies = [
     "mkdocstrings>=0.24.0",
     "pymdown-extensions>=10.0",
     "mike>=2.0.0",
+    "semver>=3.0.4",
 ]

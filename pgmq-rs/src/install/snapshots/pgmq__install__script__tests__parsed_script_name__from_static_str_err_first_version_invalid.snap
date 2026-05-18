@@ -1,0 +1,9 @@
+---
+source: src/install/script.rs
+expression: name
+---
+Err(
+    InstallationError(
+        "Invalid version: 'a.b.c'",
+    ),
+)

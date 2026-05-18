@@ -14,7 +14,15 @@ async fn main() {
         .await
         .expect("failed to connect to postgres");
 
-    let _ = queue.install_sql(Some(&"1.10.0".to_string())).await;
+    // Installs the specific version from GitHub.
+    queue.install_sql_from_github(Some("1.10.0")).await.unwrap();
+
+    // Installs the version embedded in the rust crate. This may not always be the latest released
+    // extension version.
+    queue.install_sql_from_embedded().await.unwrap();
+
+    // Installs the latest version from GitHub
+    queue.install_sql_from_github(None).await.unwrap();
 
     queue
         .create("my_queue")

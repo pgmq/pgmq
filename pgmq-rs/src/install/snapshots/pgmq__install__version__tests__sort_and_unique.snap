@@ -1,0 +1,36 @@
+---
+source: src/install/version.rs
+expression: versions
+---
+[
+    Version {
+        major: 0,
+        minor: 1,
+        patch: 0,
+    },
+    Version {
+        major: 1,
+        minor: 0,
+        patch: 1,
+    },
+    Version {
+        major: 1,
+        minor: 1,
+        patch: 1,
+    },
+    Version {
+        major: 1,
+        minor: 11,
+        patch: 1,
+    },
+    Version {
+        major: 2,
+        minor: 0,
+        patch: 0,
+    },
+    Version {
+        major: 2,
+        minor: 0,
+        patch: 1,
+    },
+]

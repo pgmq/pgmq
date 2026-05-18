@@ -1,0 +1,8 @@
+---
+source: src/types.rs
+expression: value
+---
+{
+  "a": "a",
+  "b": 1234
+}

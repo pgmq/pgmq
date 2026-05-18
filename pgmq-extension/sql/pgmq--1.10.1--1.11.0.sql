@@ -515,6 +515,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 
+DROP FUNCTION pgmq.read_grouped(TEXT, INTEGER, INTEGER);
 CREATE OR REPLACE FUNCTION pgmq.read_grouped(
     queue_name TEXT,
     vt INTEGER,
@@ -609,5 +610,182 @@ BEGIN
         qtable, qtable, qtable, qtable, qtable, make_interval(secs => vt)
     );
     RETURN QUERY EXECUTE sql USING qty;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP FUNCTION pgmq.read(TEXT, INTEGER, INTEGER, JSONB);
+CREATE FUNCTION pgmq.read(
+    queue_name TEXT,
+    vt INTEGER,
+    qty INTEGER,
+    conditional JSONB DEFAULT '{}'
+)
+RETURNS SETOF pgmq.message_record AS $$
+DECLARE
+    sql TEXT;
+    qtable TEXT := pgmq.format_table_name(queue_name, 'q');
+BEGIN
+    sql := FORMAT(
+        $QUERY$
+        WITH cte AS
+        (
+            SELECT msg_id
+            FROM pgmq.%I
+            WHERE vt <= clock_timestamp() AND CASE
+                WHEN %L != '{}'::jsonb THEN (message @> %2$L)::integer
+                ELSE 1
+            END = 1
+            ORDER BY msg_id ASC
+            LIMIT $1
+            FOR UPDATE SKIP LOCKED
+        )
+        UPDATE pgmq.%I m
+        SET
+            last_read_at = clock_timestamp(),
+            vt = clock_timestamp() + %L,
+            read_ct = read_ct + 1
+        FROM cte
+        WHERE m.msg_id = cte.msg_id
+        RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.last_read_at, m.vt, m.message, m.headers;
+        $QUERY$,
+        qtable, conditional, qtable, make_interval(secs => vt)
+    );
+    RETURN QUERY EXECUTE sql USING qty;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP FUNCTION pgmq.read_with_poll(TEXT, INTEGER, INTEGER, INTEGER, INTEGER, JSONB);
+CREATE FUNCTION pgmq.read_with_poll(
+    queue_name TEXT,
+    vt INTEGER,
+    qty INTEGER,
+    max_poll_seconds INTEGER DEFAULT 5,
+    poll_interval_ms INTEGER DEFAULT 100,
+    conditional JSONB DEFAULT '{}'
+)
+RETURNS SETOF pgmq.message_record AS $$
+DECLARE
+    r pgmq.message_record;
+    stop_at TIMESTAMP;
+    sql TEXT;
+    qtable TEXT := pgmq.format_table_name(queue_name, 'q');
+BEGIN
+    stop_at := clock_timestamp() + make_interval(secs => max_poll_seconds);
+    LOOP
+      IF (SELECT clock_timestamp() >= stop_at) THEN
+        RETURN;
+      END IF;
+
+      sql := FORMAT(
+          $QUERY$
+          WITH cte AS
+          (
+              SELECT msg_id
+              FROM pgmq.%I
+              WHERE vt <= clock_timestamp() AND CASE
+                  WHEN %L != '{}'::jsonb THEN (message @> %2$L)::integer
+                  ELSE 1
+              END = 1
+              ORDER BY msg_id ASC
+              LIMIT $1
+              FOR UPDATE SKIP LOCKED
+          )
+          UPDATE pgmq.%I m
+          SET
+              last_read_at = clock_timestamp(),
+              vt = clock_timestamp() + %L,
+              read_ct = read_ct + 1
+          FROM cte
+          WHERE m.msg_id = cte.msg_id
+          RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.last_read_at, m.vt, m.message, m.headers;
+          $QUERY$,
+          qtable, conditional, qtable, make_interval(secs => vt)
+      );
+
+      FOR r IN
+        EXECUTE sql USING qty
+      LOOP
+        RETURN NEXT r;
+      END LOOP;
+      IF FOUND THEN
+        RETURN;
+      ELSE
+        PERFORM pg_sleep(poll_interval_ms::numeric / 1000);
+      END IF;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP FUNCTION pgmq.pop(TEXT, INTEGER);
+CREATE FUNCTION pgmq.pop(queue_name TEXT, qty INTEGER DEFAULT 1)
+RETURNS SETOF pgmq.message_record AS $$
+DECLARE
+    sql TEXT;
+    result pgmq.message_record;
+    qtable TEXT := pgmq.format_table_name(queue_name, 'q');
+BEGIN
+    sql := FORMAT(
+        $QUERY$
+        WITH cte AS
+            (
+                SELECT msg_id
+                FROM pgmq.%I
+                WHERE vt <= clock_timestamp()
+                ORDER BY msg_id ASC
+                LIMIT $1
+                FOR UPDATE SKIP LOCKED
+            )
+        DELETE from pgmq.%I
+        WHERE msg_id IN (select msg_id from cte)
+        RETURNING msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers;
+        $QUERY$,
+        qtable, qtable
+    );
+    RETURN QUERY EXECUTE sql USING qty;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP FUNCTION pgmq.set_vt(TEXT, BIGINT, TIMESTAMP WITH TIME ZONE);
+CREATE FUNCTION pgmq.set_vt(queue_name TEXT, msg_id BIGINT, vt TIMESTAMP WITH TIME ZONE)
+RETURNS SETOF pgmq.message_record AS $$
+DECLARE
+    sql TEXT;
+    result pgmq.message_record;
+    qtable TEXT := pgmq.format_table_name(queue_name, 'q');
+BEGIN
+    sql := FORMAT(
+        $QUERY$
+        UPDATE pgmq.%I
+        SET vt = $1
+        WHERE msg_id = $2
+        RETURNING msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers;
+        $QUERY$,
+        qtable
+    );
+    RETURN QUERY EXECUTE sql USING vt, msg_id;
+END;
+$$ LANGUAGE plpgsql;
+
+DROP FUNCTION pgmq.set_vt(TEXT, BIGINT[], TIMESTAMP WITH TIME ZONE);
+CREATE FUNCTION pgmq.set_vt(
+    queue_name TEXT,
+    msg_ids BIGINT[],
+    vt TIMESTAMP WITH TIME ZONE
+)
+RETURNS SETOF pgmq.message_record AS $$
+DECLARE
+    sql TEXT;
+    qtable TEXT := pgmq.format_table_name(queue_name, 'q');
+BEGIN
+    sql := FORMAT(
+        $QUERY$
+        UPDATE pgmq.%I
+        SET vt = $1
+        WHERE msg_id = ANY($2)
+        RETURNING msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers;
+        $QUERY$,
+        qtable
+    );
+    RETURN QUERY EXECUTE sql USING vt, msg_ids;
 END;
 $$ LANGUAGE plpgsql;

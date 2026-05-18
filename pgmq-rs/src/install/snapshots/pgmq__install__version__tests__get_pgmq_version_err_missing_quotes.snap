@@ -1,0 +1,9 @@
+---
+source: src/install/version.rs
+expression: pgmq_version
+---
+Err(
+    InstallationError(
+        "Unable to extract version from extension config: default_version = 1.11.0",
+    ),
+)

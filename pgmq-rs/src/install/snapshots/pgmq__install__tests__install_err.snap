@@ -1,0 +1,7 @@
+---
+source: src/install/mod.rs
+expression: err
+---
+InstallationError(
+    "Some error",
+)

@@ -21,6 +21,16 @@ CREATE TABLE IF NOT EXISTS pgmq.meta (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
 );
 
+-- Grant permission to pg_monitor to all tables and sequences
+-- These grants are intentionally placed here (after creating `pgmq.meta` but before creating other tables). This
+-- allows the `pg_dump` output for a fresh installation to match the output for an installation that followed the
+-- upgrade path.
+GRANT USAGE ON SCHEMA pgmq TO pg_monitor;
+GRANT SELECT ON ALL TABLES IN SCHEMA pgmq TO pg_monitor;
+GRANT SELECT ON ALL SEQUENCES IN SCHEMA pgmq TO pg_monitor;
+ALTER DEFAULT PRIVILEGES IN SCHEMA pgmq GRANT SELECT ON TABLES TO pg_monitor;
+ALTER DEFAULT PRIVILEGES IN SCHEMA pgmq GRANT SELECT ON SEQUENCES TO pg_monitor;
+
 -- Table to track notification throttling for queues
 CREATE UNLOGGED TABLE IF NOT EXISTS pgmq.notify_insert_throttle (
     queue_name           VARCHAR UNIQUE NOT NULL -- Queue name (without 'q_' prefix)
@@ -62,7 +72,7 @@ CREATE TABLE IF NOT EXISTS pgmq.topic_bindings
 -- Includes queue_name and compiled_regex to allow index-only scans (no table access needed)
 CREATE INDEX IF NOT EXISTS idx_topic_bindings_covering ON pgmq.topic_bindings (pattern) INCLUDE (queue_name, compiled_regex);
 
--- Allow pgmq.meta to be dumped by `pg_dump` when pgmq is installed as an extension
+-- Allow the following `pgmq` tables to be dumped by `pg_dump` when pgmq is installed as an extension
 DO
 $$
 BEGIN
@@ -73,13 +83,6 @@ BEGIN
     END IF;
 END
 $$;
-
--- Grant permission to pg_monitor to all tables and sequences
-GRANT USAGE ON SCHEMA pgmq TO pg_monitor;
-GRANT SELECT ON ALL TABLES IN SCHEMA pgmq TO pg_monitor;
-GRANT SELECT ON ALL SEQUENCES IN SCHEMA pgmq TO pg_monitor;
-ALTER DEFAULT PRIVILEGES IN SCHEMA pgmq GRANT SELECT ON TABLES TO pg_monitor;
-ALTER DEFAULT PRIVILEGES IN SCHEMA pgmq GRANT SELECT ON SEQUENCES TO pg_monitor;
 
 -- This type has the shape of a message in a queue, and is often returned by
 -- pgmq functions that return messages
@@ -233,6 +236,53 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- read_grouped_head:  read the head of N different FIFO groups in a single operation.
+-- This supports horizontal scaling by processing groups in parallel while ensuring message ordering is preserved per group.
+CREATE FUNCTION pgmq.read_grouped_head(
+    queue_name TEXT,
+    vt INTEGER,
+    qty INTEGER
+)
+RETURNS SETOF pgmq.message_record AS $$
+DECLARE
+    sql TEXT;
+    qtable TEXT := pgmq.format_table_name(queue_name, 'q');
+BEGIN
+    sql := FORMAT(
+        $QUERY$
+        WITH fifo_groups AS (
+            -- Determine the absolute head (oldest) message id per FIFO group, regardless of visibility
+            SELECT 
+                COALESCE(headers->>'x-pgmq-group', '_default_fifo_group') AS fifo_key,
+                MIN(msg_id) AS head_msg_id
+            FROM pgmq.%1$I
+            GROUP BY COALESCE(headers->>'x-pgmq-group', '_default_fifo_group')
+        ),
+        selected_messages AS (
+            -- Take at most 1 message per group
+            SELECT g.head_msg_id msg_id
+            FROM fifo_groups g
+            JOIN pgmq.%1$I q ON q.msg_id = g.head_msg_id
+	        WHERE q.vt <= clock_timestamp()
+            ORDER BY q.msg_id
+            LIMIT $1
+            FOR UPDATE SKIP LOCKED
+        )
+        UPDATE pgmq.%1$I m
+        SET
+            vt = clock_timestamp() + %2$L,
+            read_ct = read_ct + 1,
+            last_read_at = clock_timestamp()
+        FROM selected_messages sm
+        WHERE m.msg_id = sm.msg_id
+        RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.last_read_at, m.vt, m.message, m.headers;
+        $QUERY$,
+        qtable, make_interval(secs => vt)
+    );
+    RETURN QUERY EXECUTE sql USING qty;
+END;
+$$ LANGUAGE plpgsql;
+
 -- a helper to format table names and check for invalid characters
 CREATE FUNCTION pgmq.format_table_name(queue_name text, prefix text)
 RETURNS TEXT AS $$
@@ -279,7 +329,7 @@ BEGIN
             read_ct = read_ct + 1
         FROM cte
         WHERE m.msg_id = cte.msg_id
-        RETURNING m.*;
+        RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.last_read_at, m.vt, m.message, m.headers;
         $QUERY$,
         qtable, conditional, qtable, make_interval(secs => vt)
     );
@@ -465,7 +515,7 @@ BEGIN
               read_ct = read_ct + 1
           FROM cte
           WHERE m.msg_id = cte.msg_id
-          RETURNING m.*;
+          RETURNING m.msg_id, m.read_ct, m.enqueued_at, m.last_read_at, m.vt, m.message, m.headers;
           $QUERY$,
           qtable, conditional, qtable, make_interval(secs => vt)
       );
@@ -889,7 +939,7 @@ BEGIN
             )
         DELETE from pgmq.%I
         WHERE msg_id IN (select msg_id from cte)
-        RETURNING *;
+        RETURNING msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers;
         $QUERY$,
         qtable, qtable
     );
@@ -910,7 +960,7 @@ BEGIN
         UPDATE pgmq.%I
         SET vt = $1
         WHERE msg_id = $2
-        RETURNING *;
+        RETURNING msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers;
         $QUERY$, 
         qtable
     );
@@ -940,7 +990,7 @@ BEGIN
         UPDATE pgmq.%I
         SET vt = $1
         WHERE msg_id = ANY($2)
-        RETURNING *;
+        RETURNING msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers;
         $QUERY$,
         qtable
     );

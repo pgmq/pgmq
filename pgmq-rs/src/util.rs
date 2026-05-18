@@ -4,18 +4,12 @@ use crate::{errors::PgmqError, types::Message};
 
 use log::LevelFilter;
 use serde::Deserialize;
-use sqlx::error::Error;
-use sqlx::postgres::PgRow;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
-use sqlx::ConnectOptions;
-use sqlx::Row;
+use sqlx::FromRow;
+use sqlx::{ConnectOptions, Transaction};
 use sqlx::{Pool, Postgres};
 use url::{ParseError, Url};
 
-#[cfg(feature = "cli")]
-use futures_util::stream::StreamExt;
-#[cfg(feature = "cli")]
-use sqlx::Executor;
 // Configure connection options
 pub fn conn_options(url: &str) -> Result<PgConnectOptions, ParseError> {
     // Parse url
@@ -49,23 +43,12 @@ pub async fn fetch_one_message<T: for<'de> Deserialize<'de>>(
     connection: &Pool<Postgres>,
 ) -> Result<Option<Message<T>>, PgmqError> {
     // explore: .fetch_optional()
-    let row: Result<PgRow, Error> = sqlx::query(query).fetch_one(connection).await;
+    let row = sqlx::query(query)
+        .fetch_one(connection)
+        .await
+        .and_then(|row| Message::<T>::from_row(&row));
     match row {
-        Ok(row) => {
-            // happy path - successfully read a message
-            let raw_msg = row.get("message");
-            let parsed_msg = serde_json::from_value::<T>(raw_msg);
-            match parsed_msg {
-                Ok(parsed_msg) => Ok(Some(Message {
-                    msg_id: row.get("msg_id"),
-                    vt: row.get("vt"),
-                    read_ct: row.get("read_ct"),
-                    enqueued_at: row.get("enqueued_at"),
-                    message: parsed_msg,
-                })),
-                Err(e) => Err(PgmqError::JsonParsingError(e)),
-            }
-        }
+        Ok(row) => Ok(Some(row)),
         Err(sqlx::error::Error::RowNotFound) => Ok(None),
         Err(e) => Err(e)?,
     }
@@ -127,104 +110,38 @@ pub fn check_input(input: &str) -> Result<(), PgmqError> {
     }
 }
 
-#[cfg(feature = "cli")]
-async fn get_latest_release_tag() -> Result<String, PgmqError> {
-    log::info!("Getting latest PGMQ release...");
-
-    let client = reqwest::Client::new();
-    let response = client
-        .get("https://api.github.com/repos/pgmq/pgmq/releases/latest")
-        .header("User-Agent", "pgmq-cli")
-        .send()
-        .await?;
-
-    if !response.status().is_success() {
-        return Err(format!("Failed to fetch latest release: HTTP {}", response.status()).into());
-    }
-
-    let release: GitHubRelease = response.json().await?;
-    log::info!("Latest release: {}", release.tag_name);
-
-    Ok(release.tag_name)
-}
-
-#[cfg(feature = "cli")]
-async fn get_install_sql(version: Option<&String>) -> Result<String, PgmqError> {
-    let version_to_use = match version {
-        Some(v) => v.clone(),
-        None => get_latest_release_tag().await?,
-    };
-
-    // Determine if it's a git hash by checking if it's a hex string
-    let is_git_hash = version_to_use.len() >= 7 && // minimum abbreviated hash
-        version_to_use.len() <= 64 && // maximum full hash
-        version_to_use.chars().all(|c| c.is_ascii_hexdigit());
-
-    let sql_url = if is_git_hash {
-        format!(
-            "https://raw.githubusercontent.com/pgmq/pgmq/{version_to_use}/pgmq-extension/sql/pgmq.sql",
-        )
-    } else {
-        let version_tag = if version_to_use.starts_with('v') {
-            version_to_use.clone()
-        } else {
-            format!("v{version_to_use}")
-        };
-        format!(
-            "https://raw.githubusercontent.com/pgmq/pgmq/refs/tags/{version_tag}/pgmq-extension/sql/pgmq.sql",
-        )
-    };
-
-    log::info!("Fetching SQL from: {sql_url}");
-
-    let client = reqwest::Client::new();
-    let response = client.get(&sql_url).send().await?;
-
-    if !response.status().is_success() {
-        return Err(format!("Failed to download SQL file: HTTP {}", response.status()).into());
-    }
-    let sql_content = response.text().await?;
-    Ok(sql_content)
-}
-
-#[cfg(feature = "cli")]
+#[cfg(feature = "install-sql-github")]
+#[deprecated(
+    note = "Use pgmq::install::install_sql_from_github or pgmq::install::install_sql_from_embedded instead.",
+    since = "0.33.0"
+)]
 pub async fn install_pgmq(
     pool: &Pool<Postgres>,
     version: Option<&String>,
 ) -> Result<(), PgmqError> {
-    log::info!("Installing PGMQ...");
-
-    let sql_content = get_install_sql(version).await?;
     // Execute the SQL file
     log::info!("Executing PGMQ installation SQL...");
-    execute_sql_statements(pool, &sql_content).await?;
+
+    crate::install::install_sql_from_github(pool, version.map(|v| v.as_str())).await?;
 
     log::info!("PGMQ installation completed successfully!");
     Ok(())
 }
 
-#[cfg(feature = "cli")]
-async fn execute_sql_statements(pool: &Pool<Postgres>, multi_query: &str) -> Result<(), Error> {
-    let mut tx = pool.begin().await?;
+/// Advisory lock key used to ensure only one transaction can run the `pgmq` installation process
+/// at once. Select a random large negative `bigint` value to minimize the chances of conflicting
+/// with another advisory lock used by the actual application.
+const ADVISORY_LOCK_KEY: i64 = -9223372036854775808 + 4149;
 
-    {
-        let mut stream = tx.fetch_many(multi_query);
-        // Consume the stream, ignore results, but propagate errors
-        while let Some(step) = stream.next().await {
-            // Only check for error
-            step?; // If any query fails, this will return the error immediately
-        }
-    }
-
-    tx.commit().await?;
+/// Acquire an advisory lock to be sure that only one transaction can run the pgmq SQL
+/// installation/upgrade process at once. Without this, it's possible for multiple transactions
+/// to attempt to perform the `pgmq` SQL installation/upgrade process at the same time, and they
+/// may conflict when creating the `pgmq` schema and/or `pgmq.__pgmq_migrations` table. This is
+/// the case even with `IF NOT EXISTS` in the SQL query.
+pub(crate) async fn init_lock<'c>(txn: &mut Transaction<'c, Postgres>) -> Result<(), PgmqError> {
+    sqlx::query("SELECT pg_advisory_xact_lock($1);")
+        .bind(ADVISORY_LOCK_KEY)
+        .execute(&mut **txn)
+        .await?;
     Ok(())
-}
-
-#[cfg(feature = "cli")]
-use serde::Serialize;
-#[cfg(feature = "cli")]
-#[derive(Serialize, Deserialize)]
-struct GitHubRelease {
-    tag_name: String,
-    name: String,
 }

@@ -78,7 +78,11 @@ This will remove all objects created by the extension, including tables, functio
 
 ## SQL-only installation
 
-PGMQ consists of raw SQL objects and can also be installed directly into any Postgres instance. This method is preferred when extension installation or access to the server host is not available. This method will create a schema named `pgmq` and all SQL objects in that schema.
+### Unversioned installation
+
+> ⚠️ This installation approach is not versioned and only works for a fresh installation of `pgmq`.
+
+PGMQ consists of raw SQL objects and can also be installed directly into any Postgres instance. This method is can be used when extension installation or access to the server host is not available. This method will create a schema named `pgmq` and all SQL objects in that schema.
 
 Simply executing the SQL definition file on your Postgres instance will create all the required objects. This can be accomplished by cloning the repo then running the following commands. This requires `psql` to be installed and available on your `PATH`.
 
@@ -92,8 +96,35 @@ psql -f pgmq-extension/sql/pgmq.sql postgres://postgres:postgres@localhost:5432/
 
 Replace the postgres user, password, and database with the appropriate values for your Postgres instance.
 
-## Uninstalling the SQL-only install
+### Versioned installation
 
+Some clients provide a versioned SQL-only installation. This allows either a fresh installation of `pgmq`, or upgrading
+the existing installation to the latest version. For example, the Rust client supports versioned installation via a CLI:
+
+```bash
+cargo install pgmq --features cli --bin pgmq-cli
+# Install from embedded scripts
+pgmq-cli install -d postgres://postgres:postgres@localhost:5432/postgres install-from-embedded
+# Install from scripts fetched from GitHub
+pgmq-cli install -d postgres://postgres:postgres@localhost:5432/postgres install-from-github -v 1.9.0
+```
+
+Or via the `pgmq::PGMQueueExt` struct (requires the `install-sql-github` or `install-sql-embedded` features):
+
+```rust
+async fn install_sql(pool: sqlx::Pool<sqlx::Postgres>) -> Result<(), pgmq::PgmqError> {
+    let queue = pgmq::PGMQueueExt::new_with_pool(pool).await;
+    // If the `install-sql-github` feature is enabled
+    queue.install_sql_from_github(Some("1.9.0")).await?;
+    // If the `install-sql-embedded` feature is enabled
+    queue.install_sql_from_embedded().await?;
+    Ok(())
+}
+```
+
+See the Rust crate's documentation for more details.
+
+### Uninstalling the SQL-only installation
 All objects are created in the `pgmq` schema, so the simplest way to remove the project is to drop the schema:
 
 ```sql
@@ -108,13 +139,13 @@ Once you have installed PGMQ, you can start using it. The [README](pgmq-extensio
 
 The project's core functions and features are the same regardless of how PGMQ is installed, though there are some differences in how the project is managed depending on the installation method. The following table summarizes these differences:
 
-| Capability / Feature | Extension Install | SQL-only Install | Notes |
-|----------------------|-------------------|------------------|-------|
-| Version Tracking | ✅ | ❌ | Extension allows Postgres to track installed versions and users can inspect via `\dx pgmq` |
-| Supported Upgrades | ✅ | ❌ | Extensions can be upgraded with `ALTER EXTENSION pgmq UPDATE` |
-| No File System Access Needed | ❌ | ✅ | SQL-only installs work entirely within the database |
-| Managed Cloud Support | 🟡 (limited) | ✅ | SQL-only is compatible with most managed services |
-| Simple Deployment | ❌ | ✅ | SQL-only requires just executing SQL in the database |
-| Best For | Full control environments | Restricted/managed environments | |
+| Capability / Feature | Extension Install | SQL-only Install | Versioned SQL-only Install (E.g., the Rust crate) | Notes |
+|----------------------|-------------------|---------------------------------|-------|----|
+| Version Tracking | ✅ | ❌| ✅ | Extension allows Postgres to track installed versions and users can inspect via `\dx pgmq`. Versioned SQL-only installations allow inspecting the current version with client-defined APIs. |
+| Supported Upgrades | ✅ | ❌ | ✅ | Extensions can be upgraded with `ALTER EXTENSION pgmq UPDATE`. Versioned SQL-only installations can be upgraded with client-defined APIs. |
+| No File System Access Needed | ❌ | ✅ | ✅ | SQL-only installs work entirely within the database |
+| Managed Cloud Support | 🟡 (limited) | ✅ | ✅ | SQL-only is compatible with most managed services |
+| Simple Deployment | ❌ | ✅ | ✅ | SQL-only requires just executing SQL in the database |
+| Best For | Full control environments | Restricted/managed environments | Restricted/managed environments | |
 
 Recommendation: Use the extension installation when your environment allows it. If you want to use PGMQ in a managed service that does not support extensions, then install it as raw SQL.

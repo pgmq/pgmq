@@ -21,8 +21,8 @@ jobs:
     name: Run linters
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - name: Install minimal nightly with clippy and rustfmt
+      - uses: actions/checkout@v5
+      - name: Install minimal rust toolchain with clippy and rustfmt
         uses: dtolnay/rust-toolchain@stable
         with:
           profile: minimal
@@ -30,9 +30,33 @@ jobs:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
       - name: Cargo format
-        run: cargo fmt --all --check
+        run: make check.fmt
       - name: Clippy
-        run: cargo clippy
+        run: make check.clippy
+      - name: Check docs
+        run: make check.docs
+
+  semver:
+    name: Check SemVer compatibility
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: taiki-e/install-action@9adcff13829681f1e2f4a678b775043ab5c7fc2c
+        with:
+          tool: cargo-semver-checks
+      - name: Check SemVer
+        run: make check.semver
+
+  minimal-versions:
+    name: Check dependency minimal versions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: taiki-e/install-action@9adcff13829681f1e2f4a678b775043ab5c7fc2c
+        with:
+          tool: cargo-minimal-versions,cargo-hack
+      - name: Check versions
+        run: make check.minimal-versions
 
   tests:
     name: Run tests
@@ -53,7 +77,7 @@ jobs:
     env:
       DATABASE_URL: "postgresql://postgres:postgres@0.0.0.0:5432/postgres"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install Rust stable toolchain
         uses: dtolnay/rust-toolchain@stable
         with:
@@ -66,6 +90,61 @@ jobs:
       - name: Migrations
         # ensure migration cache is up to date
         run: cargo sqlx prepare --check
+
+  pgmq_ext_init_race_condition:
+    name: PGMQ Extension Init Race Condition
+    runs-on: ubuntu-22.04
+    needs: lint
+    services:
+      postgres:
+        image: ghcr.io/pgmq/pg17-pgmq:latest
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      DATABASE_URL: "postgresql://postgres:postgres@0.0.0.0:5432/postgres"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run PGMQ extension integration tests
+        run: cargo test --test pg_ext_integration_test
+
+  tests_ext_sql_install:
+    name: Run PGMQueueExt tests with sql installation
+    runs-on: ubuntu-22.04
+    needs: lint
+    services:
+      postgres:
+        # One of the tests requires `pg_partman`, so we'll use the `pgmq` image even though we install `pgmq` using SQL
+        image: ghcr.io/pgmq/pg17-pgmq:latest
+        env:
+          POSTGRES_PASSWORD: postgres
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+          - 5432:5432
+    env:
+      DATABASE_URL: "postgresql://postgres:postgres@0.0.0.0:5432/postgres"
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Rust stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Run PGMQueueExt tests with sql installation
+        run: make test.pgmqext_sql
 
   test_sql_install:
     name: Test SQL Installation
@@ -87,14 +166,10 @@ jobs:
     env:
       DATABASE_URL: "postgresql://postgres:postgres@localhost:5432/postgres"
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - name: Install Rust stable toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
+        uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
-      - name: Set PGMQ_VERSION
-        run: echo "PGMQ_VERSION=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
       - name: Wait for PostgreSQL
         run: |
           until pg_isready -h localhost -p 5432 -U postgres; do
@@ -102,15 +177,15 @@ jobs:
             sleep 2
           done
       - name: Run SQL installation test
-        run: cargo test test_sql_lifecycle --release --features cli -- --ignored
+        run: cargo test test_sql_lifecycle --release --features install-sql-embedded -- --ignored
 
   publish:
     name: Publish or validate crate
     runs-on: ubuntu-latest
-    needs: [lint, tests]
+    needs: [ lint, tests ]
     if: github.repository == 'pgmq/pgmq'
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
         with:
           fetch-depth: 2  # Need at least 2 commits to compare
       - name: Install Rust stable toolchain

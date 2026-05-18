@@ -8,4 +8,5 @@ dependencies = [
     "psycopg[binary]>=3.2.10",
     "pytest>=8.4.2",
     "ruff>=0.12.12",
+    "semver>=3.0.4",
 ]

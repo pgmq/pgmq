@@ -3,6 +3,7 @@ use thiserror::Error;
 use url::ParseError;
 
 #[derive(Error, Debug)]
+#[non_exhaustive]
 pub enum PgmqError {
     /// a json parsing error
     #[error("json parsing error {0}")]
@@ -21,24 +22,8 @@ pub enum PgmqError {
     #[error("invalid queue name: '{name}'")]
     InvalidQueueName { name: String },
 
-    /// a reqwest error (only when the `cli` feature is enabled)
-    #[cfg(feature = "cli")]
-    #[error("http request error {0}")]
-    HttpError(#[from] reqwest::Error),
-
     /// a general error for installation operations
+    #[cfg(feature = "install-sql")]
     #[error("installation error: {0}")]
     InstallationError(String),
-}
-
-impl From<Box<dyn std::error::Error>> for PgmqError {
-    fn from(err: Box<dyn std::error::Error>) -> Self {
-        PgmqError::InstallationError(err.to_string())
-    }
-}
-
-impl From<String> for PgmqError {
-    fn from(err: String) -> Self {
-        PgmqError::InstallationError(err)
-    }
 }
