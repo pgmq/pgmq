@@ -683,9 +683,90 @@ select * from pgmq.read_grouped_rr_with_poll('my_queue', 10, 1, 5, 100);
 ```
 
 ```text
- msg_id | read_ct |          enqueued_at          |         last_read_at          |              vt               |   message    |           headers           
+ msg_id | read_ct |          enqueued_at          |         last_read_at          |              vt               |   message    |           headers
 --------+---------+-------------------------------+-------------------------------+-------------------------------+--------------+-----------------------------
       1 |       2 | 2026-01-23 20:17:53.298176-06 | 2026-01-23 20:18:35.678351-06 | 2026-01-23 20:18:45.678351-06 | {"order": 1} | {"x-pgmq-group": "user123"}
+```
+
+---
+
+### read_grouped_head
+
+Read exactly one message per FIFO group — the head (oldest, lowest `msg_id`) message in each group — across up to `qty` groups in a single operation. Only groups with a visible, unlocked head message are included.
+
+<pre>
+ <code>
+ pgmq.read_grouped_head(
+    queue_name text,
+    vt integer,
+    qty integer
+)
+RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
+ </code>
+</pre>
+
+**Parameters:**
+
+| Parameter      | Type | Description     |
+| :---        |    :----   |          :--- |
+| queue_name      | text       | The name of the queue   |
+| vt   | integer       | Time in seconds that the message become invisible after reading.      |
+| qty   | integer        | The maximum number of groups (and therefore messages) to return.      |
+
+Example:
+
+```sql
+select * from pgmq.read_grouped_head('my_queue', 30, 10);
+```
+
+```text
+ msg_id | read_ct |          enqueued_at          |         last_read_at          |              vt               |   message    |           headers
+--------+---------+-------------------------------+-------------------------------+-------------------------------+--------------+-----------------------------
+      1 |       1 | 2026-01-23 20:17:53.298176-06 | 2026-01-23 20:18:35.678351-06 | 2026-01-23 20:19:05.678351-06 | {"order": 1} | {"x-pgmq-group": "user123"}
+      4 |       1 | 2026-01-23 20:17:54.298176-06 | 2026-01-23 20:18:35.678351-06 | 2026-01-23 20:19:05.678351-06 | {"order": 1} | {"x-pgmq-group": "user456"}
+```
+
+---
+
+### read_grouped_head_with_poll
+
+Same as read_grouped_head(). Also provides convenient long-poll functionality for FIFO queues.
+ When there are no messages available that respect FIFO ordering, the function call will wait for `max_poll_seconds` in duration before returning.
+
+<pre>
+ <code>
+ pgmq.read_grouped_head_with_poll(
+    queue_name text,
+    vt integer,
+    qty integer,
+    max_poll_seconds integer DEFAULT 5,
+    poll_interval_ms integer DEFAULT 100
+)
+RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
+ </code>
+</pre>
+
+**Parameters:**
+
+| Parameter      | Type | Description     |
+| :---        |    :----   |          :--- |
+| queue_name      | text       | The name of the queue   |
+| vt   | integer       | Time in seconds that the message become invisible after reading.      |
+| qty   | integer        | The maximum number of groups (and therefore messages) to return.      |
+| max_poll_seconds   | integer        | Time in seconds to wait for new messages to reach the queue. Defaults to 5.      |
+| poll_interval_ms   | integer        | Milliseconds between the internal poll operations. Defaults to 100.      |
+
+Example:
+
+```sql
+select * from pgmq.read_grouped_head_with_poll('my_queue', 30, 10, 5, 100);
+```
+
+```text
+ msg_id | read_ct |          enqueued_at          |         last_read_at          |              vt               |   message    |           headers
+--------+---------+-------------------------------+-------------------------------+-------------------------------+--------------+-----------------------------
+      1 |       1 | 2026-01-23 20:17:53.298176-06 | 2026-01-23 20:18:35.678351-06 | 2026-01-23 20:19:05.678351-06 | {"order": 1} | {"x-pgmq-group": "user123"}
+      4 |       1 | 2026-01-23 20:17:54.298176-06 | 2026-01-23 20:18:35.678351-06 | 2026-01-23 20:19:05.678351-06 | {"order": 1} | {"x-pgmq-group": "user456"}
 ```
 
 ---

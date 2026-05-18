@@ -151,7 +151,66 @@ SELECT * FROM pgmq.purge_queue('fifo_test_queue');
            4
 (1 row)
 
+-- Test read_grouped_head_with_poll
+SELECT pgmq.create('fifo_head_poll_queue');
+ create 
+--------
+ 
+(1 row)
+
+-- Insert messages across 3 groups
+SELECT * FROM pgmq.send('fifo_head_poll_queue', '{"n":1}'::jsonb, '{"x-pgmq-group":"g1"}'::jsonb);
+ send 
+------
+    1
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_head_poll_queue', '{"n":1}'::jsonb, '{"x-pgmq-group":"g2"}'::jsonb);
+ send 
+------
+    2
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_head_poll_queue', '{"n":1}'::jsonb, '{"x-pgmq-group":"g3"}'::jsonb);
+ send 
+------
+    3
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_head_poll_queue', '{"n":2}'::jsonb, '{"x-pgmq-group":"g1"}'::jsonb);
+ send 
+------
+    4
+(1 row)
+
+SELECT * FROM pgmq.send('fifo_head_poll_queue', '{"n":2}'::jsonb, '{"x-pgmq-group":"g2"}'::jsonb);
+ send 
+------
+    5
+(1 row)
+
+-- Validate polling returns exactly one message per group (heads only)
+WITH results AS (
+    SELECT * FROM pgmq.read_grouped_head_with_poll('fifo_head_poll_queue', 10, 5, 1, 100)
+)
+SELECT
+    (SELECT COUNT(*) FROM results) = 3 as count_correct,
+    (SELECT ARRAY_AGG(headers->>'x-pgmq-group' ORDER BY msg_id) FROM results)
+        = ARRAY['g1','g2','g3']::text[] as correct_groups,
+    (SELECT ARRAY_AGG((message->>'n')::int ORDER BY msg_id) FROM results)
+        = ARRAY[1,1,1]::int[] as all_first_messages;
+ count_correct | correct_groups | all_first_messages 
+---------------+----------------+--------------------
+ t             | t              | t
+(1 row)
+
 -- Cleanup
+SELECT pgmq.drop_queue('fifo_head_poll_queue');
+ drop_queue 
+------------
+ t
+(1 row)
+
 SELECT pgmq.drop_queue('fifo_test_queue');
  drop_queue 
 ------------

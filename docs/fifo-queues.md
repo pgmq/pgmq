@@ -134,6 +134,10 @@ Read exactly one message per FIFO group — the head (oldest, lowest `msg_id`) m
 SELECT * FROM pgmq.read_grouped_head('my_queue', 30, 10);
 ```
 
+#### `pgmq.read_grouped_head_with_poll(queue_name, vt, qty, max_poll_seconds, poll_interval_ms)`
+
+Same as `read_grouped_head()` but with polling support for real-time processing.
+
 ### Utility Functions
 
 #### `pgmq.create_fifo_index(queue_name)`
