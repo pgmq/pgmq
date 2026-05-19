@@ -1389,3 +1389,137 @@ async fn test_send_batch_topic() {
         .unwrap();
     assert_eq!(msgs.len(), read_msgs.len());
 }
+
+#[tokio::test]
+async fn enable_notify_insert() {
+    let test_queue = format!(
+        "enable_notify_insert_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    queue
+        .enable_notify_insert(&test_queue, Duration::from_secs(1))
+        .await
+        .unwrap();
+
+    let notify_insert_throttle = queue
+        .list_notify_insert_throttles()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|row| row.queue_name == test_queue)
+        .unwrap();
+
+    assert_eq!(1000, notify_insert_throttle.throttle_interval_ms);
+}
+
+#[tokio::test]
+async fn update_notify_insert() {
+    let test_queue = format!(
+        "update_notify_insert_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    queue
+        .enable_notify_insert(&test_queue, Duration::from_secs(1))
+        .await
+        .unwrap();
+
+    queue
+        .update_notify_insert(&test_queue, Duration::from_secs(2))
+        .await
+        .unwrap();
+
+    let notify_insert_throttle = queue
+        .list_notify_insert_throttles()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|row| row.queue_name == test_queue)
+        .unwrap();
+
+    assert_eq!(2000, notify_insert_throttle.throttle_interval_ms);
+}
+
+#[tokio::test]
+async fn disable_notify_insert() {
+    let test_queue = format!(
+        "disable_notify_insert_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    queue
+        .enable_notify_insert(&test_queue, Duration::from_secs(1))
+        .await
+        .unwrap();
+
+    queue.disable_notify_insert(&test_queue).await.unwrap();
+
+    let notify_insert_throttle = queue
+        .list_notify_insert_throttles()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|row| row.queue_name == test_queue);
+    assert!(notify_insert_throttle.is_none());
+}
+
+#[tokio::test]
+async fn queue_insert_listener() {
+    let test_queue = format!(
+        "queue_insert_listener_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    queue
+        .enable_notify_insert(&test_queue, Duration::from_secs(1))
+        .await
+        .unwrap();
+
+    let mut listener = queue.queue_insert_listener(&test_queue).await.unwrap();
+
+    queue
+        .send(&test_queue, &MyMessage::default())
+        .await
+        .unwrap();
+
+    let notification = listener.recv().await.unwrap();
+    assert_eq!(
+        notification.channel(),
+        pgmq::pg_ext::queue_name_to_insert_notification_channel_name(&test_queue)
+    );
+}
+
+#[tokio::test]
+async fn queue_insert_listener_all() {
+    let test_queue = format!(
+        "queue_insert_listener_all_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    queue
+        .enable_notify_insert(&test_queue, Duration::from_secs(1))
+        .await
+        .unwrap();
+
+    let mut listener = queue
+        .queue_insert_listener_all([test_queue.as_str()])
+        .await
+        .unwrap();
+
+    queue
+        .send(&test_queue, &MyMessage::default())
+        .await
+        .unwrap();
+
+    let notification = listener.recv().await.unwrap();
+    assert_eq!(
+        notification.channel(),
+        pgmq::pg_ext::queue_name_to_insert_notification_channel_name(&test_queue)
+    );
+}

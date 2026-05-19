@@ -56,3 +56,12 @@ pub struct ListTopicBindingsRow {
     pub bound_at: chrono::DateTime<Utc>,
     pub compiled_regex: String,
 }
+
+/// A row returned by the `pgmq.list_notify_insert_throttles` SQL function.
+#[derive(Clone, Debug, Deserialize, FromRow)]
+#[non_exhaustive]
+pub struct ListNotifyInsertThrottlesRow {
+    pub queue_name: String,
+    pub throttle_interval_ms: i32,
+    pub last_notified_at: chrono::DateTime<Utc>,
+}

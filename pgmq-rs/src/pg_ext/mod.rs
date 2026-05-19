@@ -1,7 +1,9 @@
 mod visibility_timeout_offest;
 
 use crate::errors::PgmqError;
-use crate::types::{ListTopicBindingsRow, Message, SendBatchTopicRow, QUEUE_PREFIX};
+use crate::types::{
+    ListNotifyInsertThrottlesRow, ListTopicBindingsRow, Message, SendBatchTopicRow, QUEUE_PREFIX,
+};
 use crate::util::{check_input, connect};
 use log::info;
 use serde::{Deserialize, Serialize};
@@ -161,7 +163,7 @@ impl PGMQueueExt {
         queue_name: &str,
         txn: &mut sqlx::Transaction<'c, Postgres>,
     ) -> Result<(), PgmqError> {
-        sqlx::query("SELECT * from pgmq.acquire_queue_lock(queue_name=>$1::text);")
+        sqlx::query("SELECT pgmq.acquire_queue_lock(queue_name=>$1::text);")
             .bind(queue_name)
             .execute(&mut **txn)
             .await?;
@@ -229,7 +231,7 @@ impl PGMQueueExt {
             return Ok(false);
         }
 
-        sqlx::query("SELECT * from pgmq.create(queue_name=>$1::text);")
+        sqlx::query("SELECT pgmq.create(queue_name=>$1::text);")
             .bind(queue_name)
             .execute(&mut *txn)
             .await?;
@@ -249,7 +251,7 @@ impl PGMQueueExt {
         executor: E,
     ) -> Result<bool, PgmqError> {
         check_input(queue_name)?;
-        sqlx::query("SELECT * from pgmq.create_unlogged(queue_name=>$1::text);")
+        sqlx::query("SELECT pgmq.create_unlogged(queue_name=>$1::text);")
             .bind(queue_name)
             .execute(executor)
             .await?;
@@ -275,16 +277,16 @@ impl PGMQueueExt {
         let queue_table = format!("pgmq.{QUEUE_PREFIX}_{queue_name}");
         // we need to check whether the queue exists first
         // pg_partman create operations are currently unable to be idempotent
-        let exists_stmt = "SELECT EXISTS(SELECT * from part_config where parent_table = $1);";
-        let exists = sqlx::query_scalar(exists_stmt)
-            .bind(queue_table)
-            .fetch_one(executor)
-            .await?;
+        let exists =
+            sqlx::query_scalar("SELECT EXISTS(SELECT * from part_config where parent_table = $1);")
+                .bind(queue_table)
+                .fetch_one(executor)
+                .await?;
         if exists {
             info!("queue: {queue_name} already exists",);
             Ok(false)
         } else {
-            sqlx::query("SELECT * from pgmq.create_partitioned(queue_name=>$1::text);")
+            sqlx::query("SELECT pgmq.create_partitioned(queue_name=>$1::text);")
                 .bind(queue_name)
                 .execute(executor)
                 .await?;
@@ -305,11 +307,9 @@ impl PGMQueueExt {
         executor: E,
     ) -> Result<(), PgmqError> {
         check_input(queue_name)?;
-        executor
-            .execute(
-                sqlx::query("SELECT * from pgmq.drop_queue(queue_name=>$1::text);")
-                    .bind(queue_name),
-            )
+        sqlx::query("SELECT pgmq.drop_queue(queue_name=>$1::text);")
+            .bind(queue_name)
+            .execute(executor)
             .await?;
 
         Ok(())
@@ -1130,7 +1130,7 @@ impl PGMQueueExt {
         queue_name: &str,
         executor: E,
     ) -> Result<(), PgmqError> {
-        sqlx::query("SELECT * from pgmq.create_fifo_index(queue_name=>$1::text);")
+        sqlx::query("SELECT pgmq.create_fifo_index(queue_name=>$1::text);")
             .bind(queue_name)
             .execute(executor)
             .await?;
@@ -1150,7 +1150,7 @@ impl PGMQueueExt {
         &self,
         executor: E,
     ) -> Result<(), PgmqError> {
-        sqlx::query("SELECT * from pgmq.create_fifo_indexes_all();")
+        sqlx::query("SELECT pgmq.create_fifo_indexes_all();")
             .execute(executor)
             .await?;
 
@@ -1169,7 +1169,7 @@ impl PGMQueueExt {
         executor: E,
     ) -> Result<(), PgmqError> {
         check_input(queue_name)?;
-        sqlx::query("SELECT * from pgmq.bind_topic(pattern=>$1::text, queue_name=>$2::text)")
+        sqlx::query("SELECT pgmq.bind_topic(pattern=>$1::text, queue_name=>$2::text)")
             .bind(pattern)
             .bind(queue_name)
             .execute(executor)
@@ -1190,7 +1190,7 @@ impl PGMQueueExt {
         executor: E,
     ) -> Result<(), PgmqError> {
         check_input(queue_name)?;
-        sqlx::query("SELECT * from pgmq.unbind_topic(pattern=>$1::text, queue_name=>$2::text)")
+        sqlx::query("SELECT pgmq.unbind_topic(pattern=>$1::text, queue_name=>$2::text)")
             .bind(pattern)
             .bind(queue_name)
             .execute(executor)
@@ -1361,4 +1361,179 @@ impl PGMQueueExt {
         };
         Ok(headers)
     }
+
+    /// Enable sending a Postgres notification when an item is inserted into the specified queue.
+    /// Provide a non-zero throttle interval to specify how often a notification can be sent.
+    ///
+    /// To actually receive the notification when an item is inserted, use a
+    /// [`sqlx::postgres::PgListener`]. This can be created using [`Self::queue_insert_listener`]
+    /// (or one of the other similarly-named methods).
+    ///
+    /// Postgres notifications can be useful for queues that must be acted upon immediately
+    /// but rarely have items. However, in most cases, it's recommended to use a polling mechanism
+    /// to fetch items from the queue. In fact, because Postgres notifications are transient and
+    /// may be missed, it's recommended to also use a polling mechanism as a fallback instead of
+    /// relying entirely on notifications.
+    pub async fn enable_notify_insert_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres>>(
+        &self,
+        queue_name: &str,
+        throttle_interval: std::time::Duration,
+        executor: E,
+    ) -> Result<(), PgmqError> {
+        check_input(queue_name)?;
+        let throttle_interval_ms = i32::try_from(throttle_interval.as_millis()).unwrap_or(i32::MAX);
+        sqlx::query("SELECT pgmq.enable_notify_insert(queue_name=>$1::text, throttle_interval_ms=>$2::integer)")
+            .bind(queue_name)
+            .bind(throttle_interval_ms)
+            .execute(executor)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn enable_notify_insert(
+        &self,
+        queue_name: &str,
+        throttle_interval: std::time::Duration,
+    ) -> Result<(), PgmqError> {
+        self.enable_notify_insert_with_cxn(queue_name, throttle_interval, &self.connection)
+            .await
+    }
+
+    /// Disable sending insert notifications for the specified queue.
+    pub async fn disable_notify_insert_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres>>(
+        &self,
+        queue_name: &str,
+        executor: E,
+    ) -> Result<(), PgmqError> {
+        check_input(queue_name)?;
+        sqlx::query("SELECT pgmq.disable_notify_insert(queue_name=>$1::text)")
+            .bind(queue_name)
+            .execute(executor)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn disable_notify_insert(&self, queue_name: &str) -> Result<(), PgmqError> {
+        self.disable_notify_insert_with_cxn(queue_name, &self.connection)
+            .await
+    }
+
+    /// Update the throttle interval for Postgres notifications sent for the specified queue.
+    pub async fn update_notify_insert_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres>>(
+        &self,
+        queue_name: &str,
+        throttle_interval: std::time::Duration,
+        executor: E,
+    ) -> Result<(), PgmqError> {
+        check_input(queue_name)?;
+        let throttle_interval_ms = i32::try_from(throttle_interval.as_millis()).unwrap_or(i32::MAX);
+        sqlx::query("SELECT pgmq.update_notify_insert(queue_name=>$1::text, throttle_interval_ms=>$2::integer)")
+            .bind(queue_name)
+            .bind(throttle_interval_ms)
+            .execute(executor)
+            .await?;
+        Ok(())
+    }
+
+    pub async fn update_notify_insert(
+        &self,
+        queue_name: &str,
+        throttle_interval: std::time::Duration,
+    ) -> Result<(), PgmqError> {
+        self.update_notify_insert_with_cxn(queue_name, throttle_interval, &self.connection)
+            .await
+    }
+
+    pub async fn list_notify_insert_throttles_with_cxn<
+        'c,
+        E: sqlx::Executor<'c, Database = Postgres>,
+    >(
+        &self,
+        executor: E,
+    ) -> Result<Vec<ListNotifyInsertThrottlesRow>, PgmqError> {
+        let rows: Vec<ListNotifyInsertThrottlesRow> = sqlx::query_as("SELECT queue_name, throttle_interval_ms, last_notified_at FROM pgmq.list_notify_insert_throttles()")
+            .fetch_all(executor)
+            .await?;
+        Ok(rows)
+    }
+
+    pub async fn list_notify_insert_throttles(
+        &self,
+    ) -> Result<Vec<ListNotifyInsertThrottlesRow>, PgmqError> {
+        self.list_notify_insert_throttles_with_cxn(&self.connection)
+            .await
+    }
+
+    /// Create a [`sqlx::postgres::PgListener`] that will listen to insert notifications for the
+    /// specified queue. The listener can be configured to listen to more queues by calling
+    /// [`sqlx::postgres::PgListener::listen`] with the channel name returned by
+    /// [`queue_name_to_insert_notification_channel_name`].
+    ///
+    /// Note: The listener will hold a connection from the pool for as long as it is in scope.
+    pub async fn queue_insert_listener_with_pool(
+        &self,
+        queue_name: &str,
+        pool: &Pool<Postgres>,
+    ) -> Result<sqlx::postgres::PgListener, PgmqError> {
+        let mut listener = sqlx::postgres::PgListener::connect_with(pool).await?;
+        listener
+            .listen(&queue_name_to_insert_notification_channel_name(queue_name))
+            .await?;
+        Ok(listener)
+    }
+
+    pub async fn queue_insert_listener(
+        &self,
+        queue_name: &str,
+    ) -> Result<sqlx::postgres::PgListener, PgmqError> {
+        self.queue_insert_listener_with_pool(queue_name, &self.connection)
+            .await
+    }
+
+    /// Create a [`sqlx::postgres::PgListener`] that will listen to insert notifications for all the
+    /// specified queues. The listener can be configured to listen to more queues by calling
+    /// [`sqlx::postgres::PgListener::listen`] with the channel name returned by
+    /// [`queue_name_to_insert_notification_channel_name`].
+    ///
+    /// Note: The listener will hold a connection from the pool for as long as it is in scope.
+    pub async fn queue_insert_listener_all_with_pool(
+        &self,
+        queue_names: impl IntoIterator<Item = &str>,
+        pool: &Pool<Postgres>,
+    ) -> Result<sqlx::postgres::PgListener, PgmqError> {
+        let mut listener = sqlx::postgres::PgListener::connect_with(pool).await?;
+        let channel_names = queue_names
+            .into_iter()
+            .map(queue_name_to_insert_notification_channel_name)
+            .collect::<Vec<_>>();
+        listener
+            .listen_all(channel_names.iter().map(|s| s.as_str()))
+            .await?;
+        Ok(listener)
+    }
+
+    pub async fn queue_insert_listener_all(
+        &self,
+        queue_names: impl IntoIterator<Item = &str>,
+    ) -> Result<sqlx::postgres::PgListener, PgmqError> {
+        self.queue_insert_listener_all_with_pool(queue_names, &self.connection)
+            .await
+    }
+}
+
+/// Translate the given queue name into the name of the Postgres notification channel that will
+/// be triggered when using the [`PGMQueueExt::enable_notify_insert`] functionality. This method
+/// is called internally by the `PGMQueueExt::queue_insert_listener*` methods.
+///
+/// This method is useful in order to tell a [`sqlx::postgres::PgListener`] to stop listening
+/// to notifications for a specific queue using [`sqlx::postgres::PgListener::unlisten`].
+///
+/// # Examples
+/// ```
+/// # use pgmq::pg_ext::queue_name_to_insert_notification_channel_name;
+/// let channel_name = queue_name_to_insert_notification_channel_name("test");
+/// assert_eq!("pgmq.q_test.INSERT", channel_name);
+/// ```
+pub fn queue_name_to_insert_notification_channel_name(queue_name: &str) -> String {
+    format!("pgmq.q_{queue_name}.INSERT")
 }
