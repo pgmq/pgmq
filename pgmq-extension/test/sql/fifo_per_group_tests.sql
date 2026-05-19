@@ -88,6 +88,33 @@ SELECT
     (SELECT ARRAY_AGG((message->>'n')::int ORDER BY msg_id) FROM results)
         = ARRAY[1,1,1]::int[] as all_first_messages;
 
+-- Purge queue to ensure it's empty for polling timeout test
+SELECT * FROM pgmq.purge_queue('fifo_head_poll_queue');
+
+-- Validate polling waits and returns empty when the queue is empty
+-- This test verifies the polling behavior when no messages are available
+DO $$
+DECLARE
+    start_time TIMESTAMPTZ;
+    end_time TIMESTAMPTZ;
+    elapsed NUMERIC;
+    result_count INTEGER;
+BEGIN
+    start_time := clock_timestamp();
+    SELECT COUNT(*) INTO result_count
+    FROM pgmq.read_grouped_head_with_poll('fifo_head_poll_queue', 10, 5, 1, 100);
+    end_time := clock_timestamp();
+    elapsed := EXTRACT(EPOCH FROM (end_time - start_time));
+
+    IF result_count != 0 THEN
+        RAISE EXCEPTION 'Expected 0 results from empty queue, got %', result_count;
+    END IF;
+
+    IF elapsed < 0.9 THEN
+        RAISE EXCEPTION 'Polling completed too quickly (% seconds), expected ~1 second', elapsed;
+    END IF;
+END $$;
+
 -- Cleanup
 SELECT pgmq.drop_queue('fifo_head_poll_queue');
 SELECT pgmq.drop_queue('fifo_test_queue');

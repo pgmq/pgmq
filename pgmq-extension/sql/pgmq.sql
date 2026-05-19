@@ -295,11 +295,11 @@ CREATE FUNCTION pgmq.read_grouped_head_with_poll(
 RETURNS SETOF pgmq.message_record AS $$
 DECLARE
     r pgmq.message_record;
-    stop_at TIMESTAMP;
+    stop_at TIMESTAMPTZ;
 BEGIN
     stop_at := clock_timestamp() + make_interval(secs => max_poll_seconds);
     LOOP
-      IF (SELECT clock_timestamp() >= stop_at) THEN
+      IF clock_timestamp() >= stop_at THEN
         RETURN;
       END IF;
 
