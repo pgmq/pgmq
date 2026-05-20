@@ -43,6 +43,23 @@ async fn init_queue_ext(qname: &str) -> pgmq::PGMQueueExt {
     queue
 }
 
+async fn install_pg_partman<'c, E: sqlx::Acquire<'c, Database = Postgres>>(executor: E) {
+    let mut txn = executor.begin().await.unwrap();
+
+    sqlx::query("SELECT pg_advisory_xact_lock($1);")
+        .bind(123456)
+        .execute(&mut *txn)
+        .await
+        .unwrap();
+
+    sqlx::query("CREATE EXTENSION IF NOT EXISTS pg_partman")
+        .execute(&mut *txn)
+        .await
+        .expect("failed to create pg_partman extension");
+
+    txn.commit().await.unwrap();
+}
+
 #[derive(Serialize, Debug, Deserialize, Eq, PartialEq)]
 struct MyMessage {
     foo: String,
@@ -56,11 +73,6 @@ impl Default for MyMessage {
             num: rand::thread_rng().gen_range(0..100),
         }
     }
-}
-
-#[derive(Serialize, Debug, Deserialize)]
-struct YoloMessage {
-    yolo: String,
 }
 
 async fn rowcount(qname: &str, connection: &Pool<Postgres>) -> i64 {
@@ -648,10 +660,7 @@ async fn test_pgmq_init() {
         rand::thread_rng().gen_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
-    let _ = sqlx::query("CREATE EXTENSION IF NOT EXISTS pg_partman")
-        .execute(&queue.connection)
-        .await
-        .expect("failed to create extension");
+    install_pg_partman(&queue.connection).await;
     // error mode on queue partitioned create but already exists
     let qname = format!("test_dup_{}", rand::thread_rng().gen_range(0..100));
     let created = queue
@@ -1391,9 +1400,9 @@ async fn test_send_batch_topic() {
 }
 
 #[tokio::test]
-async fn enable_notify_insert() {
+async fn test_enable_notify_insert() {
     let test_queue = format!(
-        "enable_notify_insert_{}",
+        "test_enable_notify_insert_{}",
         rand::thread_rng().gen_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
@@ -1415,9 +1424,9 @@ async fn enable_notify_insert() {
 }
 
 #[tokio::test]
-async fn update_notify_insert() {
+async fn test_update_notify_insert() {
     let test_queue = format!(
-        "update_notify_insert_{}",
+        "test_update_notify_insert_{}",
         rand::thread_rng().gen_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
@@ -1444,9 +1453,9 @@ async fn update_notify_insert() {
 }
 
 #[tokio::test]
-async fn disable_notify_insert() {
+async fn test_disable_notify_insert() {
     let test_queue = format!(
-        "disable_notify_insert_{}",
+        "test_disable_notify_insert_{}",
         rand::thread_rng().gen_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
@@ -1468,9 +1477,9 @@ async fn disable_notify_insert() {
 }
 
 #[tokio::test]
-async fn queue_insert_listener() {
+async fn test_queue_insert_listener() {
     let test_queue = format!(
-        "queue_insert_listener_{}",
+        "test_queue_insert_listener_{}",
         rand::thread_rng().gen_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
@@ -1495,9 +1504,9 @@ async fn queue_insert_listener() {
 }
 
 #[tokio::test]
-async fn queue_insert_listener_all() {
+async fn test_queue_insert_listener_all() {
     let test_queue = format!(
-        "queue_insert_listener_all_{}",
+        "test_queue_insert_listener_all_{}",
         rand::thread_rng().gen_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
@@ -1522,4 +1531,151 @@ async fn queue_insert_listener_all() {
         notification.channel(),
         pgmq::pg_ext::queue_name_to_insert_notification_channel_name(&test_queue)
     );
+}
+
+#[tokio::test]
+async fn test_metrics() {
+    let test_queue = format!("test_metrics_{}", rand::thread_rng().gen_range(0..100000));
+    let queue = init_queue_ext(&test_queue).await;
+
+    let messages = [
+        MyMessage::default(),
+        MyMessage::default(),
+        MyMessage::default(),
+    ];
+    queue.send_batch(&test_queue, &messages).await.unwrap();
+
+    let _ = queue.read::<MyMessage>(&test_queue, 100).await.unwrap();
+
+    let metrics = queue.metrics(&test_queue).await.unwrap();
+    assert_eq!(test_queue, metrics.queue_name);
+    assert_eq!((messages.len() - 1) as i64, metrics.queue_visible_length);
+    assert_eq!(messages.len() as i64, metrics.queue_length);
+    assert_eq!(messages.len() as i64, metrics.total_messages);
+}
+
+#[tokio::test]
+async fn test_metrics_all() {
+    let test_queue = format!(
+        "test_metrics_all_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let messages = [
+        MyMessage::default(),
+        MyMessage::default(),
+        MyMessage::default(),
+    ];
+    queue.send_batch(&test_queue, &messages).await.unwrap();
+
+    let _ = queue.read::<MyMessage>(&test_queue, 100).await.unwrap();
+
+    let metrics = queue
+        .metrics_all()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|metrics| metrics.queue_name == test_queue)
+        .unwrap();
+    assert_eq!(test_queue, metrics.queue_name);
+    assert_eq!((messages.len() - 1) as i64, metrics.queue_visible_length);
+    assert_eq!(messages.len() as i64, metrics.queue_length);
+    assert_eq!(messages.len() as i64, metrics.total_messages);
+}
+
+#[tokio::test]
+#[cfg(not(feature = "install-sql"))]
+async fn test_convert_archive_partitioned() {
+    let test_queue = format!(
+        "test_convert_archive_partitioned_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+    install_pg_partman(&queue.connection).await;
+
+    let messages = [
+        MyMessage::default(),
+        MyMessage::default(),
+        MyMessage::default(),
+    ];
+    let msg_ids = queue.send_batch(&test_queue, &messages).await.unwrap();
+    queue.archive_batch(&test_queue, &msg_ids).await.unwrap();
+
+    queue
+        .convert_archive_partitioned(&test_queue, None, None)
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+#[cfg(not(feature = "install-sql"))]
+async fn test_convert_archive_partitioned_with_partition_interval() {
+    let test_queue = format!(
+        "test_c_a_p_partition_interval_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+    install_pg_partman(&queue.connection).await;
+
+    let messages = [
+        MyMessage::default(),
+        MyMessage::default(),
+        MyMessage::default(),
+    ];
+    let msg_ids = queue.send_batch(&test_queue, &messages).await.unwrap();
+    queue.archive_batch(&test_queue, &msg_ids).await.unwrap();
+
+    queue
+        .convert_archive_partitioned(&test_queue, Some("1000"), None)
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+#[cfg(not(feature = "install-sql"))]
+async fn test_convert_archive_partitioned_with_retention_interval() {
+    let test_queue = format!(
+        "test_c_a_p_retention_interval_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+    install_pg_partman(&queue.connection).await;
+
+    let messages = [
+        MyMessage::default(),
+        MyMessage::default(),
+        MyMessage::default(),
+    ];
+    let msg_ids = queue.send_batch(&test_queue, &messages).await.unwrap();
+    queue.archive_batch(&test_queue, &msg_ids).await.unwrap();
+
+    queue
+        .convert_archive_partitioned(&test_queue, None, Some("1000"))
+        .await
+        .unwrap();
+}
+
+#[tokio::test]
+#[cfg(not(feature = "install-sql"))]
+async fn test_convert_archive_partitioned_with_both_optional_params() {
+    let test_queue = format!(
+        "test_c_a_p_both_{}",
+        rand::thread_rng().gen_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+    install_pg_partman(&queue.connection).await;
+
+    let messages = [
+        MyMessage::default(),
+        MyMessage::default(),
+        MyMessage::default(),
+    ];
+    let msg_ids = queue.send_batch(&test_queue, &messages).await.unwrap();
+    queue.archive_batch(&test_queue, &msg_ids).await.unwrap();
+
+    queue
+        .convert_archive_partitioned(&test_queue, Some("100"), Some("1000"))
+        .await
+        .unwrap();
 }

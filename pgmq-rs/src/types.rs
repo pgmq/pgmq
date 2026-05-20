@@ -65,3 +65,17 @@ pub struct ListNotifyInsertThrottlesRow {
     pub throttle_interval_ms: i32,
     pub last_notified_at: chrono::DateTime<Utc>,
 }
+
+/// Metrics for a queue. Returned for a single queue by `pgmq.metrics` and for all queues by
+/// `pgmq.metrics_all`.
+#[derive(Clone, Debug, Deserialize, FromRow)]
+#[non_exhaustive]
+pub struct QueueMetrics {
+    pub queue_name: String,
+    pub queue_length: i64,
+    pub newest_msg_age_sec: Option<i32>,
+    pub oldest_msg_age_sec: Option<i32>,
+    pub total_messages: i64,
+    pub scrape_time: chrono::DateTime<Utc>,
+    pub queue_visible_length: i64,
+}

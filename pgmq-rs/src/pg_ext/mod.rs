@@ -2,7 +2,8 @@ mod visibility_timeout_offest;
 
 use crate::errors::PgmqError;
 use crate::types::{
-    ListNotifyInsertThrottlesRow, ListTopicBindingsRow, Message, SendBatchTopicRow, QUEUE_PREFIX,
+    ListNotifyInsertThrottlesRow, ListTopicBindingsRow, Message, QueueMetrics, SendBatchTopicRow,
+    QUEUE_PREFIX,
 };
 use crate::util::{check_input, connect};
 use log::info;
@@ -299,6 +300,58 @@ impl PGMQueueExt {
     pub async fn create_partitioned(&self, queue_name: &str) -> Result<bool, PgmqError> {
         self.create_partitioned_with_cxn(queue_name, &self.connection)
             .await
+    }
+
+    pub async fn convert_archive_partitioned_with_cxn<
+        'c,
+        E: sqlx::Executor<'c, Database = Postgres> + std::marker::Copy,
+    >(
+        &self,
+        queue_name: &str,
+        partition_interval: Option<&str>,
+        retention_interval: Option<&str>,
+        executor: E,
+    ) -> Result<(), PgmqError> {
+        let mut query: sqlx::QueryBuilder<Postgres> =
+            sqlx::QueryBuilder::new("SELECT pgmq.convert_archive_partitioned(");
+
+        {
+            let mut separated = query.separated(", ");
+            separated
+                .push("table_name=>")
+                .push_bind_unseparated(queue_name);
+
+            if let Some(partition_interval) = partition_interval {
+                separated
+                    .push("partition_interval=>")
+                    .push_bind_unseparated(partition_interval);
+            }
+
+            if let Some(retention_interval) = retention_interval {
+                separated
+                    .push("retention_interval=>")
+                    .push_bind_unseparated(retention_interval);
+            }
+        }
+
+        query.push(")").build().execute(executor).await?;
+
+        Ok(())
+    }
+
+    pub async fn convert_archive_partitioned(
+        &self,
+        table_name: &str,
+        partition_interval: Option<&str>,
+        retention_interval: Option<&str>,
+    ) -> Result<(), PgmqError> {
+        self.convert_archive_partitioned_with_cxn(
+            table_name,
+            partition_interval,
+            retention_interval,
+            &self.connection,
+        )
+        .await
     }
 
     pub async fn drop_queue_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres>>(
@@ -1518,6 +1571,37 @@ impl PGMQueueExt {
     ) -> Result<sqlx::postgres::PgListener, PgmqError> {
         self.queue_insert_listener_all_with_pool(queue_names, &self.connection)
             .await
+    }
+
+    pub async fn metrics_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres>>(
+        &self,
+        queue_name: &str,
+        executor: E,
+    ) -> Result<QueueMetrics, PgmqError> {
+        check_input(queue_name)?;
+        let metrics: QueueMetrics = sqlx::query_as("SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time, queue_visible_length FROM pgmq.metrics(queue_name=>$1::text)")
+            .bind(queue_name)
+            .fetch_one(executor)
+            .await?;
+        Ok(metrics)
+    }
+
+    pub async fn metrics(&self, queue_name: &str) -> Result<QueueMetrics, PgmqError> {
+        self.metrics_with_cxn(queue_name, &self.connection).await
+    }
+
+    pub async fn metrics_all_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres>>(
+        &self,
+        executor: E,
+    ) -> Result<Vec<QueueMetrics>, PgmqError> {
+        let metrics: Vec<QueueMetrics> = sqlx::query_as("SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time, queue_visible_length FROM pgmq.metrics_all()")
+            .fetch_all(executor)
+            .await?;
+        Ok(metrics)
+    }
+
+    pub async fn metrics_all(&self) -> Result<Vec<QueueMetrics>, PgmqError> {
+        self.metrics_all_with_cxn(&self.connection).await
     }
 }
 
