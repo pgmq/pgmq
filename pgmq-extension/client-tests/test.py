@@ -18,4 +18,8 @@ from basic_notify_test import *
 # noinspection PyUnusedImports
 from extended_notify_test import *
 # noinspection PyUnusedImports
+from basic_notify_delete_test import *
+# noinspection PyUnusedImports
+from extended_notify_delete_test import *
+# noinspection PyUnusedImports
 from topics_test import *

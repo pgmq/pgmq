@@ -676,6 +676,102 @@ SELECT pgmq.drop_queue('notify_queue_disabled');
 -- Verify throttles were removed after dropping queues (CASCADE should handle this)
 SELECT COUNT(*) = 0 FROM pgmq.list_notify_insert_throttles();
 
+-- =============================================================================
+-- Tests for notify_delete throttle functions
+-- =============================================================================
+
+-- test_list_notify_delete_throttles_empty
+-- Verify list_notify_delete_throttles returns empty when no throttles are configured
+SELECT COUNT(*) = 0 FROM pgmq.list_notify_delete_throttles();
+
+-- test_list_notify_delete_throttles_returns_all
+-- Create queues and enable notify_delete with different throttle intervals
+SELECT pgmq.create('notify_delete_queue_1');
+SELECT pgmq.create('notify_delete_queue_2');
+SELECT pgmq.create('notify_delete_queue_3');
+
+SELECT pgmq.enable_notify_delete('notify_delete_queue_1', 100);
+SELECT pgmq.enable_notify_delete('notify_delete_queue_2', 250);
+SELECT pgmq.enable_notify_delete('notify_delete_queue_3', 500);
+
+-- Should return 3 throttle configurations
+SELECT COUNT(*) = 3 FROM pgmq.list_notify_delete_throttles();
+
+-- Verify structure and values
+SELECT
+    COUNT(*) = 3 AS has_all_throttles,
+    bool_and(queue_name IS NOT NULL) AS has_queue_name,
+    bool_and(throttle_interval_ms IS NOT NULL) AS has_throttle_interval,
+    bool_and(last_notified_at IS NOT NULL) AS has_last_notified_at
+FROM pgmq.list_notify_delete_throttles();
+
+-- Verify specific throttle values
+SELECT throttle_interval_ms = 100 FROM pgmq.list_notify_delete_throttles() WHERE queue_name = 'notify_delete_queue_1';
+SELECT throttle_interval_ms = 250 FROM pgmq.list_notify_delete_throttles() WHERE queue_name = 'notify_delete_queue_2';
+SELECT throttle_interval_ms = 500 FROM pgmq.list_notify_delete_throttles() WHERE queue_name = 'notify_delete_queue_3';
+
+-- test_update_notify_delete_updates_throttle
+-- Update throttle interval for a queue
+SELECT pgmq.update_notify_delete('notify_delete_queue_1', 300);
+
+-- Verify throttle was updated
+SELECT throttle_interval_ms = 300 FROM pgmq.list_notify_delete_throttles() WHERE queue_name = 'notify_delete_queue_1';
+
+-- Verify last_notified_at was reset
+SELECT last_notified_at = to_timestamp(0) FROM pgmq.list_notify_delete_throttles() WHERE queue_name = 'notify_delete_queue_1';
+
+-- test_update_notify_delete_validates_non_negative
+-- Verify update_notify_delete rejects negative values
+DO $$
+BEGIN
+    PERFORM pgmq.update_notify_delete('notify_delete_queue_1', -1);
+    RAISE EXCEPTION 'Should have raised an error for negative throttle_interval_ms';
+EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%must be non-negative%' THEN
+        RAISE EXCEPTION 'Expected non-negative error, got: %', SQLERRM;
+    END IF;
+END $$;
+
+-- test_update_notify_delete_requires_queue_exists
+-- Verify update_notify_delete fails for non-existent queues
+DO $$
+BEGIN
+    PERFORM pgmq.update_notify_delete('nonexistent_queue', 100);
+    RAISE EXCEPTION 'Should have raised an error for non-existent queue';
+EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%does not exist%' THEN
+        RAISE EXCEPTION 'Expected queue does not exist error, got: %', SQLERRM;
+    END IF;
+END $$;
+
+-- test_update_notify_delete_requires_enabled_queue
+-- Verify update_notify_delete fails for queues without notify_delete enabled
+SELECT pgmq.create('notify_delete_queue_disabled');
+
+DO $$
+BEGIN
+    PERFORM pgmq.update_notify_delete('notify_delete_queue_disabled', 100);
+    RAISE EXCEPTION 'Should have raised an error for queue without notify_delete enabled';
+EXCEPTION WHEN OTHERS THEN
+    IF SQLERRM NOT LIKE '%does not have notify_delete enabled%' THEN
+        RAISE EXCEPTION 'Expected notify_delete not enabled error, got: %', SQLERRM;
+    END IF;
+END $$;
+
+-- test_update_notify_delete_allows_zero
+-- Verify update_notify_delete accepts 0 (no throttling)
+SELECT pgmq.update_notify_delete('notify_delete_queue_2', 0);
+SELECT throttle_interval_ms = 0 FROM pgmq.list_notify_delete_throttles() WHERE queue_name = 'notify_delete_queue_2';
+
+-- Clean up notify_delete test queues
+SELECT pgmq.drop_queue('notify_delete_queue_1');
+SELECT pgmq.drop_queue('notify_delete_queue_2');
+SELECT pgmq.drop_queue('notify_delete_queue_3');
+SELECT pgmq.drop_queue('notify_delete_queue_disabled');
+
+-- Verify throttles were removed after dropping queues (CASCADE should handle this)
+SELECT COUNT(*) = 0 FROM pgmq.list_notify_delete_throttles();
+
 --Cleanup tests
 DROP EXTENSION pgmq CASCADE;
 DROP EXTENSION pg_partman CASCADE;
