@@ -1,7 +1,5 @@
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use sqlx::PgPool;
-use std::env;
 
 #[derive(Serialize, Debug, Deserialize, Eq, PartialEq)]
 struct MyMessage {
@@ -24,16 +22,18 @@ impl Default for MyMessage {
 async fn test_sql_lifecycle() {
     let test_num = rand::thread_rng().gen_range(0..100000);
     let test_queue = format!("test_sql_lifecycle_{}", test_num);
-    let db_url = env::var("DATABASE_URL")
+    let db_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/postgres".to_owned());
     let test_db_name = format!("pgmq_test_{}", test_num);
     let test_db_url = replace_db_string(&db_url, &format!("/{test_db_name}"));
     println!("test_db_url: {test_db_url}");
-    let pool = PgPool::connect(&db_url).await.unwrap();
-    sqlx::query(&format!("CREATE DATABASE {test_db_name};"))
-        .execute(&pool)
-        .await
-        .unwrap();
+    let pool = sqlx::PgPool::connect(&db_url).await.unwrap();
+    sqlx::query(sqlx::AssertSqlSafe(format!(
+        "CREATE DATABASE {test_db_name};"
+    )))
+    .execute(&pool)
+    .await
+    .unwrap();
 
     let queue = pgmq::PGMQueueExt::new(test_db_url, 1).await.unwrap();
     #[cfg(feature = "install-sql-embedded")]

@@ -40,7 +40,7 @@ where
 {
     fn encode_by_ref(
         &self,
-        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+        buf: &mut <DB as Database>::ArgumentBuffer,
     ) -> Result<IsNull, BoxDynError> {
         let value = self.to_string();
         <String as sqlx::Encode<'_, DB>>::encode_by_ref(&value, buf)

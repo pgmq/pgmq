@@ -984,7 +984,7 @@ impl PGMQueueExt {
         E: sqlx::Executor<'c, Database = Postgres>,
         T: for<'de> Deserialize<'de>,
     >(
-        query: sqlx::query::Query<'q, Postgres, <Postgres as sqlx::Database>::Arguments<'q>>,
+        query: sqlx::query::Query<'q, Postgres, <Postgres as sqlx::Database>::Arguments>,
         queue_name: &'q str,
         vt: impl Into<VisibilityTimeoutOffset>,
         qty: i32,
@@ -1008,7 +1008,7 @@ impl PGMQueueExt {
         E: sqlx::Executor<'c, Database = Postgres>,
         T: for<'de> Deserialize<'de>,
     >(
-        query: sqlx::query::Query<'q, Postgres, <Postgres as sqlx::Database>::Arguments<'q>>,
+        query: sqlx::query::Query<'q, Postgres, <Postgres as sqlx::Database>::Arguments>,
         queue_name: &'q str,
         vt: impl Into<VisibilityTimeoutOffset>,
         max_batch_size: i32,

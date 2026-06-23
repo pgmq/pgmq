@@ -4,7 +4,7 @@ use crate::install::version::Version;
 use crate::PgmqError;
 use futures_util::StreamExt;
 use regex::Regex;
-use sqlx::{Executor, Postgres, Transaction};
+use sqlx::{AssertSqlSafe, Executor, Postgres, Transaction};
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::str::FromStr;
@@ -88,7 +88,7 @@ impl MigrationScript {
     /// Run this script and mark it as applied in the DB.
     pub async fn run(&self, txn: &mut Transaction<'static, Postgres>) -> Result<(), PgmqError> {
         {
-            let mut stream = txn.fetch_many(self.content.as_ref());
+            let mut stream = txn.fetch_many(AssertSqlSafe(self.content.as_ref()));
             while let Some(step) = stream.next().await {
                 let _ = step?;
             }

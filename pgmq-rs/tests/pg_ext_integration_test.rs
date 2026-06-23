@@ -3,7 +3,7 @@ use pgmq::types::{ARCHIVE_PREFIX, PGMQ_SCHEMA, QUEUE_PREFIX};
 use pgmq::util::connect;
 use rand::Rng;
 use serde::{Deserialize, Serialize};
-use sqlx::{Pool, Postgres, Row};
+use sqlx::{AssertSqlSafe, Pool, Postgres, Row};
 use std::env;
 use std::time::Duration;
 
@@ -77,7 +77,7 @@ impl Default for MyMessage {
 
 async fn rowcount(qname: &str, connection: &Pool<Postgres>) -> i64 {
     let row_ct_query = format!("SELECT count(*) as ct FROM {PGMQ_SCHEMA}.{QUEUE_PREFIX}_{qname}");
-    sqlx::query(&row_ct_query)
+    sqlx::query(AssertSqlSafe(row_ct_query))
         .fetch_one(connection)
         .await
         .unwrap()
@@ -86,7 +86,7 @@ async fn rowcount(qname: &str, connection: &Pool<Postgres>) -> i64 {
 
 async fn archive_rowcount(qname: &str, connection: &Pool<Postgres>) -> i64 {
     let row_ct_query = format!("SELECT count(*) as ct FROM {PGMQ_SCHEMA}.{ARCHIVE_PREFIX}_{qname}");
-    sqlx::query(&row_ct_query)
+    sqlx::query(AssertSqlSafe(row_ct_query))
         .fetch_one(connection)
         .await
         .unwrap()
@@ -803,7 +803,7 @@ async fn test_transactional() {
 
     // transaction still not closed, no rows yet
     let query = format!("SELECT count(*) FROM pgmq.q_{test_queue}");
-    let rows = sqlx::query(&query)
+    let rows = sqlx::query(AssertSqlSafe(query.clone()))
         .fetch_one(&pool_1)
         .await
         .expect("failed to fetch row")
@@ -813,7 +813,7 @@ async fn test_transactional() {
     tx.commit().await.expect("failed to commit transaction");
 
     // transaction now committed, row is available
-    let rows = sqlx::query(&query)
+    let rows = sqlx::query(AssertSqlSafe(query))
         .fetch_one(&pool_1)
         .await
         .expect("failed to fetch row")
