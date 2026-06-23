@@ -1,11 +1,9 @@
 use std::fmt::Display;
 
-use crate::{errors::PgmqError, types::Message};
+use crate::errors::PgmqError;
 
 use log::LevelFilter;
-use serde::Deserialize;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
-use sqlx::FromRow;
 use sqlx::{ConnectOptions, Transaction};
 use sqlx::{Pool, Postgres};
 use url::{ParseError, Url};
