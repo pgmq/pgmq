@@ -1,7 +1,7 @@
 use pgmq::pg_ext::VisibilityTimeoutOffset;
 use pgmq::types::{ARCHIVE_PREFIX, PGMQ_SCHEMA, QUEUE_PREFIX};
 use pgmq::util::connect;
-use rand::Rng;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use sqlx::{AssertSqlSafe, Pool, Postgres, Row};
 use std::env;
@@ -70,7 +70,7 @@ impl Default for MyMessage {
     fn default() -> Self {
         MyMessage {
             foo: "bar".to_owned(),
-            num: rand::thread_rng().gen_range(0..100),
+            num: rand::rng().random_range(0..100),
         }
     }
 }
@@ -106,7 +106,7 @@ async fn install_pgmq(queue: &pgmq::PGMQueueExt) -> bool {
 async fn test_ext_create_list_drop() {
     let test_queue = format!(
         "test_ext_create_list_drop_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
 
@@ -145,7 +145,7 @@ async fn test_ext_send_read_delete_core<T: Into<VisibilityTimeoutOffset>>(
 ) {
     let test_queue = format!(
         "test_ext_send_read_delete_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
 
     let queue = init_queue_ext(&test_queue).await;
@@ -280,7 +280,7 @@ async fn test_ext_send_read_delete_vt_offset() {
 async fn test_ext_send_delay_core(delay: impl Copy + Into<VisibilityTimeoutOffset>) {
     let test_queue = format!(
         "test_ext_send_delay_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let vt = 4;
     let queue = init_queue_ext(&test_queue).await;
@@ -338,7 +338,7 @@ async fn test_ext_send_delay_vt_offset() {
 async fn test_ext_send_batch() {
     let test_queue = format!(
         "test_ext_send_batch_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
     let msgs = [
@@ -364,7 +364,7 @@ async fn test_ext_send_batch() {
 async fn test_ext_send_batch_read_batch() {
     let test_queue = format!(
         "test_ext_send_batch_read_batch_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
 
@@ -406,7 +406,7 @@ async fn test_ext_send_batch_read_batch() {
 async fn test_ext_read_with_poll() {
     let test_queue = format!(
         "test_ext_read_with_poll_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
 
@@ -439,7 +439,7 @@ async fn test_ext_read_with_poll() {
 async fn test_ext_read_batch_with_poll_empty_queue() {
     let test_queue = format!(
         "test_ext_read_batch_with_poll_empty_queue_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
 
@@ -456,7 +456,7 @@ async fn test_ext_read_batch_with_poll_empty_queue() {
 async fn test_ext_read_with_poll_empty_queue() {
     let test_queue = format!(
         "test_ext_read_with_poll_empty_queue_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
 
@@ -472,7 +472,7 @@ async fn test_ext_read_with_poll_empty_queue() {
 async fn test_ext_send_batch_delay_core(delay: impl Copy + Into<VisibilityTimeoutOffset>) {
     let test_queue = format!(
         "test_ext_send_batch_delay_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
     let msgs = [
@@ -542,10 +542,7 @@ async fn test_ext_send_batch_delay_vt_offset() {
 
 #[tokio::test]
 async fn test_ext_send_pop() {
-    let test_queue = format!(
-        "test_ext_send_pop_{}",
-        rand::thread_rng().gen_range(0..100000)
-    );
+    let test_queue = format!("test_ext_send_pop_{}", rand::rng().random_range(0..100000));
     let queue = init_queue_ext(&test_queue).await;
     let msg = MyMessage::default();
 
@@ -563,7 +560,7 @@ async fn test_ext_send_pop() {
 async fn test_ext_send_archive() {
     let test_queue = format!(
         "test_ext_send_archive_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
     let msg = MyMessage::default();
@@ -581,7 +578,7 @@ async fn test_ext_send_archive() {
 async fn test_ext_archive_batch() {
     let test_queue = format!(
         "test_ext_archive_batch_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
     let msg = MyMessage::default();
@@ -608,7 +605,7 @@ async fn test_ext_archive_batch() {
 async fn test_ext_delete_batch() {
     let test_queue = format!(
         "test_ext_delete_batch{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
 
     let queue = init_queue_ext(&test_queue).await;
@@ -629,7 +626,7 @@ async fn test_ext_delete_batch() {
 async fn test_ext_purge_queue() {
     let test_queue = format!(
         "test_ext_purge_queue{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
 
     let queue = init_queue_ext(&test_queue).await;
@@ -650,14 +647,11 @@ async fn test_ext_purge_queue() {
 
 #[tokio::test]
 async fn test_pgmq_init() {
-    let test_queue = format!(
-        "test_ext_init_queue{}",
-        rand::thread_rng().gen_range(0..100000)
-    );
+    let test_queue = format!("test_ext_init_queue{}", rand::rng().random_range(0..100000));
     let queue = init_queue_ext(&test_queue).await;
     install_pg_partman(&queue.connection).await;
     // error mode on queue partitioned create but already exists
-    let qname = format!("test_dup_{}", rand::thread_rng().gen_range(0..100));
+    let qname = format!("test_dup_{}", rand::rng().random_range(0..100));
     let created = queue
         .create_partitioned(&qname)
         .await
@@ -675,7 +669,7 @@ async fn test_pgmq_init() {
 #[tokio::test]
 async fn test_create_txn() {
     // use test harness to create a connection pool
-    let _q = format!("_q_{}", rand::thread_rng().gen_range(0..100000));
+    let _q = format!("_q_{}", rand::rng().random_range(0..100000));
     let _queue = init_queue_ext(&_q).await;
     let pool = _queue.connection;
 
@@ -683,10 +677,7 @@ async fn test_create_txn() {
     let queue = init_queue_ext(&_q).await;
     // start a txn
     let mut tx = pool.begin().await.expect("failed to start transaction");
-    let q = format!(
-        "test_create_txn_{}",
-        rand::thread_rng().gen_range(0..100000)
-    );
+    let q = format!("test_create_txn_{}", rand::rng().random_range(0..100000));
     // use the pool to create a new queue
     queue
         .create_with_cxn(&q, &mut *tx)
@@ -706,10 +697,7 @@ async fn test_create_txn() {
 
     // rollback txn, verify queue not created
     let mut tx = pool.begin().await.expect("failed to start transaction");
-    let q_rollback = format!(
-        "test_create_txn_rb_{}",
-        rand::thread_rng().gen_range(0..100000)
-    );
+    let q_rollback = format!("test_create_txn_rb_{}", rand::rng().random_range(0..100000));
     // use the pool to create a new queue
     queue
         .create_with_cxn(&q_rollback, &mut *tx)
@@ -735,7 +723,7 @@ async fn test_create_txn() {
 #[tokio::test]
 async fn test_byop() {
     // use test harness to create a connection pool
-    let _q = format!("test_byop_{}", rand::thread_rng().gen_range(0..100000));
+    let _q = format!("test_byop_{}", rand::rng().random_range(0..100000));
     let _queue = init_queue_ext(&_q).await;
     let pool = _queue.connection;
 
@@ -745,7 +733,7 @@ async fn test_byop() {
     assert!(init, "failed to create extension");
 
     // first time must return true
-    let test_queue = format!("test_byop_{}", rand::thread_rng().gen_range(0..100000));
+    let test_queue = format!("test_byop_{}", rand::rng().random_range(0..100000));
     let created = queue
         .create(&test_queue)
         .await
@@ -762,7 +750,7 @@ async fn test_byop() {
 
 #[tokio::test]
 async fn test_transactional() {
-    let test_queue = format!("test_tx_{}", rand::thread_rng().gen_range(0..100000));
+    let test_queue = format!("test_tx_{}", rand::rng().random_range(0..100000));
     let db_url = env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/postgres".to_owned());
     // pool_0 for the queue object and transaction
@@ -816,7 +804,7 @@ async fn test_transactional() {
 
 #[tokio::test]
 async fn test_create_queue_race_condition() {
-    let queue_name = format!("test_tx_{}", rand::thread_rng().gen_range(0..100000));
+    let queue_name = format!("test_tx_{}", rand::rng().random_range(0..100000));
     let db_url = env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/postgres".to_owned());
     let pool = connect(&db_url, 2)
@@ -845,7 +833,7 @@ async fn test_create_queue_race_condition() {
 async fn test_create_fifo_index() {
     let test_queue = format!(
         "test_create_fifo_index_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
 
     let queue = init_queue_ext(&test_queue).await;
@@ -872,7 +860,7 @@ async fn test_create_fifo_index() {
 async fn test_create_fifo_indexes_all() {
     let test_queue_prefix = format!(
         "test_create_fifo_indexes_all_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue_prefix).await;
     queue.drop_queue(&test_queue_prefix).await.unwrap();
@@ -905,7 +893,7 @@ async fn test_create_fifo_indexes_all() {
 async fn test_read_grouped_default_group() {
     let test_queue = format!(
         "test_read_grouped_default_group_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
 
@@ -947,7 +935,7 @@ async fn test_read_grouped_default_group() {
 async fn test_read_grouped_default_group_many() {
     let test_queue = format!(
         "read_grouped_default_group_many_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
 
@@ -967,7 +955,7 @@ async fn test_read_grouped_default_group_many() {
 async fn test_read_grouped_custom_group() {
     let test_queue = format!(
         "test_read_grouped_custom_group_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
 
@@ -1015,7 +1003,7 @@ async fn test_read_grouped_custom_group() {
 async fn test_read_grouped_rr_diff_groups() {
     let test_queue = format!(
         "test_read_grouped_rr_diff_groups_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
 
@@ -1096,7 +1084,7 @@ async fn test_read_grouped_rr_diff_groups() {
 async fn test_read_grouped_head_diff_groups() {
     let test_queue = format!(
         "test_read_grouped_head_diff_groups_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
 
@@ -1177,7 +1165,7 @@ async fn test_read_grouped_head_diff_groups() {
 async fn test_read_grouped_with_poll() {
     let test_queue = format!(
         "test_read_grouped_with_poll_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
 
@@ -1226,7 +1214,7 @@ async fn test_read_grouped_with_poll() {
 async fn test_read_grouped_rr_with_poll() {
     let test_queue = format!(
         "test_read_grouped_rr_with_poll_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
 
@@ -1275,7 +1263,7 @@ async fn test_read_grouped_rr_with_poll() {
 async fn test_bind_list_topics() {
     let test_queue = format!(
         "test_bind_list_topics_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
     let pattern = format!("{test_queue}.*");
@@ -1301,7 +1289,7 @@ async fn test_bind_list_topics() {
 async fn test_list_topics_all() {
     let test_queue = format!(
         "test_list_topics_all_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
     let pattern = format!("{test_queue}.*");
@@ -1322,10 +1310,7 @@ async fn test_list_topics_all() {
 
 #[tokio::test]
 async fn test_unbind_topic() {
-    let test_queue = format!(
-        "test_unbind_topic_{}",
-        rand::thread_rng().gen_range(0..100000)
-    );
+    let test_queue = format!("test_unbind_topic_{}", rand::rng().random_range(0..100000));
     let queue = init_queue_ext(&test_queue).await;
     let pattern = format!("{test_queue}.*");
 
@@ -1342,10 +1327,7 @@ async fn test_unbind_topic() {
 
 #[tokio::test]
 async fn test_send_topic() {
-    let test_queue = format!(
-        "test_send_topic_{}",
-        rand::thread_rng().gen_range(0..100000)
-    );
+    let test_queue = format!("test_send_topic_{}", rand::rng().random_range(0..100000));
     let queue = init_queue_ext(&test_queue).await;
     let pattern = format!("{test_queue}.*");
 
@@ -1366,7 +1348,7 @@ async fn test_send_topic() {
 async fn test_send_batch_topic() {
     let test_queue = format!(
         "test_send_batch_topic_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
     let pattern = format!("{test_queue}.*");
@@ -1396,7 +1378,7 @@ async fn test_send_batch_topic() {
 async fn test_enable_notify_insert() {
     let test_queue = format!(
         "test_enable_notify_insert_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
 
@@ -1420,7 +1402,7 @@ async fn test_enable_notify_insert() {
 async fn test_update_notify_insert() {
     let test_queue = format!(
         "test_update_notify_insert_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
 
@@ -1449,7 +1431,7 @@ async fn test_update_notify_insert() {
 async fn test_disable_notify_insert() {
     let test_queue = format!(
         "test_disable_notify_insert_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
 
@@ -1473,7 +1455,7 @@ async fn test_disable_notify_insert() {
 async fn test_queue_insert_listener() {
     let test_queue = format!(
         "test_queue_insert_listener_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
 
@@ -1500,7 +1482,7 @@ async fn test_queue_insert_listener() {
 async fn test_queue_insert_listener_all() {
     let test_queue = format!(
         "test_queue_insert_listener_all_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
 
@@ -1528,7 +1510,7 @@ async fn test_queue_insert_listener_all() {
 
 #[tokio::test]
 async fn test_metrics() {
-    let test_queue = format!("test_metrics_{}", rand::thread_rng().gen_range(0..100000));
+    let test_queue = format!("test_metrics_{}", rand::rng().random_range(0..100000));
     let queue = init_queue_ext(&test_queue).await;
 
     let messages = [
@@ -1549,10 +1531,7 @@ async fn test_metrics() {
 
 #[tokio::test]
 async fn test_metrics_all() {
-    let test_queue = format!(
-        "test_metrics_all_{}",
-        rand::thread_rng().gen_range(0..100000)
-    );
+    let test_queue = format!("test_metrics_all_{}", rand::rng().random_range(0..100000));
     let queue = init_queue_ext(&test_queue).await;
 
     let messages = [
@@ -1582,7 +1561,7 @@ async fn test_metrics_all() {
 async fn test_convert_archive_partitioned() {
     let test_queue = format!(
         "test_convert_archive_partitioned_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
     install_pg_partman(&queue.connection).await;
@@ -1606,7 +1585,7 @@ async fn test_convert_archive_partitioned() {
 async fn test_convert_archive_partitioned_with_partition_interval() {
     let test_queue = format!(
         "test_c_a_p_partition_interval_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
     install_pg_partman(&queue.connection).await;
@@ -1630,7 +1609,7 @@ async fn test_convert_archive_partitioned_with_partition_interval() {
 async fn test_convert_archive_partitioned_with_retention_interval() {
     let test_queue = format!(
         "test_c_a_p_retention_interval_{}",
-        rand::thread_rng().gen_range(0..100000)
+        rand::rng().random_range(0..100000)
     );
     let queue = init_queue_ext(&test_queue).await;
     install_pg_partman(&queue.connection).await;
@@ -1652,10 +1631,7 @@ async fn test_convert_archive_partitioned_with_retention_interval() {
 #[tokio::test]
 #[cfg(not(feature = "install-sql"))]
 async fn test_convert_archive_partitioned_with_both_optional_params() {
-    let test_queue = format!(
-        "test_c_a_p_both_{}",
-        rand::thread_rng().gen_range(0..100000)
-    );
+    let test_queue = format!("test_c_a_p_both_{}", rand::rng().random_range(0..100000));
     let queue = init_queue_ext(&test_queue).await;
     install_pg_partman(&queue.connection).await;
 

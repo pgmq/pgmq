@@ -1,4 +1,4 @@
-use rand::Rng;
+use rand::RngExt;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Debug, Deserialize, Eq, PartialEq)]
@@ -11,7 +11,7 @@ impl Default for MyMessage {
     fn default() -> Self {
         MyMessage {
             foo: "bar".to_owned(),
-            num: rand::thread_rng().gen_range(0..100),
+            num: rand::rng().random_range(0..100),
         }
     }
 }
@@ -20,7 +20,7 @@ impl Default for MyMessage {
 #[cfg(feature = "install-sql-embedded")]
 #[tokio::test]
 async fn test_sql_lifecycle() {
-    let test_num = rand::thread_rng().gen_range(0..100000);
+    let test_num = rand::rng().random_range(0..100000);
     let test_queue = format!("test_sql_lifecycle_{}", test_num);
     let db_url = std::env::var("DATABASE_URL")
         .unwrap_or_else(|_| "postgres://postgres:postgres@localhost:5432/postgres".to_owned());

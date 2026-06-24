@@ -55,3 +55,6 @@ check.docs:
 # with version "1.0.0", ensure we don’t accidentally depend on a feature added in version "1.5.0".
 check.minimal-versions:
 	cargo minimal-versions check --direct --all-features
+
+check.msrv:
+	cargo msrv verify --all-features

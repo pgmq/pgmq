@@ -48,15 +48,17 @@ jobs:
         run: make check.semver
 
   minimal-versions:
-    name: Check dependency minimal versions
+    name: Check minimal versions
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - uses: taiki-e/install-action@9adcff13829681f1e2f4a678b775043ab5c7fc2c
         with:
-          tool: cargo-minimal-versions,cargo-hack
-      - name: Check versions
+          tool: cargo-minimal-versions,cargo-hack,cargo-msrv
+      - name: Check dependency minimal versions
         run: make check.minimal-versions
+      - name: Check msrv
+        run: make check.msrv
 
   tests:
     name: Run tests
