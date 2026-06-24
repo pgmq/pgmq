@@ -8,6 +8,7 @@ use sqlx::{Acquire, FromRow, Postgres, Transaction};
 
 /// Struct to represent a row of the DB table that tracks which migration scripts have been applied.
 #[derive(FromRow)]
+#[non_exhaustive]
 pub struct AppliedMigration {
     /// The name of the migration script.
     pub name: String,

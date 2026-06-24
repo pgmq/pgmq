@@ -14,6 +14,7 @@ static VERSION_REGEX: OnceLock<Result<Regex, regex::Error>> = OnceLock::new();
 
 /// Struct to represent a basic semver version, e.g. `1.2.3`.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[non_exhaustive]
 pub struct Version {
     /// The first segment of the version string, e.g., for version `1.2.3`, this would be set to `1`
     pub major: u32,

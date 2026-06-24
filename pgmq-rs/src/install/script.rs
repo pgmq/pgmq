@@ -17,6 +17,7 @@ pub static INIT_SCRIPT_NAME: &str = "pgmq.sql";
 static MIGRATION_SCRIPT_NAME_REGEX: OnceLock<Result<Regex, regex::Error>> = OnceLock::new();
 
 #[derive(Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct ParsedScriptName {
     pub original: String,
     pub from: Version,
@@ -79,6 +80,7 @@ pub trait ScriptFetcher {
 
 /// Struct to contain metadata for a pgmq extension migration script along with its content.
 #[derive(Debug, Eq)]
+#[non_exhaustive]
 pub struct MigrationScript {
     pub name: ParsedScriptName,
     pub content: Cow<'static, str>,

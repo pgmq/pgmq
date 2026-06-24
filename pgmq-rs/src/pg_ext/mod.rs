@@ -2,14 +2,13 @@ mod visibility_timeout_offest;
 
 use crate::errors::PgmqError;
 use crate::types::{
-    ListNotifyInsertThrottlesRow, ListTopicBindingsRow, Message, QueueMetrics, SendBatchTopicRow,
-    QUEUE_PREFIX,
+    ListNotifyInsertThrottlesRow, ListTopicBindingsRow, Message, PGMQueueMeta, QueueMetrics,
+    SendBatchTopicRow, QUEUE_PREFIX,
 };
 use crate::util::{check_input, connect};
 use log::info;
 use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgRow;
-use sqlx::types::chrono::Utc;
 use sqlx::{FromRow, Pool, Postgres, Row};
 pub use visibility_timeout_offest::VisibilityTimeoutOffset;
 
@@ -18,17 +17,12 @@ const DEFAULT_POLL_INTERVAL_MS: i32 = 250;
 
 /// Main controller for interacting with a managed by the PGMQ Postgres extension.
 #[derive(Clone, Debug)]
+#[non_exhaustive]
 pub struct PGMQueueExt {
     pub url: String,
     pub connection: Pool<Postgres>,
 }
 
-pub struct PGMQueueMeta {
-    pub queue_name: String,
-    pub created_at: chrono::DateTime<Utc>,
-    pub is_unlogged: bool,
-    pub is_partitioned: bool,
-}
 impl PGMQueueExt {
     /// Initialize a connection to PGMQ/Postgres
     pub async fn new(url: String, max_connections: u32) -> Result<Self, PgmqError> {
@@ -404,15 +398,8 @@ impl PGMQueueExt {
             Ok(None)
         } else {
             let queues = queues
-                .into_iter()
-                .map(|q| {
-                    Ok(PGMQueueMeta {
-                        queue_name: q.try_get("queue_name")?,
-                        created_at: q.try_get("created_at")?,
-                        is_unlogged: q.try_get("is_unlogged")?,
-                        is_partitioned: q.try_get("is_partitioned")?,
-                    })
-                })
+                .iter()
+                .map(PGMQueueMeta::from_row)
                 .collect::<Result<_, sqlx::Error>>()?;
             Ok(Some(queues))
         }
@@ -438,7 +425,7 @@ impl PGMQueueExt {
         let vt: VisibilityTimeoutOffset = vt.into();
         // queue_name, created_at as "created_at: chrono::DateTime<Utc>", is_partitioned, is_unlogged
         let updated = sqlx::query(
-            r#"SELECT msg_id, read_ct, enqueued_at, vt, message from pgmq.set_vt(queue_name=>$1::text, msg_id=>$2::bigint, vt=>$3::integer);"#
+            r#"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.set_vt(queue_name=>$1::text, msg_id=>$2::bigint, vt=>$3::integer);"#
         )
             .bind(queue_name)
             .bind(msg_id)
@@ -685,7 +672,7 @@ impl PGMQueueExt {
         executor: E,
     ) -> Result<Vec<Message<T>>, PgmqError> {
         let query = sqlx::query(
-            r#"SELECT msg_id, read_ct, enqueued_at, vt, message from pgmq.read(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer)"#,
+            r#"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.read(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer)"#,
         );
 
         Self::read_batch_common(query, queue_name, vt, qty, executor).await
@@ -751,7 +738,7 @@ impl PGMQueueExt {
         executor: E,
     ) -> Result<Option<Vec<Message<T>>>, PgmqError> {
         let query = sqlx::query(
-            r#"SELECT msg_id, read_ct, enqueued_at, vt, message from pgmq.read_with_poll(
+            r#"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.read_with_poll(
                 queue_name=>$1::text,
                 vt=>$2::integer,
                 qty=>$3::integer,
@@ -803,7 +790,7 @@ impl PGMQueueExt {
         qty: i32,
         executor: E,
     ) -> Result<Vec<Message<T>>, PgmqError> {
-        let query = sqlx::query("SELECT msg_id, read_ct, enqueued_at, vt, message from pgmq.read_grouped(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer);");
+        let query = sqlx::query("SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.read_grouped(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer);");
 
         Self::read_batch_common(query, queue_name, vt, qty, executor).await
     }
@@ -832,7 +819,7 @@ impl PGMQueueExt {
         executor: E,
     ) -> Result<Vec<Message<T>>, PgmqError> {
         let query = sqlx::query(
-            r#"SELECT msg_id, read_ct, enqueued_at, vt, message from pgmq.read_grouped_with_poll(
+            r#"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.read_grouped_with_poll(
                 queue_name=>$1::text,
                 vt=>$2::integer,
                 qty=>$3::integer,
@@ -883,7 +870,7 @@ impl PGMQueueExt {
         qty: i32,
         executor: E,
     ) -> Result<Vec<Message<T>>, PgmqError> {
-        let query = sqlx::query("SELECT msg_id, read_ct, enqueued_at, vt, message from pgmq.read_grouped_head(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer);");
+        let query = sqlx::query("SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.read_grouped_head(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer);");
 
         Self::read_batch_common(query, queue_name, vt, qty, executor).await
     }
@@ -909,7 +896,7 @@ impl PGMQueueExt {
         qty: i32,
         executor: E,
     ) -> Result<Vec<Message<T>>, PgmqError> {
-        let query = sqlx::query("SELECT msg_id, read_ct, enqueued_at, vt, message from pgmq.read_grouped_rr(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer);");
+        let query = sqlx::query("SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.read_grouped_rr(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer);");
 
         Self::read_batch_common(query, queue_name, vt, qty, executor).await
     }
@@ -938,7 +925,7 @@ impl PGMQueueExt {
         executor: E,
     ) -> Result<Vec<Message<T>>, PgmqError> {
         let query = sqlx::query(
-            r#"SELECT msg_id, read_ct, enqueued_at, vt, message from pgmq.read_grouped_rr_with_poll(
+            r#"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.read_grouped_rr_with_poll(
                 queue_name=>$1::text,
                 vt=>$2::integer,
                 qty=>$3::integer,
@@ -1110,7 +1097,7 @@ impl PGMQueueExt {
         executor: E,
     ) -> Result<Option<Message<T>>, PgmqError> {
         check_input(queue_name)?;
-        let row = sqlx::query(r#"SELECT msg_id, read_ct, enqueued_at, vt, message from pgmq.pop(queue_name=>$1::text)"#)
+        let row = sqlx::query(r#"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.pop(queue_name=>$1::text)"#)
             .bind(queue_name)
             .fetch_optional(executor)
             .await?;
