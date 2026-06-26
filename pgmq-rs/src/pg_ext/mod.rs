@@ -390,23 +390,19 @@ impl PGMQueueExt {
     pub async fn list_queues_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres>>(
         &self,
         executor: E,
-    ) -> Result<Option<Vec<PGMQueueMeta>>, PgmqError> {
+    ) -> Result<Vec<PGMQueueMeta>, PgmqError> {
         let queues = sqlx::query(r#"SELECT queue_name, is_partitioned, is_unlogged, created_at from pgmq.list_queues();"#)
             .fetch_all(executor)
             .await?;
-        if queues.is_empty() {
-            Ok(None)
-        } else {
-            let queues = queues
-                .iter()
-                .map(PGMQueueMeta::from_row)
-                .collect::<Result<_, sqlx::Error>>()?;
-            Ok(Some(queues))
-        }
+        let queues = queues
+            .iter()
+            .map(PGMQueueMeta::from_row)
+            .collect::<Result<_, _>>()?;
+        Ok(queues)
     }
 
     /// List all queues in the Postgres instance.
-    pub async fn list_queues(&self) -> Result<Option<Vec<PGMQueueMeta>>, PgmqError> {
+    pub async fn list_queues(&self) -> Result<Vec<PGMQueueMeta>, PgmqError> {
         self.list_queues_with_cxn(&self.connection).await
     }
 
@@ -702,7 +698,7 @@ impl PGMQueueExt {
     ) -> Result<Option<Message<T>>, PgmqError> {
         self.read_batch_with_poll_with_cxn(queue_name, vt, 1, poll_timeout, poll_interval, executor)
             .await
-            .map(|result| result.and_then(|result| result.into_iter().next()))
+            .map(|result| result.into_iter().next())
     }
 
     pub async fn read_with_poll<'c, T: for<'de> Deserialize<'de>>(
@@ -722,8 +718,6 @@ impl PGMQueueExt {
         .await
     }
 
-    // Todo: In a future SemVer-breaking release, we can update this to return
-    //  `Result<Vec<Message<T>>, PgmqError>` to match `read_batch`/`read_batch_with_cxn`.
     pub async fn read_batch_with_poll_with_cxn<
         'c,
         E: sqlx::Executor<'c, Database = Postgres>,
@@ -736,7 +730,7 @@ impl PGMQueueExt {
         poll_timeout: Option<std::time::Duration>,
         poll_interval: Option<std::time::Duration>,
         executor: E,
-    ) -> Result<Option<Vec<Message<T>>>, PgmqError> {
+    ) -> Result<Vec<Message<T>>, PgmqError> {
         let query = sqlx::query(
             r#"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.read_with_poll(
                 queue_name=>$1::text,
@@ -757,7 +751,6 @@ impl PGMQueueExt {
             executor,
         )
         .await
-        .map(Some)
     }
 
     pub async fn read_batch_with_poll<T: for<'de> Deserialize<'de>>(
@@ -767,7 +760,7 @@ impl PGMQueueExt {
         max_batch_size: i32,
         poll_timeout: Option<std::time::Duration>,
         poll_interval: Option<std::time::Duration>,
-    ) -> Result<Option<Vec<Message<T>>>, PgmqError> {
+    ) -> Result<Vec<Message<T>>, PgmqError> {
         self.read_batch_with_poll_with_cxn(
             queue_name,
             vt,
@@ -1144,24 +1137,27 @@ impl PGMQueueExt {
     pub async fn delete_batch_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres>>(
         &self,
         queue_name: &str,
-        msg_id: &[i64],
+        msg_ids: &[i64],
         executor: E,
-    ) -> Result<usize, PgmqError> {
-        let qty =
-            sqlx::query("SELECT * from pgmq.delete(queue_name=>$1::text, msg_ids=>$2::bigint[])")
-                .bind(queue_name)
-                .bind(msg_id)
-                .fetch_all(executor)
-                .await?
-                .len();
+    ) -> Result<Vec<i64>, PgmqError> {
+        let deleted_msg_ids = sqlx::query_scalar(
+            "SELECT * from pgmq.delete(queue_name=>$1::text, msg_ids=>$2::bigint[])",
+        )
+        .bind(queue_name)
+        .bind(msg_ids)
+        .fetch_all(executor)
+        .await?;
 
-        // FIXME: change function signature to Vec<i64> and return rows
-        Ok(qty)
+        Ok(deleted_msg_ids)
     }
 
     // Delete with a slice of message ids
-    pub async fn delete_batch(&self, queue_name: &str, msg_id: &[i64]) -> Result<usize, PgmqError> {
-        self.delete_batch_with_cxn(queue_name, msg_id, &self.connection)
+    pub async fn delete_batch(
+        &self,
+        queue_name: &str,
+        msg_ids: &[i64],
+    ) -> Result<Vec<i64>, PgmqError> {
+        self.delete_batch_with_cxn(queue_name, msg_ids, &self.connection)
             .await
     }
 

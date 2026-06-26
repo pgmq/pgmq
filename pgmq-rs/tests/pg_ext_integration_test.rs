@@ -114,7 +114,6 @@ async fn test_ext_create_list_drop() {
         .list_queues()
         .await
         .expect("error listing queues")
-        .expect("test queue was not created")
         .iter()
         .map(|q| q.queue_name.clone())
         .collect::<Vec<String>>();
@@ -130,7 +129,6 @@ async fn test_ext_create_list_drop() {
         .list_queues()
         .await
         .expect("error listing queues")
-        .unwrap_or(vec![])
         .iter()
         .map(|q| q.queue_name.clone())
         .collect::<Vec<String>>();
@@ -185,8 +183,8 @@ async fn test_ext_send_read_delete_core<T: Into<VisibilityTimeoutOffset>>(
             None,
         )
         .await
-        .expect("error reading message")
-        .expect("no message");
+        .expect("error reading message");
+    assert!(!read_with_poll.is_empty(), "Message should have been read");
 
     let poll_duration = start_poll.elapsed();
 
@@ -447,14 +445,11 @@ async fn test_ext_read_batch_with_poll_empty_queue() {
 
     let vt = 4;
 
-    // read_batch_with_poll should return Ok(Some(<empty vec>)) if no items are available to be read.
-    // Todo: In a future SemVer breaking change, the expected return value would be Ok(<empty vec>)
     let msg_read = queue
         .read_batch_with_poll::<MyMessage>(&test_queue, vt, 1, Some(Duration::from_secs(1)), None)
         .await
         .unwrap();
-    assert!(msg_read.is_some());
-    assert!(msg_read.unwrap().is_empty());
+    assert!(msg_read.is_empty());
 }
 
 #[tokio::test]
@@ -627,7 +622,7 @@ async fn test_ext_delete_batch() {
         .expect("delete batch error");
     let post_delete_rowcount = rowcount(&test_queue, &queue.connection).await;
     assert_eq!(post_delete_rowcount, 0);
-    assert_eq!(delete_result, 3);
+    assert_eq!(delete_result.len(), 3);
 }
 
 #[tokio::test]
@@ -704,7 +699,6 @@ async fn test_create_txn() {
         .list_queues()
         .await
         .expect("error listing queues")
-        .expect("test queue was not created")
         .iter()
         .map(|q| q.queue_name.clone())
         .collect::<Vec<_>>();
@@ -728,7 +722,6 @@ async fn test_create_txn() {
         .list_queues()
         .await
         .expect("error listing queues")
-        .expect("test queue was not created")
         .iter()
         .map(|q| q.queue_name.clone())
         .collect::<Vec<_>>();
