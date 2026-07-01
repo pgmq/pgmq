@@ -94,6 +94,8 @@ cargo add pgmq --features install-sql
 ```
 
 ```rust
+// Requires the `install-sql` feature
+#[cfg(feature = "install-sql")]
 async fn init_migrations_table(pool: sqlx::Pool<sqlx::Postgres>) -> Result<(), pgmq::PgmqError> {
     let queue = pgmq::PGMQueueExt::new_with_pool(pool).await;
     // Replace the version
@@ -124,6 +126,8 @@ cargo add pgmq --features install-sql-embedded
 ```
 
 ```rust
+// Requires the `install-sql-embedded` feature
+#[cfg(feature = "install-sql-embedded")]
 async fn install_sql(pool: sqlx::Pool<sqlx::Postgres>) -> Result<(), pgmq::PgmqError> {
     let queue = pgmq::PGMQueueExt::new_with_pool(pool).await;
     queue.install_sql_from_embedded().await?;
@@ -153,6 +157,8 @@ cargo add pgmq --features install-sql-github
 ```
 
 ```rust
+// Requires the `install-sql-github` feature
+#[cfg(feature = "install-sql-github")]
 async fn install_sql(pool: sqlx::Pool<sqlx::Postgres>) -> Result<(), pgmq::PgmqError> {
     let queue = pgmq::PGMQueueExt::new_with_pool(pool).await;
     queue.install_sql_from_github(Some("1.9.0")).await?;
