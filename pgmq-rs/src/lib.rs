@@ -3,8 +3,8 @@
 //! [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-13%20%7C%2014%20%7C%2015%20%7C%2016%20%7C%2017%20%7C%2018-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 //! [![PGXN version](https://badge.fury.io/pg/pgmq.svg)](https://pgxn.org/dist/pgmq/)
 //! [![Latest Version](https://img.shields.io/crates/v/pgmq.svg)](https://crates.io/crates/pgmq)
-//! [![docs.rs](https://img.shields.io/docsrs/roadster?logo=docsdotrs)](https://docs.rs/roadster/latest/roadster/)
-//! [![Crates.io MSRV](https://img.shields.io/crates/msrv/roadster)](https://crates.io/crates/roadster)
+//! [![docs.rs](https://img.shields.io/docsrs/pgmq?logo=docsdotrs)](https://docs.rs/pgmq)
+//! [![Crates.io MSRV](https://img.shields.io/crates/msrv/pgmq)](https://crates.io/crates/pgmq)
 //!
 //! A lightweight message queue. Like [AWS SQS](https://aws.amazon.com/sqs/) and [RSMQ](https://github.com/smrchy/rsmq) but on Postgres.
 //!
