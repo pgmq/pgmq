@@ -52,6 +52,7 @@ env_logger = "0.11.0"
 rand = "0.10.0"
 regex = "1.5.4"
 insta = { version = "1.46.3", features = ["json"] }
+rstest = "0.26.1"
 
 # If a consumer has both the `time` and `chrono` features of `sqlx` enabled, `sqlx` will default to using
 # `OffsetDateTime` (from `time`) for timestamp fields instead of `DateTime<Utc>` (from `chrono`), causing a compilation

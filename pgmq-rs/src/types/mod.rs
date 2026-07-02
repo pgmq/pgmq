@@ -1,3 +1,5 @@
+pub mod queue_name;
+
 use serde::Deserialize;
 use sqlx::types::chrono::{DateTime, Utc};
 use sqlx::FromRow;

@@ -1,11 +1,12 @@
 mod visibility_timeout_offest;
 
 use crate::errors::PgmqError;
+use crate::types::queue_name::check_queue_name;
 use crate::types::{
     ListNotifyInsertThrottlesRow, ListTopicBindingsRow, Message, PGMQueueMeta, QueueMetrics,
     SendBatchTopicRow, QUEUE_PREFIX,
 };
-use crate::util::{check_input, connect};
+use crate::util::connect;
 use log::info;
 use serde::{Deserialize, Serialize};
 use sqlx::postgres::PgRow;
@@ -158,6 +159,7 @@ impl PGMQueueExt {
         queue_name: &str,
         txn: &mut sqlx::Transaction<'c, Postgres>,
     ) -> Result<(), PgmqError> {
+        check_queue_name(queue_name)?;
         sqlx::query("SELECT pgmq.acquire_queue_lock(queue_name=>$1::text);")
             .bind(queue_name)
             .execute(&mut **txn)
@@ -210,7 +212,7 @@ impl PGMQueueExt {
     where
         E: sqlx::Acquire<'c, Database = Postgres>,
     {
-        check_input(queue_name)?;
+        check_queue_name(queue_name)?;
         let mut txn = self
             .acquire_queue_lock_with_cxn(queue_name, executor)
             .await?;
@@ -245,7 +247,7 @@ impl PGMQueueExt {
         queue_name: &str,
         executor: E,
     ) -> Result<bool, PgmqError> {
-        check_input(queue_name)?;
+        check_queue_name(queue_name)?;
         sqlx::query("SELECT pgmq.create_unlogged(queue_name=>$1::text);")
             .bind(queue_name)
             .execute(executor)
@@ -268,7 +270,7 @@ impl PGMQueueExt {
         queue_name: &str,
         executor: E,
     ) -> Result<bool, PgmqError> {
-        check_input(queue_name)?;
+        check_queue_name(queue_name)?;
         let queue_table = format!("pgmq.{QUEUE_PREFIX}_{queue_name}");
         // we need to check whether the queue exists first
         // pg_partman create operations are currently unable to be idempotent
@@ -306,6 +308,7 @@ impl PGMQueueExt {
         retention_interval: Option<&str>,
         executor: E,
     ) -> Result<(), PgmqError> {
+        check_queue_name(queue_name)?;
         let mut query: sqlx::QueryBuilder<Postgres> =
             sqlx::QueryBuilder::new("SELECT pgmq.convert_archive_partitioned(");
 
@@ -353,7 +356,7 @@ impl PGMQueueExt {
         queue_name: &str,
         executor: E,
     ) -> Result<(), PgmqError> {
-        check_input(queue_name)?;
+        check_queue_name(queue_name)?;
         sqlx::query("SELECT pgmq.drop_queue(queue_name=>$1::text);")
             .bind(queue_name)
             .execute(executor)
@@ -373,7 +376,7 @@ impl PGMQueueExt {
         queue_name: &str,
         executor: E,
     ) -> Result<i64, PgmqError> {
-        check_input(queue_name)?;
+        check_queue_name(queue_name)?;
         let purged = sqlx::query("SELECT * from pgmq.purge_queue(queue_name=>$1::text);")
             .bind(queue_name)
             .fetch_one(executor)
@@ -417,7 +420,7 @@ impl PGMQueueExt {
         vt: impl Into<VisibilityTimeoutOffset>,
         executor: E,
     ) -> Result<Message<T>, PgmqError> {
-        check_input(queue_name)?;
+        check_queue_name(queue_name)?;
         let vt: VisibilityTimeoutOffset = vt.into();
         // queue_name, created_at as "created_at: chrono::DateTime<Utc>", is_partitioned, is_unlogged
         let updated = sqlx::query(
@@ -506,7 +509,7 @@ impl PGMQueueExt {
         delay: impl Into<VisibilityTimeoutOffset>,
         executor: E,
     ) -> Result<i64, PgmqError> {
-        check_input(queue_name)?;
+        check_queue_name(queue_name)?;
         let delay: VisibilityTimeoutOffset = delay.into();
         let message = serde_json::to_value(message)?;
         let headers = serde_json::to_value(headers)?;
@@ -600,7 +603,7 @@ impl PGMQueueExt {
         delay: impl Into<VisibilityTimeoutOffset>,
         executor: E,
     ) -> Result<Vec<i64>, PgmqError> {
-        check_input(queue_name)?;
+        check_queue_name(queue_name)?;
         let delay: VisibilityTimeoutOffset = delay.into();
         let messages = Self::serialize_list(messages)?;
         let headers = Self::serialize_optional_list(headers)?;
@@ -970,7 +973,7 @@ impl PGMQueueExt {
         qty: i32,
         executor: E,
     ) -> Result<Vec<Message<T>>, PgmqError> {
-        check_input(queue_name)?;
+        check_queue_name(queue_name)?;
         let vt: VisibilityTimeoutOffset = vt.into();
         let rows = query
             .bind(queue_name)
@@ -996,7 +999,7 @@ impl PGMQueueExt {
         poll_interval: Option<std::time::Duration>,
         executor: E,
     ) -> Result<Vec<Message<T>>, PgmqError> {
-        check_input(queue_name)?;
+        check_queue_name(queue_name)?;
         let vt: VisibilityTimeoutOffset = vt.into();
         let poll_timeout_s = poll_timeout.map_or(DEFAULT_POLL_TIMEOUT_S, |t| t.as_secs() as i32);
         let poll_interval_ms =
@@ -1036,7 +1039,7 @@ impl PGMQueueExt {
         msg_id: i64,
         executor: E,
     ) -> Result<bool, PgmqError> {
-        check_input(queue_name)?;
+        check_queue_name(queue_name)?;
         let arch =
             sqlx::query("SELECT * from pgmq.archive(queue_name=>$1::text, msg_id=>$2::bigint)")
                 .bind(queue_name)
@@ -1058,7 +1061,7 @@ impl PGMQueueExt {
         msg_ids: &[i64],
         executor: E,
     ) -> Result<usize, PgmqError> {
-        check_input(queue_name)?;
+        check_queue_name(queue_name)?;
         let qty =
             sqlx::query("SELECT * from pgmq.archive(queue_name=>$1::text, msg_ids=>$2::bigint[])")
                 .bind(queue_name)
@@ -1089,7 +1092,7 @@ impl PGMQueueExt {
         queue_name: &str,
         executor: E,
     ) -> Result<Option<Message<T>>, PgmqError> {
-        check_input(queue_name)?;
+        check_queue_name(queue_name)?;
         let row = sqlx::query(r#"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.pop(queue_name=>$1::text)"#)
             .bind(queue_name)
             .fetch_optional(executor)
@@ -1119,6 +1122,7 @@ impl PGMQueueExt {
         msg_id: i64,
         executor: E,
     ) -> Result<bool, PgmqError> {
+        check_queue_name(queue_name)?;
         let row =
             sqlx::query("SELECT * from pgmq.delete(queue_name=>$1::text, msg_id=>$2::bigint)")
                 .bind(queue_name)
@@ -1140,6 +1144,7 @@ impl PGMQueueExt {
         msg_ids: &[i64],
         executor: E,
     ) -> Result<Vec<i64>, PgmqError> {
+        check_queue_name(queue_name)?;
         let deleted_msg_ids = sqlx::query_scalar(
             "SELECT * from pgmq.delete(queue_name=>$1::text, msg_ids=>$2::bigint[])",
         )
@@ -1166,6 +1171,7 @@ impl PGMQueueExt {
         queue_name: &str,
         executor: E,
     ) -> Result<(), PgmqError> {
+        check_queue_name(queue_name)?;
         sqlx::query("SELECT pgmq.create_fifo_index(queue_name=>$1::text);")
             .bind(queue_name)
             .execute(executor)
@@ -1204,7 +1210,7 @@ impl PGMQueueExt {
         queue_name: &str,
         executor: E,
     ) -> Result<(), PgmqError> {
-        check_input(queue_name)?;
+        check_queue_name(queue_name)?;
         sqlx::query("SELECT pgmq.bind_topic(pattern=>$1::text, queue_name=>$2::text)")
             .bind(pattern)
             .bind(queue_name)
@@ -1225,7 +1231,7 @@ impl PGMQueueExt {
         queue_name: &str,
         executor: E,
     ) -> Result<(), PgmqError> {
-        check_input(queue_name)?;
+        check_queue_name(queue_name)?;
         sqlx::query("SELECT pgmq.unbind_topic(pattern=>$1::text, queue_name=>$2::text)")
             .bind(pattern)
             .bind(queue_name)
@@ -1416,7 +1422,7 @@ impl PGMQueueExt {
         throttle_interval: std::time::Duration,
         executor: E,
     ) -> Result<(), PgmqError> {
-        check_input(queue_name)?;
+        check_queue_name(queue_name)?;
         let throttle_interval_ms = i32::try_from(throttle_interval.as_millis()).unwrap_or(i32::MAX);
         sqlx::query("SELECT pgmq.enable_notify_insert(queue_name=>$1::text, throttle_interval_ms=>$2::integer)")
             .bind(queue_name)
@@ -1441,7 +1447,7 @@ impl PGMQueueExt {
         queue_name: &str,
         executor: E,
     ) -> Result<(), PgmqError> {
-        check_input(queue_name)?;
+        check_queue_name(queue_name)?;
         sqlx::query("SELECT pgmq.disable_notify_insert(queue_name=>$1::text)")
             .bind(queue_name)
             .execute(executor)
@@ -1461,7 +1467,7 @@ impl PGMQueueExt {
         throttle_interval: std::time::Duration,
         executor: E,
     ) -> Result<(), PgmqError> {
-        check_input(queue_name)?;
+        check_queue_name(queue_name)?;
         let throttle_interval_ms = i32::try_from(throttle_interval.as_millis()).unwrap_or(i32::MAX);
         sqlx::query("SELECT pgmq.update_notify_insert(queue_name=>$1::text, throttle_interval_ms=>$2::integer)")
             .bind(queue_name)
@@ -1561,7 +1567,7 @@ impl PGMQueueExt {
         queue_name: &str,
         executor: E,
     ) -> Result<QueueMetrics, PgmqError> {
-        check_input(queue_name)?;
+        check_queue_name(queue_name)?;
         let metrics: QueueMetrics = sqlx::query_as("SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time, queue_visible_length FROM pgmq.metrics(queue_name=>$1::text)")
             .bind(queue_name)
             .fetch_one(executor)

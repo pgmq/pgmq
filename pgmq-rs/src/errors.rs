@@ -1,4 +1,5 @@
 //! Custom errors types for PGMQ
+use crate::types::queue_name::QueueNameError;
 use thiserror::Error;
 use url::ParseError;
 
@@ -17,10 +18,9 @@ pub enum PgmqError {
     #[error("database error {0}")]
     DatabaseError(#[from] sqlx::Error),
 
-    /// a queue name error
-    /// queue names must be alphanumeric and start with a letter
-    #[error("invalid queue name: '{name}'")]
-    InvalidQueueName { name: String },
+    /// the error returned when attempting to use an invalid queue name
+    #[error(transparent)]
+    QueueNameError(#[from] QueueNameError),
 
     /// a general error for installation operations
     #[cfg(feature = "install-sql")]
