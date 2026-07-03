@@ -1,4 +1,8 @@
 pub mod queue_name;
+pub mod visibility_timeout_offset;
+
+pub use queue_name::QueueName;
+pub use visibility_timeout_offset::VisibilityTimeoutOffset;
 
 use serde::Deserialize;
 use sqlx::types::chrono::{DateTime, Utc};

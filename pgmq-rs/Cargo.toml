@@ -19,21 +19,26 @@ path = "src/bin/pgmq-cli.rs"
 required-features = ["cli"]
 
 [features]
-default = []
+default = ["sqlx"]
 cli = ["clap", "url/serde", "install-sql-github", "install-sql-embedded", "env_logger"]
 install-sql = ["futures-util", "regex", "itertools"]
 install-sql-github = ["install-sql", "reqwest"]
 install-sql-embedded = ["install-sql", "include_dir"]
+queue-experimental = []
+# Enables the `PGMQueueExt` client and the `sqlx` implementation of the experimental `Queue` trait if
+# the `queue-experimental` feature is also enabled.
+sqlx = ["dep:sqlx"]
 
 [dependencies]
 chrono = { version = "0.4.34", features = ["serde"] }
 serde = { version = "1.0.219" }
 serde_json = { version = "1.0.142", features = ["raw_value"] }
-sqlx = { version = "0.9.0", features = ["runtime-tokio", "postgres", "chrono", "json"] }
+sqlx = { version = "0.9.0", features = ["runtime-tokio", "postgres", "chrono", "json"], optional = true }
 thiserror = "2.0.18"
 tokio = { version = "1.38.0", default-features = false, features = ["macros", "time"] }
 log = "0.4.18"
 url = "2.4.0"
+async-trait = { version = "0.1.89" }
 
 # Optional dependencies for the `cli` feature
 clap = { version = "4.1", features = ["derive"], optional = true }
@@ -65,6 +70,8 @@ rstest = "0.26.1"
 # both the `time` and `chrono` features enabled. If a query that would see the conflict is added, `pgmq` will fail to
 # compile when running tests/examples.
 sqlx = { version = "0.9.0", features = ["time"] }
+
+pgmq_test_macro = { path = "pgmq_test_macro" }
 
 [[example]]
 name = "install"

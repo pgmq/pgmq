@@ -1,5 +1,4 @@
-use pgmq::pg_ext::VisibilityTimeoutOffset;
-use pgmq::types::{ARCHIVE_PREFIX, PGMQ_SCHEMA, QUEUE_PREFIX};
+use pgmq::types::{VisibilityTimeoutOffset, ARCHIVE_PREFIX, PGMQ_SCHEMA, QUEUE_PREFIX};
 use pgmq::util::connect;
 use rand::RngExt;
 use serde::{Deserialize, Serialize};

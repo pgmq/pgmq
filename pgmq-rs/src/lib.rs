@@ -267,7 +267,13 @@
 pub mod errors;
 #[cfg(feature = "install-sql")]
 pub mod install;
+#[cfg(feature = "sqlx")]
 pub mod pg_ext;
+pub(crate) mod private;
+#[cfg(feature = "queue-experimental")]
+pub mod queue;
+#[cfg(not(feature = "queue-experimental"))]
+pub(crate) mod queue;
 pub mod types;
 pub mod util;
 

@@ -110,7 +110,7 @@ pub fn check_queue_name(input: &str) -> Result<(), QueueNameError> {
 #[cfg(test)]
 mod tests {
     use super::constants::MAX_PGMQ_QUEUE_LEN;
-    use crate::types::queue_name::QueueName;
+    use crate::types::QueueName;
     use rstest::rstest;
     use std::assert_matches;
 

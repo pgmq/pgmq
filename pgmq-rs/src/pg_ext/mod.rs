@@ -1,17 +1,17 @@
-mod visibility_timeout_offest;
-
 use crate::errors::PgmqError;
-use crate::types::queue_name::check_queue_name;
+use crate::private::util::handle_read_batch_result;
+use crate::queue::Queue;
+use crate::types::queue_name::{check_queue_name, QueueNameError};
 use crate::types::{
     ListNotifyInsertThrottlesRow, ListTopicBindingsRow, Message, PGMQueueMeta, QueueMetrics,
     SendBatchTopicRow, QUEUE_PREFIX,
 };
+use crate::types::{QueueName, VisibilityTimeoutOffset};
 use crate::util::connect;
 use log::info;
 use serde::{Deserialize, Serialize};
-use sqlx::postgres::PgRow;
 use sqlx::{FromRow, Pool, Postgres, Row};
-pub use visibility_timeout_offest::VisibilityTimeoutOffset;
+use std::ops::Deref;
 
 const DEFAULT_POLL_TIMEOUT_S: i32 = 5;
 const DEFAULT_POLL_INTERVAL_MS: i32 = 250;
@@ -22,6 +22,20 @@ const DEFAULT_POLL_INTERVAL_MS: i32 = 250;
 pub struct PGMQueueExt {
     pub url: String,
     pub connection: Pool<Postgres>,
+}
+
+impl AsRef<Pool<Postgres>> for PGMQueueExt {
+    fn as_ref(&self) -> &Pool<Postgres> {
+        &self.connection
+    }
+}
+
+impl Deref for PGMQueueExt {
+    type Target = Pool<Postgres>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.connection
+    }
 }
 
 impl PGMQueueExt {
@@ -212,15 +226,15 @@ impl PGMQueueExt {
     where
         E: sqlx::Acquire<'c, Database = Postgres>,
     {
-        check_queue_name(queue_name)?;
+        let queue_name: QueueName = queue_name.try_into().map_err(QueueNameError::other)?;
         let mut txn = self
-            .acquire_queue_lock_with_cxn(queue_name, executor)
+            .acquire_queue_lock_with_cxn(*queue_name, executor)
             .await?;
 
         let exists = sqlx::query_scalar::<_, bool>(
             "SELECT EXISTS(SELECT 1 FROM pgmq.meta WHERE queue_name = $1::text);",
         )
-        .bind(queue_name)
+        .bind(*queue_name)
         .fetch_one(&mut *txn)
         .await?;
 
@@ -228,10 +242,7 @@ impl PGMQueueExt {
             return Ok(false);
         }
 
-        sqlx::query("SELECT pgmq.create(queue_name=>$1::text);")
-            .bind(queue_name)
-            .execute(&mut *txn)
-            .await?;
+        txn.create(queue_name).await?;
 
         txn.commit().await?;
 
@@ -509,20 +520,11 @@ impl PGMQueueExt {
         delay: impl Into<VisibilityTimeoutOffset>,
         executor: E,
     ) -> Result<i64, PgmqError> {
-        check_queue_name(queue_name)?;
+        let queue_name = queue_name.try_into().map_err(QueueNameError::other)?;
         let delay: VisibilityTimeoutOffset = delay.into();
         let message = serde_json::to_value(message)?;
         let headers = serde_json::to_value(headers)?;
-        let msg_id: i64 = sqlx::query_scalar(
-            "SELECT * from pgmq.send(queue_name=>$1::text, msg=>$2::jsonb, headers=>$3::jsonb, delay=>$4::int);",
-        )
-        .bind(queue_name)
-        .bind(message)
-        .bind(headers)
-        .bind(delay)
-        .fetch_one(executor)
-        .await?;
-        Ok(msg_id)
+        crate::queue::sqlx::send(executor, queue_name, message, headers, delay).await
     }
 
     pub async fn send_delay_with_headers<T: Serialize, H: Serialize>(
@@ -982,7 +984,7 @@ impl PGMQueueExt {
             .fetch_all(executor)
             .await?;
 
-        Self::handle_read_batch_result(rows)
+        handle_read_batch_result(rows)
     }
 
     async fn read_batch_with_poll_common<
@@ -1013,24 +1015,7 @@ impl PGMQueueExt {
             .fetch_all(executor)
             .await?;
 
-        Self::handle_read_batch_result(rows)
-    }
-
-    /// Helper method to convert [`PgRow`] to [`Message`] for the `read*`/`read_batch*` methods.
-    /// This is needed, vs using [`sqlx::query_as`] to directly convert the result to
-    /// [`Message`], because in order to use [`sqlx::query_as`] we need to add trait constraints
-    /// to the `T` type parameter used in the `read*`/`read_batch*` methods, which
-    /// would be a breaking change.
-    // Todo: In a future SemVer-breaking release, replace this method using `query_as`
-    //  to directly parse the SQL query rows to `Vec<Message<T>`.
-    fn handle_read_batch_result<T: for<'de> Deserialize<'de>>(
-        rows: Vec<PgRow>,
-    ) -> Result<Vec<Message<T>>, PgmqError> {
-        let messages = rows
-            .into_iter()
-            .map(|row| Message::<T>::from_row(&row))
-            .collect::<Result<Vec<Message<T>>, _>>()?;
-        Ok(messages)
+        handle_read_batch_result(rows)
     }
 
     pub async fn archive_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres>>(

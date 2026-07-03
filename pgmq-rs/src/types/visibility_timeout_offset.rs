@@ -18,67 +18,67 @@ use std::ops::Deref;
 ///
 /// ## Convert from `i32`
 /// ```
-/// # use pgmq::pg_ext::VisibilityTimeoutOffset;
+/// # use pgmq::types::VisibilityTimeoutOffset;
 /// assert_eq!(10i32, *VisibilityTimeoutOffset::from(10i32));
 /// ```
 ///
 /// ## Convert from `u32`
 /// ```
-/// # use pgmq::pg_ext::VisibilityTimeoutOffset;
+/// # use pgmq::types::VisibilityTimeoutOffset;
 /// assert_eq!(10i32, *VisibilityTimeoutOffset::from(10u32));
 /// ```
 ///
 /// ## Convert from `u32` -- capped
 /// ```
-/// # use pgmq::pg_ext::VisibilityTimeoutOffset;
+/// # use pgmq::types::VisibilityTimeoutOffset;
 /// assert_eq!(i32::MAX, *VisibilityTimeoutOffset::from(u32::MAX));
 /// ```
 ///
 /// ## Convert from `i64`
 /// ```
-/// # use pgmq::pg_ext::VisibilityTimeoutOffset;
+/// # use pgmq::types::VisibilityTimeoutOffset;
 /// assert_eq!(10i32, *VisibilityTimeoutOffset::from(10i64));
 /// ```
 ///
 /// ## Convert from `i64` -- capped max
 /// ```
-/// # use pgmq::pg_ext::VisibilityTimeoutOffset;
+/// # use pgmq::types::VisibilityTimeoutOffset;
 /// assert_eq!(i32::MAX, *VisibilityTimeoutOffset::from(i64::MAX));
 /// ```
 ///
 /// ## Convert from `i64` -- capped min
 /// ```
-/// # use pgmq::pg_ext::VisibilityTimeoutOffset;
+/// # use pgmq::types::VisibilityTimeoutOffset;
 /// assert_eq!(i32::MIN, *VisibilityTimeoutOffset::from(i64::MIN));
 /// ```
 ///
 /// ## Convert from [`chrono::Duration`]
 /// ```
-/// # use pgmq::pg_ext::VisibilityTimeoutOffset;
+/// # use pgmq::types::VisibilityTimeoutOffset;
 /// assert_eq!(10i32, *VisibilityTimeoutOffset::from(chrono::Duration::seconds(10)));
 /// ```
 ///
 /// ## Convert from [`chrono::Duration`] -- capped max
 /// ```
-/// # use pgmq::pg_ext::VisibilityTimeoutOffset;
+/// # use pgmq::types::VisibilityTimeoutOffset;
 /// assert_eq!(VisibilityTimeoutOffset::MAX, VisibilityTimeoutOffset::from(chrono::Duration::MAX));
 /// ```
 ///
 /// ## Convert from [`chrono::Duration`] -- capped min
 /// ```
-/// # use pgmq::pg_ext::VisibilityTimeoutOffset;
+/// # use pgmq::types::VisibilityTimeoutOffset;
 /// assert_eq!(VisibilityTimeoutOffset::MAX, VisibilityTimeoutOffset::from(chrono::Duration::MAX));
 /// ```
 ///
 /// ## Convert from [`std::time::Duration`]
 /// ```
-/// # use pgmq::pg_ext::VisibilityTimeoutOffset;
+/// # use pgmq::types::VisibilityTimeoutOffset;
 /// assert_eq!(10i32, *VisibilityTimeoutOffset::from(std::time::Duration::from_secs(10)));
 /// ```
 ///
 /// ## Convert from [`std::time::Duration`] -- capped max
 /// ```
-/// # use pgmq::pg_ext::VisibilityTimeoutOffset;
+/// # use pgmq::types::VisibilityTimeoutOffset;
 /// assert_eq!(VisibilityTimeoutOffset::MAX, VisibilityTimeoutOffset::from(std::time::Duration::MAX));
 /// ```
 #[derive(Clone, Copy, Debug, PartialEq, Encode)]
