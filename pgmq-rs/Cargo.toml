@@ -20,9 +20,9 @@ required-features = ["cli"]
 
 [features]
 default = ["sqlx"]
-cli = ["clap", "url/serde", "install-sql-github", "install-sql-embedded", "env_logger"]
-install-sql = ["futures-util", "regex", "itertools"]
-install-sql-github = ["install-sql", "reqwest"]
+cli = ["sqlx", "clap", "install-sql-github", "install-sql-embedded", "env_logger"]
+install-sql = ["sqlx", "futures-util", "regex", "itertools"]
+install-sql-github = ["install-sql", "reqwest", "url/serde"]
 install-sql-embedded = ["install-sql", "include_dir"]
 queue-experimental = []
 # Enables the `PGMQueueExt` client and the `sqlx` implementation of the experimental `Queue` trait if
@@ -31,6 +31,7 @@ sqlx = ["dep:sqlx"]
 
 [dependencies]
 chrono = { version = "0.4.34", features = ["serde"] }
+serde_derive = { version = "1.0.219" }
 serde = { version = "1.0.219" }
 serde_json = { version = "1.0.142", features = ["raw_value"] }
 sqlx = { version = "0.9.0", features = ["runtime-tokio", "postgres", "chrono", "json"], optional = true }

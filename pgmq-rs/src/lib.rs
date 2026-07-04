@@ -214,7 +214,7 @@
 //!
 //! ```rust,no_run
 //! use pgmq::{PgmqError, Message, PGMQueueExt};
-//! use serde::{Deserialize, Serialize};
+//! use serde_derive::{Deserialize, Serialize};
 //! use serde_json::Value;
 //!
 //! #[tokio::main]
@@ -278,5 +278,6 @@ pub mod types;
 pub mod util;
 
 pub use errors::PgmqError;
+#[cfg(feature = "sqlx")]
 pub use pg_ext::PGMQueueExt;
 pub use types::Message;

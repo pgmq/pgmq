@@ -1,5 +1,5 @@
 use pgmq::{errors::PgmqError, Message, PGMQueueExt};
-use serde::{Deserialize, Serialize};
+use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[tokio::main]

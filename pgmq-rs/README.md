@@ -214,7 +214,7 @@ Below is a minimal example of how to use the crate. More advanced examples can b
 
 ```rust
 use pgmq::{PgmqError, Message, PGMQueueExt};
-use serde::{Deserialize, Serialize};
+use serde_derive::{Deserialize, Serialize};
 use serde_json::Value;
 
 #[tokio::main]

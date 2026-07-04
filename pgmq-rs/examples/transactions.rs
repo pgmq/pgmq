@@ -1,5 +1,5 @@
 use pgmq::{Message, PGMQueueExt};
-use serde::{Deserialize, Serialize};
+use serde_derive::{Deserialize, Serialize};
 use sqlx::{PgPool, Row};
 
 #[derive(Serialize, Debug, Deserialize, Eq, PartialEq)]

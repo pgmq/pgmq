@@ -15,6 +15,7 @@ pub enum PgmqError {
     UrlParsingError(#[from] ParseError),
 
     /// a database error
+    #[cfg(feature = "sqlx")]
     #[error("database error {0}")]
     DatabaseError(#[from] sqlx::Error),
 

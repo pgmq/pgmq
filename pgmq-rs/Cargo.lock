@@ -1474,6 +1474,7 @@ dependencies = [
  "reqwest",
  "rstest",
  "serde",
+ "serde_derive",
  "serde_json",
  "sqlx",
  "thiserror",

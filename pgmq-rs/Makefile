@@ -66,3 +66,6 @@ check.minimal-versions:
 
 check.msrv:
 	cargo msrv verify --all-features
+
+check.each_feature:
+	cargo hack build --each-feature

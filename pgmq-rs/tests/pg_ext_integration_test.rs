@@ -1,7 +1,7 @@
 use pgmq::types::{VisibilityTimeoutOffset, ARCHIVE_PREFIX, PGMQ_SCHEMA, QUEUE_PREFIX};
 use pgmq::util::connect;
 use rand::RngExt;
-use serde::{Deserialize, Serialize};
+use serde_derive::{Deserialize, Serialize};
 use sqlx::{AssertSqlSafe, Pool, Postgres, Row};
 use std::env;
 use std::time::Duration;

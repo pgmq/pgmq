@@ -30,7 +30,7 @@ jobs:
           components: rustfmt, clippy
       - uses: taiki-e/install-action@9adcff13829681f1e2f4a678b775043ab5c7fc2c
         with:
-          tool: cargo-readme
+          tool: cargo-readme,cargo-hack
       - uses: Swatinem/rust-cache@v2
       - name: Cargo format
         run: make check.fmt
@@ -45,6 +45,8 @@ jobs:
             echo "README.md is out of sync with the crate's main 'lib.rs' doc comment. Run 'make update.readme' to sync."
             exit 1
           fi
+      - name: Check each feature builds independently
+        run: make check.each_feature
 
   semver:
     name: Check SemVer compatibility

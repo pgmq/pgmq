@@ -13,7 +13,7 @@ use initialization::ConnDetails;
 use pgmq::queue::Queue;
 use pgmq::Message;
 use rand::RngExt;
-use serde::{Deserialize, Serialize};
+use serde_derive::{Deserialize, Serialize};
 use serde_json::json;
 
 static QUEUE: &str = "queue";

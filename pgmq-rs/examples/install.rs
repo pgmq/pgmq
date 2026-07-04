@@ -1,5 +1,5 @@
 use pgmq::Message;
-use serde::{Deserialize, Serialize};
+use serde_derive::{Deserialize, Serialize};
 
 #[derive(Serialize, Debug, Deserialize, Eq, PartialEq)]
 struct MyMessage {

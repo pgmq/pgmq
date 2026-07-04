@@ -1,3 +1,5 @@
+#![cfg(feature = "sqlx")]
+
 use crate::errors::PgmqError;
 use log::LevelFilter;
 use sqlx::postgres::{PgConnectOptions, PgPoolOptions};
