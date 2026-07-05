@@ -1,6 +1,7 @@
 use pgmq::pg_ext::VisibilityTimeoutOffset;
 use pgmq::types::{ARCHIVE_PREFIX, PGMQ_SCHEMA, QUEUE_PREFIX};
 use pgmq::util::connect;
+use pgmq::Message;
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
 use sqlx::{AssertSqlSafe, Pool, Postgres, Row};
@@ -156,8 +157,8 @@ async fn test_ext_send_read_delete_core<T: Into<VisibilityTimeoutOffset>>(
     let msg_id = queue.send(&test_queue, &msg).await.unwrap();
     assert!(msg_id >= 1);
 
-    let read_message = queue
-        .read::<MyMessage>(&test_queue, offset1)
+    let read_message: Option<Message<MyMessage>> = queue
+        .read(&test_queue, offset1)
         .await
         .expect("error reading message");
     assert!(read_message.is_some());
@@ -167,7 +168,7 @@ async fn test_ext_send_read_delete_core<T: Into<VisibilityTimeoutOffset>>(
 
     // read again, assert no messages visible
     let read_message = queue
-        .read::<MyMessage>(&test_queue, offset2)
+        .read::<MyMessage, ()>(&test_queue, offset2)
         .await
         .expect("error reading message");
     assert!(read_message.is_none());
@@ -175,7 +176,7 @@ async fn test_ext_send_read_delete_core<T: Into<VisibilityTimeoutOffset>>(
     // read with poll, blocks until message visible
     let start_poll = std::time::Instant::now();
     let read_with_poll = queue
-        .read_batch_with_poll::<MyMessage>(
+        .read_batch_with_poll::<MyMessage, ()>(
             &test_queue,
             offset3,
             1,
@@ -194,11 +195,11 @@ async fn test_ext_send_read_delete_core<T: Into<VisibilityTimeoutOffset>>(
 
     // change the VT to now
     let _vt_set = queue
-        .set_vt::<MyMessage>(&test_queue, msg_id, offset4)
+        .set_vt::<MyMessage, ()>(&test_queue, msg_id, offset4)
         .await
         .expect("failed to set VT");
     let read_message = queue
-        .read::<MyMessage>(&test_queue, offset5)
+        .read::<MyMessage, ()>(&test_queue, offset5)
         .await
         .expect("error reading message")
         .expect("expected a message");
@@ -288,14 +289,14 @@ async fn test_ext_send_delay_core(delay: impl Copy + Into<VisibilityTimeoutOffse
     queue.send_delay(&test_queue, &msg, delay).await.unwrap();
 
     // No messages are found due to visibility timeout
-    let no_messages = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    let no_messages = queue.read::<MyMessage, ()>(&test_queue, vt).await.unwrap();
     assert!(no_messages.is_none());
 
     // After the delay, message is found
     let duration: VisibilityTimeoutOffset = delay.into();
     tokio::time::sleep(Duration::from_secs(duration.as_seconds() as u64)).await;
 
-    let one_messages = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    let one_messages = queue.read::<MyMessage, ()>(&test_queue, vt).await.unwrap();
     assert!(one_messages.is_some());
 }
 
@@ -350,10 +351,10 @@ async fn test_ext_send_batch() {
     assert_eq!(3, msg_ids.len());
 
     let vt = 4;
-    let msg1 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
-    let msg2 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
-    let msg3 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
-    let msg4 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    let msg1 = queue.read::<MyMessage, ()>(&test_queue, vt).await.unwrap();
+    let msg2 = queue.read::<MyMessage, ()>(&test_queue, vt).await.unwrap();
+    let msg3 = queue.read::<MyMessage, ()>(&test_queue, vt).await.unwrap();
+    let msg4 = queue.read::<MyMessage, ()>(&test_queue, vt).await.unwrap();
     assert!(msg1.is_some());
     assert!(msg2.is_some());
     assert!(msg3.is_some());
@@ -370,7 +371,7 @@ async fn test_ext_send_batch_read_batch() {
 
     let vt = 4;
     let msgs_read = queue
-        .read_batch::<MyMessage>(&test_queue, vt, 1)
+        .read_batch::<MyMessage, ()>(&test_queue, vt, 1)
         .await
         .unwrap();
     assert!(msgs_read.is_empty());
@@ -384,19 +385,19 @@ async fn test_ext_send_batch_read_batch() {
     assert_eq!(3, msg_ids.len());
 
     let msgs_read = queue
-        .read_batch::<MyMessage>(&test_queue, vt, (msgs_sent.len() as i32) - 1)
+        .read_batch::<MyMessage, ()>(&test_queue, vt, (msgs_sent.len() as i32) - 1)
         .await
         .expect("Should successfully read a batch of messages");
     assert_eq!(msgs_sent.len() - 1, msgs_read.len());
 
     let msgs_read = queue
-        .read_batch::<MyMessage>(&test_queue, vt, 1)
+        .read_batch::<MyMessage, ()>(&test_queue, vt, 1)
         .await
         .unwrap();
     assert_eq!(1, msgs_read.len());
 
     let msgs_read = queue
-        .read_batch::<MyMessage>(&test_queue, vt, 1)
+        .read_batch::<MyMessage, ()>(&test_queue, vt, 1)
         .await
         .unwrap();
     assert!(msgs_read.is_empty());
@@ -411,7 +412,7 @@ async fn test_ext_read_with_poll() {
     let queue = init_queue_ext(&test_queue).await;
 
     let vt = 4;
-    let msg = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    let msg = queue.read::<MyMessage, ()>(&test_queue, vt).await.unwrap();
     assert!(msg.is_none());
 
     let msgs_sent = [
@@ -423,13 +424,13 @@ async fn test_ext_read_with_poll() {
     assert_eq!(3, msg_ids.len());
 
     let msg = queue
-        .read_with_poll::<MyMessage>(&test_queue, vt, Some(Duration::from_secs(1)), None)
+        .read_with_poll::<MyMessage, ()>(&test_queue, vt, Some(Duration::from_secs(1)), None)
         .await
         .unwrap();
     assert!(msg.is_some());
 
     let msgs_read = queue
-        .read_batch::<MyMessage>(&test_queue, vt, msgs_sent.len() as i32)
+        .read_batch::<MyMessage, ()>(&test_queue, vt, msgs_sent.len() as i32)
         .await
         .unwrap();
     assert_eq!(msgs_sent.len() - 1, msgs_read.len());
@@ -446,7 +447,13 @@ async fn test_ext_read_batch_with_poll_empty_queue() {
     let vt = 4;
 
     let msg_read = queue
-        .read_batch_with_poll::<MyMessage>(&test_queue, vt, 1, Some(Duration::from_secs(1)), None)
+        .read_batch_with_poll::<MyMessage, ()>(
+            &test_queue,
+            vt,
+            1,
+            Some(Duration::from_secs(1)),
+            None,
+        )
         .await
         .unwrap();
     assert!(msg_read.is_empty());
@@ -463,7 +470,7 @@ async fn test_ext_read_with_poll_empty_queue() {
     let vt = 4;
 
     let msg = queue
-        .read_with_poll::<MyMessage>(&test_queue, vt, Some(Duration::from_secs(1)), None)
+        .read_with_poll::<MyMessage, ()>(&test_queue, vt, Some(Duration::from_secs(1)), None)
         .await
         .unwrap();
     assert!(msg.is_none());
@@ -488,17 +495,17 @@ async fn test_ext_send_batch_delay_core(delay: impl Copy + Into<VisibilityTimeou
 
     // No messages are found due to visibility timeout
     let vt = 4;
-    let no_messages = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    let no_messages = queue.read::<MyMessage, ()>(&test_queue, vt).await.unwrap();
     assert!(no_messages.is_none());
 
     // After the delay, messages are found
     let duration: VisibilityTimeoutOffset = delay.into();
     tokio::time::sleep(Duration::from_secs(duration.as_seconds() as u64)).await;
 
-    let msg1 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
-    let msg2 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
-    let msg3 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
-    let msg4 = queue.read::<MyMessage>(&test_queue, vt).await.unwrap();
+    let msg1 = queue.read::<MyMessage, ()>(&test_queue, vt).await.unwrap();
+    let msg2 = queue.read::<MyMessage, ()>(&test_queue, vt).await.unwrap();
+    let msg3 = queue.read::<MyMessage, ()>(&test_queue, vt).await.unwrap();
+    let msg4 = queue.read::<MyMessage, ()>(&test_queue, vt).await.unwrap();
     assert!(msg1.is_some());
     assert!(msg2.is_some());
     assert!(msg3.is_some());
@@ -549,7 +556,7 @@ async fn test_ext_send_pop() {
     let _ = queue.send(&test_queue, &msg).await.unwrap();
 
     let popped = queue
-        .pop::<MyMessage>(&test_queue)
+        .pop::<MyMessage, ()>(&test_queue)
         .await
         .expect("failed to pop")
         .expect("no message to pop");
@@ -904,13 +911,13 @@ async fn test_read_grouped_default_group() {
 
     {
         let read_msg1 = queue
-            .read_grouped::<MyMessage>(&test_queue, 100, 1)
+            .read_grouped::<MyMessage, ()>(&test_queue, 100, 1)
             .await
             .unwrap()
             .into_iter()
             .next();
         let read_msg2 = queue
-            .read_grouped::<MyMessage>(&test_queue, 100, 1)
+            .read_grouped::<MyMessage, ()>(&test_queue, 100, 1)
             .await
             .unwrap()
             .into_iter()
@@ -922,7 +929,7 @@ async fn test_read_grouped_default_group() {
     {
         queue.archive(&test_queue, id1).await.unwrap();
         let read_msg2 = queue
-            .read_grouped::<MyMessage>(&test_queue, 100, 1)
+            .read_grouped::<MyMessage, ()>(&test_queue, 100, 1)
             .await
             .unwrap()
             .into_iter()
@@ -945,7 +952,7 @@ async fn test_read_grouped_default_group_many() {
     queue.send(&test_queue, &msg2).await.unwrap();
 
     let read_msgs = queue
-        .read_grouped::<MyMessage>(&test_queue, 100, 2)
+        .read_grouped::<MyMessage, ()>(&test_queue, 100, 2)
         .await
         .unwrap();
     assert_eq!(2, read_msgs.len());
@@ -984,13 +991,13 @@ async fn test_read_grouped_custom_group() {
         .unwrap();
 
     let read_msg1 = queue
-        .read_grouped::<MyMessage>(&test_queue, 100, 1)
+        .read_grouped::<MyMessage, serde_json::Value>(&test_queue, 100, 1)
         .await
         .unwrap()
         .into_iter()
         .next();
     let read_msg2 = queue
-        .read_grouped::<MyMessage>(&test_queue, 100, 1)
+        .read_grouped::<MyMessage, serde_json::Value>(&test_queue, 100, 1)
         .await
         .unwrap()
         .into_iter()
@@ -1046,7 +1053,7 @@ async fn test_read_grouped_rr_diff_groups() {
         .unwrap();
 
     let read_msgs = queue
-        .read_grouped_rr::<MyMessage>(&test_queue, 100, 2)
+        .read_grouped_rr::<MyMessage, serde_json::Value>(&test_queue, 100, 2)
         .await
         .unwrap();
     assert_eq!(2, read_msgs.len());
@@ -1056,7 +1063,7 @@ async fn test_read_grouped_rr_diff_groups() {
     );
 
     let read_msgs2 = queue
-        .read_grouped_rr::<MyMessage>(&test_queue, 100, 2)
+        .read_grouped_rr::<MyMessage, serde_json::Value>(&test_queue, 100, 2)
         .await
         .unwrap();
     assert!(read_msgs2.is_empty(), "The second message in each group should not become available until the first message has been processed");
@@ -1070,7 +1077,7 @@ async fn test_read_grouped_rr_diff_groups() {
         .unwrap();
 
     let read_msgs = queue
-        .read_grouped_rr::<MyMessage>(&test_queue, 100, 2)
+        .read_grouped_rr::<MyMessage, serde_json::Value>(&test_queue, 100, 2)
         .await
         .unwrap();
     assert_eq!(2, read_msgs.len());
@@ -1127,7 +1134,7 @@ async fn test_read_grouped_head_diff_groups() {
         .unwrap();
 
     let read_msgs = queue
-        .read_grouped_head::<MyMessage>(&test_queue, 100, 2)
+        .read_grouped_head::<MyMessage, serde_json::Value>(&test_queue, 100, 2)
         .await
         .unwrap();
     assert_eq!(2, read_msgs.len());
@@ -1137,7 +1144,7 @@ async fn test_read_grouped_head_diff_groups() {
     );
 
     let read_msgs2 = queue
-        .read_grouped_head::<MyMessage>(&test_queue, 100, 2)
+        .read_grouped_head::<MyMessage, serde_json::Value>(&test_queue, 100, 2)
         .await
         .unwrap();
     assert!(read_msgs2.is_empty(), "The second message in each group should not become available until the first message has been processed");
@@ -1151,7 +1158,7 @@ async fn test_read_grouped_head_diff_groups() {
         .unwrap();
 
     let read_msgs = queue
-        .read_grouped_head::<MyMessage>(&test_queue, 100, 2)
+        .read_grouped_head::<MyMessage, serde_json::Value>(&test_queue, 100, 2)
         .await
         .unwrap();
     assert_eq!(2, read_msgs.len());
@@ -1194,7 +1201,7 @@ async fn test_read_grouped_with_poll() {
         .unwrap();
 
     let read_msgs = queue
-        .read_grouped_with_poll::<MyMessage>(
+        .read_grouped_with_poll::<MyMessage, serde_json::Value>(
             &test_queue,
             100,
             2,
@@ -1243,7 +1250,7 @@ async fn test_read_grouped_rr_with_poll() {
         .unwrap();
 
     let read_msgs = queue
-        .read_grouped_rr_with_poll::<MyMessage>(
+        .read_grouped_rr_with_poll::<MyMessage, serde_json::Value>(
             &test_queue,
             100,
             2,
@@ -1340,7 +1347,7 @@ async fn test_send_topic() {
         .unwrap();
     assert_eq!(1, matched_queues);
 
-    let read_msg = queue.read::<MyMessage>(&test_queue, 100).await.unwrap();
+    let read_msg = queue.read::<MyMessage, ()>(&test_queue, 100).await.unwrap();
     assert!(read_msg.is_some());
 }
 
@@ -1368,7 +1375,7 @@ async fn test_send_batch_topic() {
     assert_eq!(msgs.len(), send_batch_rows.len());
 
     let read_msgs = queue
-        .read_batch::<MyMessage>(&test_queue, 100, 2)
+        .read_batch::<MyMessage, ()>(&test_queue, 100, 2)
         .await
         .unwrap();
     assert_eq!(msgs.len(), read_msgs.len());
@@ -1520,7 +1527,7 @@ async fn test_metrics() {
     ];
     queue.send_batch(&test_queue, &messages).await.unwrap();
 
-    let _ = queue.read::<MyMessage>(&test_queue, 100).await.unwrap();
+    let _ = queue.read::<MyMessage, ()>(&test_queue, 100).await.unwrap();
 
     let metrics = queue.metrics(&test_queue).await.unwrap();
     assert_eq!(test_queue, metrics.queue_name);
@@ -1541,7 +1548,7 @@ async fn test_metrics_all() {
     ];
     queue.send_batch(&test_queue, &messages).await.unwrap();
 
-    let _ = queue.read::<MyMessage>(&test_queue, 100).await.unwrap();
+    let _ = queue.read::<MyMessage, ()>(&test_queue, 100).await.unwrap();
 
     let metrics = queue
         .metrics_all()

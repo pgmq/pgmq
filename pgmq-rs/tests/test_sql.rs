@@ -1,3 +1,4 @@
+use pgmq::Message;
 use rand::RngExt;
 use serde::{Deserialize, Serialize};
 
@@ -42,15 +43,11 @@ async fn test_sql_lifecycle() {
 
     let sent_msg = MyMessage::default();
     let msg_id = queue.send(&test_queue, &sent_msg).await.unwrap();
-    let read_msg = queue
-        .read::<MyMessage>(&test_queue, 30)
-        .await
-        .unwrap()
-        .unwrap();
+    let read_msg: Message<MyMessage> = queue.read(&test_queue, 30).await.unwrap().unwrap();
     assert_eq!(msg_id, read_msg.msg_id);
     assert_eq!(sent_msg, read_msg.message);
     queue.archive(&test_queue, msg_id).await.unwrap();
-    let read_none = queue.read::<MyMessage>(&test_queue, 30).await.unwrap();
+    let read_none: Option<Message<MyMessage>> = queue.read(&test_queue, 30).await.unwrap();
     assert!(read_none.is_none());
 }
 
