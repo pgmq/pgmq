@@ -51,9 +51,8 @@ async fn main() -> Result<(), PgmqError> {
 
     // Read the JSON message
     let received_json_message: Message<Value> = queue
-        .read::<Value>(&my_queue, visibility_timeout_seconds)
-        .await
-        .unwrap()
+        .read(&my_queue, visibility_timeout_seconds)
+        .await?
         .expect("No messages in the queue");
     println!("Received a message: {received_json_message:?}");
 
@@ -62,9 +61,8 @@ async fn main() -> Result<(), PgmqError> {
 
     // Read the struct message
     let received_struct_message: Message<MyMessage> = queue
-        .read::<MyMessage>(&my_queue, visibility_timeout_seconds)
-        .await
-        .unwrap()
+        .read(&my_queue, visibility_timeout_seconds)
+        .await?
         .expect("No messages in the queue");
     println!("Received a message: {received_struct_message:?}");
 
@@ -82,10 +80,8 @@ async fn main() -> Result<(), PgmqError> {
     println!("Deleted the messages from the queue");
 
     // No messages are remaining
-    let no_message: Option<Message<Value>> = queue
-        .read::<Value>(&my_queue, visibility_timeout_seconds)
-        .await
-        .unwrap();
+    let no_message: Option<Message<Value>> =
+        queue.read(&my_queue, visibility_timeout_seconds).await?;
     assert!(no_message.is_none());
 
     Ok(())
