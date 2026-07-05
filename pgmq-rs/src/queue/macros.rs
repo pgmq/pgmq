@@ -9,6 +9,15 @@ macro_rules! identity_macro {
 // Re-export the macro for use within this crate
 pub(crate) use identity_macro;
 
+/// `await`s the provided value
+macro_rules! transform_result_async {
+    ($result:tt) => {
+        $result.await
+    };
+}
+// Re-export the macro for use within this crate
+pub(crate) use transform_result_async;
+
 /// Helper macro to implement the [`crate::queue::Queue`] trait for a type. Assumes that async
 /// functions exist in scope with the same names as the trait's methods. The functions' parameters
 /// should match the trait's parameters as well, with the following exceptions:
@@ -105,14 +114,15 @@ macro_rules! impl_queue {
                 send($transform_self!(self), queue_name, message, headers, delay).await
             }
 
-            async fn read<'q, T, Q, QE, VT>(
+            async fn read<'q, T, H, Q, QE, VT>(
                 self,
                 queue_name: Q,
                 visibility_timeout: VT,
                 quantity: i32,
-            ) -> Result<Vec<crate::types::Message<T>>, crate::errors::PgmqError>
+            ) -> Result<Vec<crate::types::Message<T, H>>, crate::errors::PgmqError>
             where
                 T: 'static + Send + for<'de> serde::Deserialize<'de>,
+                H: 'static + Send + for<'de> serde::Deserialize<'de>,
                 Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
                 QE: ToString,
                 VT: Send + Into<crate::types::VisibilityTimeoutOffset>,

@@ -110,6 +110,75 @@ pub fn queue_test(
                 #original_block
             },
         ),
+        (
+            "rust-postgres",
+            "rp_client",
+            quote! {
+                {
+                    /*
+                    `postgres` is a wrapper around `tokio_postgres` -- it simply blocks on async
+                    operations. So, we need to spawn a blocking task in order to be able to create
+                    the client and invoke the original test method with it.
+                     */
+                    let conn_details = conn_details.clone();
+                    tokio::task::spawn_blocking(move || {
+                        tokio::runtime::Handle::current()
+                            .block_on(async {
+                                let mut client = initialization::rust_postgres(&conn_details.test_db_url);
+                                let queue = &mut client;
+                                #original_block
+                            });
+                    });
+                }
+            },
+        ),
+        (
+            "rust-postgres",
+            "rp_txn",
+            quote! {
+                {
+                    let conn_details = conn_details.clone();
+                    tokio::task::spawn_blocking(move || {
+                        tokio::runtime::Handle::current()
+                            .block_on(async {
+                                let mut client = initialization::rust_postgres(&conn_details.test_db_url);
+                                let mut transaction = client.transaction().unwrap();
+                                let queue = &mut transaction;
+                                #original_block
+                                transaction.commit().unwrap();
+                            });
+                    });
+                }
+            },
+        ),
+        (
+            "tokio-postgres",
+            "tp_client",
+            quote! {
+                let (client, conn) = initialization::tokio_postgres(&conn_details.test_db_url).await;
+                tokio::spawn(async move {
+                    conn.await.unwrap();
+                });
+                let queue = &client;
+                #original_block
+            },
+        ),
+        (
+            "tokio-postgres",
+            "tp_txn",
+            quote! {
+                let (mut client, conn) = initialization::tokio_postgres(&conn_details.test_db_url).await;
+                tokio::spawn(async move {
+                    conn.await.unwrap();
+                });
+                let transaction = client.transaction().await.unwrap();
+                let queue = &transaction;
+
+                #original_block
+
+                transaction.commit().await.unwrap();
+            },
+        ),
     ];
 
     // Create individual test functions using the test details for each client implementation.

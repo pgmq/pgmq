@@ -14,10 +14,15 @@ pub enum PgmqError {
     #[error("url parsing error {0}")]
     UrlParsingError(#[from] ParseError),
 
-    /// a database error
+    /// a database error from the `sqlx` crate
     #[cfg(feature = "sqlx")]
     #[error("database error {0}")]
     DatabaseError(#[from] sqlx::Error),
+
+    /// a database error from the `tokio-postgres` crate
+    #[cfg(any(feature = "rust-postgres", feature = "tokio-postgres"))]
+    #[error("database error {0}")]
+    TokioPostgresError(#[from] tokio_postgres::Error),
 
     /// the error returned when attempting to use an invalid queue name
     #[error(transparent)]

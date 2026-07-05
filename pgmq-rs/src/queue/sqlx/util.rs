@@ -1,5 +1,5 @@
-/// Helper method to convert [`PgRow`] to [`Message`] for the `read*`/`read_batch*` methods.
-#[cfg(feature = "sqlx")]
+/// Helper method to convert [`sqlx::postgres::PgRow`] to [`crate::types::Message`] for `read*`/`read_batch*`
+/// PGMQ methods.
 pub fn handle_read_batch_result<T, H>(
     rows: Vec<sqlx::postgres::PgRow>,
 ) -> Result<Vec<crate::types::Message<T, H>>, crate::errors::PgmqError>

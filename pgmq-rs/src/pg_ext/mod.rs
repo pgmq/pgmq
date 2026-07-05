@@ -1,5 +1,6 @@
 use crate::errors::PgmqError;
-use crate::private::util::handle_read_batch_result;
+use crate::queue::sql::READ;
+use crate::queue::sqlx::util::handle_read_batch_result;
 use crate::queue::Queue;
 use crate::types::queue_name::{check_queue_name, QueueNameError};
 use crate::types::{
@@ -675,9 +676,7 @@ impl PGMQueueExt {
         qty: i32,
         executor: E,
     ) -> Result<Vec<Message<T, H>>, PgmqError> {
-        let query = sqlx::query(
-            r#"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.read(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer)"#,
-        );
+        let query = sqlx::query(READ);
 
         Self::read_batch_common(query, queue_name, vt, qty, executor).await
     }

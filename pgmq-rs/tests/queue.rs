@@ -134,6 +134,26 @@ mod initialization {
     pub async fn pgmq_ext(url: &Url) -> pgmq::PGMQueueExt {
         pgmq::PGMQueueExt::new(url.to_string(), 2).await.unwrap()
     }
+
+    #[cfg(feature = "rust-postgres")]
+    pub fn rust_postgres(url: &Url) -> postgres::Client {
+        postgres::Client::connect(url.as_str(), postgres::NoTls).unwrap()
+    }
+
+    #[cfg(feature = "tokio-postgres")]
+    pub async fn tokio_postgres(
+        url: &Url,
+    ) -> (
+        tokio_postgres::Client,
+        tokio_postgres::Connection<tokio_postgres::Socket, tokio_postgres::tls::NoTlsStream>,
+    ) {
+        use std::str::FromStr;
+        tokio_postgres::Config::from_str(url.as_str())
+            .unwrap()
+            .connect(tokio_postgres::NoTls)
+            .await
+            .unwrap()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]

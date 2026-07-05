@@ -3,6 +3,14 @@
 //! SemVer bump.
 
 mod macros;
+#[cfg(any(feature = "rust-postgres", feature = "tokio-postgres"))]
+pub mod rust_postgres;
+#[cfg(any(
+    feature = "sqlx",
+    feature = "rust-postgres",
+    feature = "tokio-postgres"
+))]
+pub(crate) mod sql;
 #[cfg(feature = "sqlx")]
 pub mod sqlx;
 
@@ -33,14 +41,15 @@ pub trait Queue: crate::private::Sealed {
         QE: ToString,
         D: Send + Into<VisibilityTimeoutOffset>;
 
-    async fn read<'q, T, Q, QE, VT>(
+    async fn read<'q, T, H, Q, QE, VT>(
         self,
         queue_name: Q,
         visibility_timeout: VT,
         quantity: i32,
-    ) -> Result<Vec<crate::types::Message<T>>, PgmqError>
+    ) -> Result<Vec<crate::types::Message<T, H>>, PgmqError>
     where
         T: 'static + Send + for<'de> serde::Deserialize<'de>,
+        H: 'static + Send + for<'de> serde::Deserialize<'de>,
         Q: Send + TryInto<QueueName<'q>, Error = QE>,
         QE: ToString,
         VT: Send + Into<VisibilityTimeoutOffset>;

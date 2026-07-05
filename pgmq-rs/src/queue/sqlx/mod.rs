@@ -1,9 +1,12 @@
-use crate::private::util::handle_read_batch_result;
 use crate::queue::macros::{identity_macro, impl_queue};
+use crate::queue::sql::{CREATE, READ, SEND};
 use crate::types::QueueName;
 use crate::types::VisibilityTimeoutOffset;
 use crate::{Message, PgmqError};
 use sqlx::{Executor, Postgres};
+use util::handle_read_batch_result;
+
+pub(crate) mod util;
 
 /// Transforms a `sqlx::Transaction<'_, Postgres>` identifier by dereferencing it so that it can be
 /// used as an [`Executor`].
@@ -24,7 +27,7 @@ async fn create<'c, C>(executor: C, queue_name: QueueName<'_>) -> Result<(), Pgm
 where
     C: Executor<'c, Database = Postgres>,
 {
-    sqlx::query("SELECT pgmq.create(queue_name=>$1::text);")
+    sqlx::query(CREATE)
         .bind(*queue_name)
         .execute(executor)
         .await?;
@@ -42,31 +45,28 @@ pub(crate) async fn send<'c, C>(
 where
     C: Executor<'c, Database = Postgres>,
 {
-    let msg_id: i64 = sqlx::query_scalar(
-        "SELECT * from pgmq.send(queue_name=>$1::text, msg=>$2::jsonb, headers=>$3::jsonb, delay=>$4::int);",
-    )
-    .bind(*queue_name)
-    .bind(message)
-    .bind(headers)
-    .bind(delay)
-    .fetch_one(executor)
-    .await?;
+    let msg_id: i64 = sqlx::query_scalar(SEND)
+        .bind(*queue_name)
+        .bind(message)
+        .bind(headers)
+        .bind(delay)
+        .fetch_one(executor)
+        .await?;
     Ok(msg_id)
 }
 
-async fn read<'c, C, T>(
+async fn read<'c, C, T, H>(
     executor: C,
     queue_name: QueueName<'_>,
     visibility_timeout: VisibilityTimeoutOffset,
     quantity: i32,
-) -> Result<Vec<Message<T>>, PgmqError>
+) -> Result<Vec<Message<T, H>>, PgmqError>
 where
     C: Executor<'c, Database = Postgres>,
     T: Send + for<'de> serde::Deserialize<'de>,
+    H: Send + for<'de> serde::Deserialize<'de>,
 {
-    let query = sqlx::query(
-        r#"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.read(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer)"#,
-    );
+    let query = sqlx::query(READ);
     let rows = query
         .bind(*queue_name)
         .bind(visibility_timeout)
