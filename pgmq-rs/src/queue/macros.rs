@@ -13,8 +13,8 @@ pub(crate) use identity_macro;
 /// functions exist in scope with the same names as the trait's methods. The functions' parameters
 /// should match the trait's parameters as well, with the following exceptions:
 ///
-/// 1. Concrete [`crate::types::queue_name::QueueName`] and
-///    [`crate::types::visibility_timeout_offset::VisibilityTimeoutOffset`] instances are passed
+/// 1. Concrete [`crate::types::QueueName`] and
+///    [`crate::types::VisibilityTimeoutOffset`] instances are passed
 ///    instead of a generic parameter (the generic parameter has already been converted)
 /// 2. Serializable parameters (e.g., message and headers) are passed as pre-serialized
 ///    [`serde_json::Value`] instances.
@@ -73,14 +73,16 @@ macro_rules! impl_queue {
         impl crate::queue::Queue for $for_type {
             async fn create<'q, Q, QE>(self, queue_name: Q) -> Result<(), crate::errors::PgmqError>
             where
-                Q: Send + TryInto<crate::types::queue_name::QueueName<'q>, Error = QE>,
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
                 QE: ToString,
             {
-                let queue_name = queue_name.try_into().map_err(crate::types::queue_name::QueueNameError::other)?;
+                let queue_name = queue_name
+                    .try_into()
+                    .map_err(crate::types::queue_name::QueueNameError::other)?;
                 create($transform_self!(self), queue_name).await
             }
 
-            async fn send<'q,T, H, Q, QE,  D>(
+            async fn send<'q, T, H, Q, QE, D>(
                 self,
                 queue_name: Q,
                 message: T,
@@ -90,12 +92,14 @@ macro_rules! impl_queue {
             where
                 T: Send + serde::Serialize,
                 H: Send + serde::Serialize,
-                Q: Send + TryInto<crate::types::queue_name::QueueName<'q>, Error = QE>,
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
                 QE: ToString,
-                D: Send + Into<crate::types::visibility_timeout_offset::VisibilityTimeoutOffset>,
+                D: Send + Into<crate::types::VisibilityTimeoutOffset>,
             {
-                let queue_name = queue_name.try_into().map_err(crate::types::queue_name::QueueNameError::other)?;
-                let delay: crate::types::visibility_timeout_offset::VisibilityTimeoutOffset = delay.into();
+                let queue_name = queue_name
+                    .try_into()
+                    .map_err(crate::types::queue_name::QueueNameError::other)?;
+                let delay: crate::types::VisibilityTimeoutOffset = delay.into();
                 let message = serde_json::to_value(message)?;
                 let headers = serde_json::to_value(headers)?;
                 send($transform_self!(self), queue_name, message, headers, delay).await
@@ -109,13 +113,22 @@ macro_rules! impl_queue {
             ) -> Result<Vec<crate::types::Message<T>>, crate::errors::PgmqError>
             where
                 T: 'static + Send + for<'de> serde::Deserialize<'de>,
-                Q: Send + TryInto<crate::types::queue_name::QueueName<'q>, Error = QE>,
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
                 QE: ToString,
-                VT: Send + Into<crate::types::visibility_timeout_offset::VisibilityTimeoutOffset>,
+                VT: Send + Into<crate::types::VisibilityTimeoutOffset>,
             {
-                let queue_name = queue_name.try_into().map_err(crate::types::queue_name::QueueNameError::other)?;
-                let visibility_timeout: crate::types::visibility_timeout_offset::VisibilityTimeoutOffset = visibility_timeout.into();
-                read($transform_self!(self), queue_name, visibility_timeout, quantity).await
+                let queue_name = queue_name
+                    .try_into()
+                    .map_err(crate::types::queue_name::QueueNameError::other)?;
+                let visibility_timeout: crate::types::VisibilityTimeoutOffset =
+                    visibility_timeout.into();
+                read(
+                    $transform_self!(self),
+                    queue_name,
+                    visibility_timeout,
+                    quantity,
+                )
+                .await
             }
         }
     };

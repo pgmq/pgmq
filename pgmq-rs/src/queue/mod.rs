@@ -6,8 +6,7 @@ mod macros;
 #[cfg(feature = "sqlx")]
 pub mod sqlx;
 
-use crate::types::visibility_timeout_offset::VisibilityTimeoutOffset;
-use crate::types::QueueName;
+use crate::types::{QueueName, VisibilityTimeoutOffset};
 use crate::PgmqError;
 
 /// Sealed so we can add methods without breaking semver compatibility.
