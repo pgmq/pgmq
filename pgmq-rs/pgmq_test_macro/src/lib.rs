@@ -179,6 +179,92 @@ pub fn queue_test(
                 transaction.commit().await.unwrap();
             },
         ),
+        (
+            "diesel-sync",
+            "d_conn",
+            quote! {
+                let mut conn = initialization::diesel_conn(&conn_details.test_db_url);
+                let queue = &mut conn;
+                #original_block
+            },
+        ),
+        (
+            "diesel-sync",
+            "d_txn",
+            quote! {
+                use diesel::Connection;
+                let mut conn = initialization::diesel_conn(&conn_details.test_db_url);
+                tokio::task::spawn_blocking(move || {
+                    conn.transaction(|queue| -> Result<(), diesel::result::Error> {
+                        tokio::runtime::Handle::current()
+                            .block_on(async {
+                                #original_block
+                            });
+                        Ok(())
+                    }).unwrap();
+                });
+            },
+        ),
+        (
+            "diesel-sync-pool",
+            "d_pool",
+            quote! {
+                let pool = initialization::diesel_pool(&conn_details.test_db_url);
+                let queue = &pool;
+                #original_block
+            },
+        ),
+        (
+            "diesel-sync-pool",
+            "d_pool_conn",
+            quote! {
+                let pool = initialization::diesel_pool(&conn_details.test_db_url);
+                let mut conn = pool.get().unwrap();
+                let queue = &mut conn;
+                #original_block
+            },
+        ),
+        (
+            "diesel-async",
+            "da_conn",
+            quote! {
+                let mut conn = initialization::diesel_async_conn(&conn_details.test_db_url).await;
+                let queue = &mut conn;
+                #original_block
+            },
+        ),
+        (
+            "diesel-async",
+            "da_txn",
+            quote! {
+                use diesel_async::AsyncConnection;
+                let mut conn = initialization::diesel_async_conn(&conn_details.test_db_url).await;
+                conn.transaction(async |queue| -> Result<(), diesel::result::Error> {
+                    #original_block
+
+                    Ok(())
+                }).await.unwrap();
+            },
+        ),
+        (
+            "diesel-async-pool",
+            "da_pool",
+            quote! {
+                let pool = initialization::diesel_async_pool(&conn_details.test_db_url).await;
+                let queue = &pool;
+                #original_block
+            },
+        ),
+        (
+            "diesel-async-pool",
+            "da_pool_conn",
+            quote! {
+                let pool = initialization::diesel_async_pool(&conn_details.test_db_url).await;
+                let mut conn = pool.get().await.unwrap();
+                let queue = &mut conn;
+                #original_block
+            },
+        ),
     ];
 
     // Create individual test functions using the test details for each client implementation.

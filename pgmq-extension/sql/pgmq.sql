@@ -85,7 +85,9 @@ END
 $$;
 
 -- This type has the shape of a message in a queue, and is often returned by
--- pgmq functions that return messages
+-- pgmq functions that return messages.
+-- Note: Changing the order of fields in this type is a breaking change -- our Rust Diesel client implementation
+-- expects a specific order of fields.
 CREATE TYPE pgmq.message_record AS (
     msg_id BIGINT,
     read_ct INTEGER,
@@ -96,6 +98,8 @@ CREATE TYPE pgmq.message_record AS (
     headers JSONB
 );
 
+-- Note: Changing the order of fields in this type is a breaking change -- our Rust Diesel client implementation
+-- expects a specific order of fields.
 CREATE TYPE pgmq.queue_record AS (
     queue_name VARCHAR,
     is_partitioned BOOLEAN,
@@ -850,6 +854,8 @@ CREATE FUNCTION pgmq.send_batch(
 $$ LANGUAGE sql;
 
 -- returned by pgmq.metrics() and pgmq.metrics_all
+-- Note: Changing the order of fields in this type is a breaking change -- our Rust Diesel client implementation
+-- expects a specific order of fields.
 CREATE TYPE pgmq.metrics_result AS (
     queue_name text,
     queue_length bigint,

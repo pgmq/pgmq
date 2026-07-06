@@ -1,6 +1,6 @@
 [package]
 name = "pgmq"
-version = "0.34.0-alpha.4"
+version = "0.34.0-alpha.5"
 edition = "2021"
 authors = ["PGMQ Maintainers"]
 description = "A distributed message queue for Rust applications, on Postgres."
@@ -32,6 +32,17 @@ sqlx = ["dep:sqlx"]
 rust-postgres = ["queue-experimental", "dep:postgres", "dep:postgres-types", "dep:tokio-postgres"]
 # Enables the `tokio-postgres` implemenation of the `Queue` trait
 tokio-postgres = ["queue-experimental", "dep:tokio-postgres", "dep:postgres-types"]
+# Enables shared `diesel` constructs used to implement the `Queue` trait, but can also be used separately without
+# using the `Queue` trait, such as `declare_sql_function` definitions of PGMQ functions.
+diesel = ["queue-experimental", "dep:diesel"]
+# Enables the `diesel` implemenation of the `Queue` trait
+diesel-sync = ["queue-experimental", "diesel"]
+# Enables the `diesel` pool implemenation of the `Queue` trait
+diesel-sync-pool = ["queue-experimental", "diesel-sync", "diesel/r2d2", "dep:r2d2"]
+# Enables the `diesel-async` implemenation of the `Queue` trait
+diesel-async = ["queue-experimental", "diesel", "dep:diesel-async"]
+# Enables the `diesel-async` pool implemenation of the `Queue` trait
+diesel-async-pool = ["queue-experimental", "diesel-async", "diesel-async/bb8", "dep:bb8"]
 
 [dependencies]
 chrono = { version = "0.4.34", features = ["serde"] }
@@ -47,6 +58,10 @@ async-trait = { version = "0.1.89" }
 postgres-types = { version = "0.2.13", optional = true, features = ["derive", "with-chrono-0_4", "with-serde_json-1", "array-impls"] }
 postgres = { version = "0.19.13", optional = true, features = ["with-serde_json-1"] }
 tokio-postgres = { version = "0.7.17", optional = true, features = ["with-serde_json-1"] }
+diesel = { version = "2.3.9", optional = true, features = ["postgres", "chrono", "serde_json"] }
+r2d2 = { version = "0.8.2", optional = true }
+diesel-async = { version = "0.9.0", optional = true, features = ["postgres"] }
+bb8 = { version = "0.9.0", optional = true }
 
 # Optional dependencies for the `cli` feature
 clap = { version = "4.1", features = ["derive"], optional = true }

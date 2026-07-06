@@ -29,11 +29,11 @@ test.pgmqext_sql:
 
 # Run the tests for the all of the supported `Queue` trait implementations
 test.queue:
-	cargo test --test queue --features queue-experimental,sqlx,rust-postgres,tokio-postgres
+	cargo test --test queue --features queue-experimental,sqlx,rust-postgres,tokio-postgres,diesel-sync,diesel-sync-pool,diesel-async,diesel-async-pool
 
 # Run the tests for the all of the supported `Queue` trait implementations using the SQL-only installation approach
 test.queue_sql:
-	cargo test --test queue --features install-sql-embedded,queue-experimental,sqlx,rust-postgres,tokio-postgres
+	cargo test --test queue --features install-sql-embedded,queue-experimental,sqlx,rust-postgres,tokio-postgres,diesel-sync,diesel-sync-pool,diesel-async,diesel-async-pool
 
 setup.env:
 	sqlx migrate run --database-url ${DATABASE_URL}

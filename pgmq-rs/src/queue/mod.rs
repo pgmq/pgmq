@@ -2,6 +2,8 @@
 //! This interface is considered unstable -- breaking changes may be released without a corresponding
 //! SemVer bump.
 
+#[cfg(feature = "diesel")]
+pub mod diesel;
 mod macros;
 #[cfg(any(feature = "rust-postgres", feature = "tokio-postgres"))]
 pub mod rust_postgres;

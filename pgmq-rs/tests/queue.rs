@@ -154,6 +154,44 @@ mod initialization {
             .await
             .unwrap()
     }
+
+    #[cfg(feature = "diesel-sync")]
+    pub fn diesel_conn(url: &Url) -> diesel::PgConnection {
+        use diesel::Connection;
+        diesel::PgConnection::establish(url.as_str()).unwrap()
+    }
+
+    #[cfg(feature = "diesel-sync-pool")]
+    pub fn diesel_pool(
+        url: &Url,
+    ) -> r2d2::Pool<diesel::r2d2::ConnectionManager<diesel::PgConnection>> {
+        let manager: diesel::r2d2::ConnectionManager<diesel::PgConnection> =
+            diesel::r2d2::ConnectionManager::new(url.as_str());
+        r2d2::Pool::builder().max_size(2).build(manager).unwrap()
+    }
+
+    #[cfg(feature = "diesel-async")]
+    pub async fn diesel_async_conn(url: &Url) -> diesel_async::AsyncPgConnection {
+        use diesel_async::AsyncConnection;
+        diesel_async::AsyncPgConnection::establish(url.as_str())
+            .await
+            .unwrap()
+    }
+
+    #[cfg(feature = "diesel-async-pool")]
+    pub async fn diesel_async_pool(
+        url: &Url,
+    ) -> diesel_async::pooled_connection::bb8::Pool<diesel_async::AsyncPgConnection> {
+        let manager = diesel_async::pooled_connection::AsyncDieselConnectionManager::<
+            diesel_async::AsyncPgConnection,
+        >::new(url.as_str());
+
+        diesel_async::pooled_connection::bb8::Pool::builder()
+            .max_size(2)
+            .build(manager)
+            .await
+            .unwrap()
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Eq)]

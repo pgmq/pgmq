@@ -33,6 +33,7 @@ pub struct PGMQueueMeta {
 /// It contains both the message body but also metadata about the message.
 #[derive(Clone, Debug, Deserialize)]
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
+#[cfg_attr(feature = "diesel", derive(diesel::FromSqlRow))]
 #[non_exhaustive]
 pub struct Message<T = serde_json::Value, H = serde_json::Value> {
     /// Unique identifier for the message.
@@ -56,6 +57,7 @@ pub struct Message<T = serde_json::Value, H = serde_json::Value> {
 /// A row returned by the `pgmq.send_batch_topic` SQL function(s).
 #[derive(Clone, Debug, Deserialize)]
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
+#[cfg_attr(feature = "diesel", derive(diesel::FromSqlRow))]
 #[non_exhaustive]
 pub struct SendBatchTopicRow {
     pub queue_name: String,
@@ -65,6 +67,7 @@ pub struct SendBatchTopicRow {
 /// A row returned by the `pgmq.list_topic_bindings` SQL function(s).
 #[derive(Clone, Debug, Deserialize)]
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
+#[cfg_attr(feature = "diesel", derive(diesel::FromSqlRow))]
 #[non_exhaustive]
 pub struct ListTopicBindingsRow {
     pub pattern: String,
@@ -76,6 +79,7 @@ pub struct ListTopicBindingsRow {
 /// A row returned by the `pgmq.list_notify_insert_throttles` SQL function.
 #[derive(Clone, Debug, Deserialize)]
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
+#[cfg_attr(feature = "diesel", derive(diesel::FromSqlRow))]
 #[non_exhaustive]
 pub struct ListNotifyInsertThrottlesRow {
     pub queue_name: String,
@@ -87,6 +91,7 @@ pub struct ListNotifyInsertThrottlesRow {
 /// `pgmq.metrics_all`.
 #[derive(Clone, Debug, Deserialize)]
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
+#[cfg_attr(feature = "diesel", derive(diesel::FromSqlRow))]
 #[non_exhaustive]
 pub struct QueueMetrics {
     pub queue_name: String,
