@@ -11,10 +11,10 @@ where
     type Error = crate::errors::PgmqError;
 
     fn try_from(value: ::tokio_postgres::Row) -> Result<Self, Self::Error> {
-        let message = serde_json::from_value(value.try_get::<_, serde_json::Value>("message")?)?;
+        let message = T::deserialize(value.try_get::<_, serde_json::Value>("message")?)?;
         let headers =
             if let Some(headers) = value.try_get::<_, Option<serde_json::Value>>("headers")? {
-                Some(serde_json::from_value(headers)?)
+                Some(H::deserialize(headers)?)
             } else {
                 None
             };
