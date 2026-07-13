@@ -10,4 +10,7 @@ pub const CREATE: &str = "SELECT pgmq.create(queue_name=>$1::text)";
 pub const SEND: &str = "SELECT * FROM pgmq.send(queue_name=>$1::text, msg=>$2::jsonb, headers=>$3::jsonb, delay=>$4::int)";
 
 // language=PostgreSQL
-pub const READ: &str = r"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers FROM pgmq.read(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer)";
+pub const READ: &str = "SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers FROM pgmq.read(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer)";
+
+// language=PostgreSQL
+pub const ARCHIVE: &str = "SELECT * from pgmq.archive(queue_name=>$1::text, msg_ids=>$2::bigint[])";

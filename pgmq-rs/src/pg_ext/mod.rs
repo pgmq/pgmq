@@ -1044,14 +1044,9 @@ impl PGMQueueExt {
         msg_id: i64,
         executor: E,
     ) -> Result<bool, PgmqError> {
-        check_queue_name(queue_name)?;
-        let arch =
-            sqlx::query("SELECT * from pgmq.archive(queue_name=>$1::text, msg_id=>$2::bigint)")
-                .bind(queue_name)
-                .bind(msg_id)
-                .fetch_one(executor)
-                .await?;
-        Ok(arch.try_get("archive")?)
+        self.archive_batch_with_cxn(queue_name, &[msg_id], executor)
+            .await
+            .map(|archived| !archived.is_empty())
     }
     /// Move a message to the archive table.
     pub async fn archive(&self, queue_name: &str, msg_id: i64) -> Result<bool, PgmqError> {
@@ -1065,17 +1060,9 @@ impl PGMQueueExt {
         queue_name: &str,
         msg_ids: &[i64],
         executor: E,
-    ) -> Result<usize, PgmqError> {
-        check_queue_name(queue_name)?;
-        let qty =
-            sqlx::query("SELECT * from pgmq.archive(queue_name=>$1::text, msg_ids=>$2::bigint[])")
-                .bind(queue_name)
-                .bind(msg_ids)
-                .fetch_all(executor)
-                .await?
-                .len();
-
-        Ok(qty)
+    ) -> Result<Vec<i64>, PgmqError> {
+        let queue_name = queue_name.try_into().map_err(QueueNameError::other)?;
+        crate::queue::sqlx::archive(executor, queue_name, msg_ids).await
     }
 
     /// Move a slice of messages to the archive table.
@@ -1083,7 +1070,7 @@ impl PGMQueueExt {
         &self,
         queue_name: &str,
         msg_ids: &[i64],
-    ) -> Result<usize, PgmqError> {
+    ) -> Result<Vec<i64>, PgmqError> {
         self.archive_batch_with_cxn(queue_name, msg_ids, &self.connection)
             .await
     }

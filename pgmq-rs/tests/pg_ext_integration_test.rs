@@ -601,7 +601,7 @@ async fn test_ext_archive_batch() {
     let post_archive_rowcount = rowcount(&test_queue, &queue.connection).await;
 
     assert_eq!(post_archive_rowcount, 0);
-    assert_eq!(archive_result, 3);
+    assert_eq!(archive_result, [m1, m2, m3]);
 
     let post_archive_archive_rowcount = archive_rowcount(&test_queue, &queue.connection).await;
     assert_eq!(post_archive_archive_rowcount, 3);

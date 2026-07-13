@@ -1,7 +1,6 @@
 use crate::queue::macros::{identity_macro, impl_queue};
-use crate::queue::sql::{CREATE, READ, SEND};
-use crate::types::QueueName;
-use crate::types::VisibilityTimeoutOffset;
+use crate::queue::sql::{ARCHIVE, CREATE, READ, SEND};
+use crate::types::{QueueName, VisibilityTimeoutOffset};
 use crate::{Message, PgmqError};
 use sqlx::{Executor, Postgres};
 use util::handle_read_batch_result;
@@ -75,4 +74,20 @@ where
         .await?;
 
     handle_read_batch_result(rows)
+}
+
+pub(crate) async fn archive<'c, C>(
+    executor: C,
+    queue_name: QueueName<'_>,
+    msg_ids: &[i64],
+) -> Result<Vec<i64>, PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+{
+    let archived: Vec<i64> = sqlx::query_scalar(ARCHIVE)
+        .bind(*queue_name)
+        .bind(msg_ids)
+        .fetch_all(executor)
+        .await?;
+    Ok(archived)
 }

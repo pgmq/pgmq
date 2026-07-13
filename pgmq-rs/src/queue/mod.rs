@@ -55,4 +55,13 @@ pub trait Queue: crate::private::Sealed {
         Q: Send + TryInto<QueueName<'q>, Error = QE>,
         QE: ToString,
         VT: Send + Into<VisibilityTimeoutOffset>;
+
+    async fn archive<'q, Q, QE>(
+        self,
+        queue_name: Q,
+        msg_ids: &[i64],
+    ) -> Result<Vec<i64>, PgmqError>
+    where
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: ToString;
 }

@@ -8,7 +8,7 @@ where
     T: for<'de> serde::Deserialize<'de>,
     H: for<'de> serde::Deserialize<'de>,
 {
-    type Error = crate::errors::PgmqError;
+    type Error = crate::PgmqError;
 
     fn try_from(value: ::tokio_postgres::Row) -> Result<Self, Self::Error> {
         let message = T::deserialize(value.try_get::<_, serde_json::Value>("message")?)?;
@@ -103,7 +103,28 @@ macro_rules! rust_postgres_functions {
             let rows = $transform_result!(rows)?;
             rows.into_iter()
                 .map(|row| crate::Message::<T, H>::try_from(row))
-                .collect::<Result<Vec<crate::Message<T, H>>, crate::errors::PgmqError>>()
+                .collect::<Result<Vec<crate::Message<T, H>>, crate::PgmqError>>()
+        }
+
+        async fn archive<C>(
+            executor: $ref_type!(C),
+            queue_name: crate::types::QueueName<'_>,
+            msg_ids: &[i64],
+        ) -> Result<Vec<i64>, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let params: [crate::queue::rust_postgres::SqlParam; _] = [
+                (&*queue_name, postgres_types::Type::TEXT),
+                (&msg_ids, postgres_types::Type::INT8_ARRAY),
+            ];
+            let rows = executor.query_typed(crate::queue::sql::ARCHIVE, &params);
+            let rows = $transform_result!(rows)?;
+            let rows = rows
+                .into_iter()
+                .map(|row| row.try_get(0))
+                .collect::<Result<Vec<i64>, _>>()?;
+            Ok(rows)
         }
     };
 }

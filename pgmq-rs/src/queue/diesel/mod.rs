@@ -25,8 +25,8 @@ macro_rules! diesel_functions {
 
         async fn create<C>(
             executor: &mut C,
-            queue_name: crate::types::queue_name::QueueName<'_>,
-        ) -> Result<(), crate::errors::PgmqError>
+            queue_name: crate::types::QueueName<'_>,
+        ) -> Result<(), crate::PgmqError>
         where
             C: $executor_trait,
         {
@@ -38,11 +38,11 @@ macro_rules! diesel_functions {
 
         async fn send<C>(
             executor: &mut C,
-            queue_name: crate::types::queue_name::QueueName<'_>,
+            queue_name: crate::types::QueueName<'_>,
             message: serde_json::Value,
             headers: serde_json::Value,
             delay: crate::types::visibility_timeout_offset::VisibilityTimeoutOffset,
-        ) -> Result<i64, crate::errors::PgmqError>
+        ) -> Result<i64, crate::PgmqError>
         where
             C: $executor_trait,
         {
@@ -55,10 +55,10 @@ macro_rules! diesel_functions {
 
         async fn read<C, T, H>(
             executor: &mut C,
-            queue_name: crate::types::queue_name::QueueName<'_>,
+            queue_name: crate::types::QueueName<'_>,
             visibility_timeout: crate::types::visibility_timeout_offset::VisibilityTimeoutOffset,
             quantity: i32,
-        ) -> Result<Vec<crate::types::Message<T, H>>, crate::errors::PgmqError>
+        ) -> Result<Vec<crate::types::Message<T, H>>, crate::PgmqError>
         where
             C: $executor_trait,
             T: 'static + Send + for<'de> serde::Deserialize<'de>,
@@ -66,9 +66,23 @@ macro_rules! diesel_functions {
         {
             let messages =
                 crate::queue::diesel::query::read_query(queue_name, visibility_timeout, quantity)
-                    .get_results::<crate::types::Message<T, H>>(executor);
+                    .get_results(executor);
             let messages = $transform_result!(messages)?;
             Ok(messages)
+        }
+
+        async fn archive<C>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+            msg_ids: &[i64],
+        ) -> Result<Vec<i64>, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let archived = crate::queue::diesel::query::archive_query(queue_name, msg_ids)
+                .get_results(executor);
+            let archived = $transform_result!(archived)?;
+            Ok(archived)
         }
     };
 }

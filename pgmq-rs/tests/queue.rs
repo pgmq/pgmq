@@ -248,3 +248,25 @@ async fn read_multiple(conn_details: ConnDetails, queue: impl Queue) {
     assert!(messages.iter().any(|msg| msg.msg_id == msg_id1));
     assert!(messages.iter().any(|msg| msg.msg_id == msg_id2));
 }
+
+#[pgmq_test_macro::queue_test]
+async fn archive(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+    let msg_id1 = queue.send(QUEUE, TestMessage::new(), (), 0).await.unwrap();
+    let msg_id2 = queue.send(QUEUE, TestMessage::new(), (), 0).await.unwrap();
+
+    let archived = queue.archive(QUEUE, &[msg_id1, msg_id2]).await.unwrap();
+    assert_eq!(archived, [msg_id1, msg_id2]);
+
+    let archived = queue.archive(QUEUE, &[msg_id1]).await.unwrap();
+    assert!(
+        archived.is_empty(),
+        "Attempting to archive a message that was already archived should return `false`"
+    );
+
+    let read_msg: Vec<Message<TestMessage>> = queue.read(QUEUE, 10, 1).await.unwrap();
+    assert!(
+        read_msg.is_empty(),
+        "Attempting to read after archiving the message should return nothing"
+    );
+}

@@ -80,7 +80,7 @@ macro_rules! impl_queue {
 
         #[async_trait::async_trait]
         impl crate::queue::Queue for $for_type {
-            async fn create<'q, Q, QE>(self, queue_name: Q) -> Result<(), crate::errors::PgmqError>
+            async fn create<'q, Q, QE>(self, queue_name: Q) -> Result<(), crate::PgmqError>
             where
                 Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
                 QE: ToString,
@@ -97,7 +97,7 @@ macro_rules! impl_queue {
                 message: T,
                 headers: H,
                 delay: D,
-            ) -> Result<i64, crate::errors::PgmqError>
+            ) -> Result<i64, crate::PgmqError>
             where
                 T: Send + serde::Serialize,
                 H: Send + serde::Serialize,
@@ -119,7 +119,7 @@ macro_rules! impl_queue {
                 queue_name: Q,
                 visibility_timeout: VT,
                 quantity: i32,
-            ) -> Result<Vec<crate::types::Message<T, H>>, crate::errors::PgmqError>
+            ) -> Result<Vec<crate::types::Message<T, H>>, crate::PgmqError>
             where
                 T: 'static + Send + for<'de> serde::Deserialize<'de>,
                 H: 'static + Send + for<'de> serde::Deserialize<'de>,
@@ -139,6 +139,21 @@ macro_rules! impl_queue {
                     quantity,
                 )
                 .await
+            }
+
+            async fn archive<'q, Q, QE>(
+                self,
+                queue_name: Q,
+                msg_ids: &[i64],
+            ) -> Result<Vec<i64>, crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: ToString,
+            {
+                let queue_name = queue_name
+                    .try_into()
+                    .map_err(crate::types::queue_name::QueueNameError::other)?;
+                archive($transform_self!(self), queue_name, msg_ids).await
             }
         }
     };
