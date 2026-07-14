@@ -1,0 +1,1941 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../api/sql/functions/">
+      
+      
+        <link rel="next" href="../partitioned-queues/">
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>FIFO Queues - PGMQ</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#fifo-queues" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="PGMQ" class="md-header__button md-logo" aria-label="PGMQ" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PGMQ
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              FIFO Queues
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="PGMQ" class="md-nav__button md-logo" aria-label="PGMQ" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    PGMQ
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PGMQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SQL
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SQL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/sql/types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/sql/functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FIFO Queues
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FIFO Queues
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How It Works
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How It Works">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#message-group-ids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Message Group IDs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reading-fifo-messages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading FIFO Messages
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#default-group-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default Group Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#reading-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reading Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pgmqread_grouped_rrqueue_name-vt-qty" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.read_grouped_rr(queue_name, vt, qty)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pgmqread_grouped_rr_with_pollqueue_name-vt-qty-max_poll_seconds-poll_interval_ms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.read_grouped_rr_with_poll(queue_name, vt, qty, max_poll_seconds, poll_interval_ms)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pgmqread_groupedqueue_name-vt-qty" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.read_grouped(queue_name, vt, qty)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pgmqread_grouped_with_pollqueue_name-vt-qty-max_poll_seconds-poll_interval_ms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.read_grouped_with_poll(queue_name, vt, qty, max_poll_seconds, poll_interval_ms)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pgmqread_grouped_headqueue_name-vt-qty" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.read_grouped_head(queue_name, vt, qty)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pgmqread_grouped_head_with_pollqueue_name-vt-qty-max_poll_seconds-poll_interval_ms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.read_grouped_head_with_poll(queue_name, vt, qty, max_poll_seconds, poll_interval_ms)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#utility-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Utility Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Utility Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pgmqcreate_fifo_indexqueue_name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.create_fifo_index(queue_name)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pgmqcreate_fifo_indexes_all" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.create_fifo_indexes_all()
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Usage Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-user-specific-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. User-Specific Processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-order-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Order Processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-document-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Document Processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#indexing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Indexing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#group-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Group Distribution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#message-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Message Processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Handling
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Error Handling">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#visibility-timeout-expiry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Visibility Timeout Expiry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manual-retry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual Retry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dead-letter-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dead Letter Handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migration-from-regular-queues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migration from Regular Queues
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fifo-reading-strategies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FIFO Reading Strategies
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="FIFO Reading Strategies">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fair-distribution-pgmqread_grouped_rr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fair Distribution (pgmq.read_grouped_rr())
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#throughput-optimization-pgmqread_grouped" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Throughput Optimization (pgmq.read_grouped())
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#one-per-group-pgmqread_grouped_head" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One-per-Group (pgmq.read_grouped_head())
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#choosing-the-right-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing the Right Strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-with-aws-sqs-fifo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison with AWS SQS FIFO
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../partitioned-queues/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Partitioned Queues
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../topics/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Topic Routing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How It Works
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How It Works">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#message-group-ids" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Message Group IDs
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#reading-fifo-messages" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading FIFO Messages
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#default-group-behavior" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Default Group Behavior
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#reading-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Reading Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Reading Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pgmqread_grouped_rrqueue_name-vt-qty" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.read_grouped_rr(queue_name, vt, qty)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pgmqread_grouped_rr_with_pollqueue_name-vt-qty-max_poll_seconds-poll_interval_ms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.read_grouped_rr_with_poll(queue_name, vt, qty, max_poll_seconds, poll_interval_ms)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pgmqread_groupedqueue_name-vt-qty" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.read_grouped(queue_name, vt, qty)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pgmqread_grouped_with_pollqueue_name-vt-qty-max_poll_seconds-poll_interval_ms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.read_grouped_with_poll(queue_name, vt, qty, max_poll_seconds, poll_interval_ms)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pgmqread_grouped_headqueue_name-vt-qty" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.read_grouped_head(queue_name, vt, qty)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pgmqread_grouped_head_with_pollqueue_name-vt-qty-max_poll_seconds-poll_interval_ms" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.read_grouped_head_with_poll(queue_name, vt, qty, max_poll_seconds, poll_interval_ms)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#utility-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Utility Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Utility Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pgmqcreate_fifo_indexqueue_name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.create_fifo_index(queue_name)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pgmqcreate_fifo_indexes_all" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.create_fifo_indexes_all()
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Usage Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-user-specific-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. User-Specific Processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-order-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Order Processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-document-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Document Processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#indexing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Indexing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#group-distribution" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Group Distribution
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#message-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Message Processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#error-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Error Handling
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Error Handling">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#visibility-timeout-expiry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Visibility Timeout Expiry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#manual-retry" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Manual Retry
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#dead-letter-handling" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Dead Letter Handling
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#migration-from-regular-queues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Migration from Regular Queues
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#fifo-reading-strategies" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        FIFO Reading Strategies
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="FIFO Reading Strategies">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#fair-distribution-pgmqread_grouped_rr" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Fair Distribution (pgmq.read_grouped_rr())
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#throughput-optimization-pgmqread_grouped" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Throughput Optimization (pgmq.read_grouped())
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#one-per-group-pgmqread_grouped_head" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        One-per-Group (pgmq.read_grouped_head())
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#choosing-the-right-strategy" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Choosing the Right Strategy
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#comparison-with-aws-sqs-fifo" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Comparison with AWS SQS FIFO
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#best-practices" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Best Practices
+      
+    </span>
+  </a>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="fifo-queues">FIFO Queues<a class="headerlink" href="#fifo-queues" title="Permanent link">&para;</a></h1>
+<p>PGMQ supports FIFO (First-In-First-Out) queues with message group keys, similar to AWS SQS FIFO queues. This feature allows you to ensure strict ordering of messages within logical groups while still allowing parallel processing across different groups.</p>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>FIFO queues in PGMQ work by using message headers to specify group identifiers. Messages with the same group ID are processed in strict order, while messages from different groups can be processed in parallel.</p>
+<h3 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Strict ordering within groups</strong>: Messages with the same FIFO group ID are processed in the exact order they were sent</li>
+<li><strong>Parallel processing across groups</strong>: Different FIFO groups can be processed simultaneously</li>
+<li><strong>Backward compatibility</strong>: Existing queues work unchanged; FIFO is opt-in via headers</li>
+<li><strong>Visibility timeout support</strong>: FIFO respects visibility timeouts to prevent duplicate processing</li>
+<li><strong>Performance optimized</strong>: Uses efficient indexing for FIFO group lookups</li>
+</ul>
+<h2 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
+<h3 id="message-group-ids">Message Group IDs<a class="headerlink" href="#message-group-ids" title="Permanent link">&para;</a></h3>
+<p>FIFO ordering is controlled by the <code>x-pgmq-group</code> header value:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- Send messages to the same FIFO group</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;order&quot;: 1}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;user123&quot;}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;order&quot;: 2}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;user123&quot;}&#39;</span><span class="p">);</span>
+
+<span class="c1">-- Send message to different FIFO group</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;order&quot;: 1}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;user456&quot;}&#39;</span><span class="p">);</span>
+</code></pre></div>
+
+<h3 id="reading-fifo-messages">Reading FIFO Messages<a class="headerlink" href="#reading-fifo-messages" title="Permanent link">&para;</a></h3>
+<p>PGMQ provides three FIFO reading strategies. Choose the one that best fits your workload:</p>
+<ul>
+<li><code>pgmq.read_grouped_rr(...)</code> (Round-Robin, layered interleaving): Fairly interleaves messages across groups. Great for multi-tenant and user-centric workloads.</li>
+<li><code>pgmq.read_grouped(...)</code> (SQS-style throughput): Fills batches from the oldest eligible group first, returning multiple messages from the same group for throughput.</li>
+<li><code>pgmq.read_grouped_head(...)</code> (One-per-group): Returns exactly one message per group (the head of each group), up to N groups. Ideal for parallel, per-group processing.</li>
+</ul>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- Fair distribution across groups (round-robin, layered)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_rr</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
+
+<span class="c1">-- Throughput-optimized, SQS-style batch filling</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
+
+<span class="c1">-- One message per group, up to 5 groups</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_head</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
+</code></pre></div>
+
+<p>Round-robin (RR) will:
+- Interleave across groups in layers, preserving order within each group
+- Return up to the requested quantity across groups
+- Prevent starvation of smaller/less-active groups</p>
+<p>SQS-style will:
+- Fill the batch from the earliest eligible group first
+- Return multiple messages from the same group when available
+- Move to other groups only if needed to fill the batch</p>
+<p>Head-per-group will:</p>
+<ul>
+<li>Return at most one message per FIFO group (the oldest available message in that group)</li>
+<li>Dispatch up to N groups in a single read call</li>
+<li>Ensure strict per-group ordering while enabling parallel group processing</li>
+</ul>
+<h3 id="default-group-behavior">Default Group Behavior<a class="headerlink" href="#default-group-behavior" title="Permanent link">&para;</a></h3>
+<p>Messages without the <code>x-pgmq-group</code> header are treated as belonging to a single default group:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- These messages will be processed in FIFO order relative to each other</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;message&quot;: &quot;first&quot;}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;message&quot;: &quot;second&quot;}&#39;</span><span class="p">);</span>
+</code></pre></div>
+
+<h2 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h2>
+<h3 id="reading-functions">Reading Functions<a class="headerlink" href="#reading-functions" title="Permanent link">&para;</a></h3>
+<h4 id="pgmqread_grouped_rrqueue_name-vt-qty"><code>pgmq.read_grouped_rr(queue_name, vt, qty)</code><a class="headerlink" href="#pgmqread_grouped_rrqueue_name-vt-qty" title="Permanent link">&para;</a></h4>
+<p>Read messages while respecting FIFO ordering within groups.</p>
+<p><strong>Parameters:</strong>
+- <code>queue_name</code> (text): Name of the queue
+- <code>vt</code> (integer): Visibility timeout in seconds
+- <code>qty</code> (integer): Maximum number of messages to read</p>
+<h4 id="pgmqread_grouped_rr_with_pollqueue_name-vt-qty-max_poll_seconds-poll_interval_ms"><code>pgmq.read_grouped_rr_with_poll(queue_name, vt, qty, max_poll_seconds, poll_interval_ms)</code><a class="headerlink" href="#pgmqread_grouped_rr_with_pollqueue_name-vt-qty-max_poll_seconds-poll_interval_ms" title="Permanent link">&para;</a></h4>
+<p>Same as <code>read_grouped_rr()</code> but with polling support for real-time processing.</p>
+<h4 id="pgmqread_groupedqueue_name-vt-qty"><code>pgmq.read_grouped(queue_name, vt, qty)</code><a class="headerlink" href="#pgmqread_groupedqueue_name-vt-qty" title="Permanent link">&para;</a></h4>
+<p>Read messages with AWS SQS FIFO-style batch retrieval behavior. Unlike <code>read_grouped_rr()</code> which interleaves fairly across groups, this function attempts to return as many messages as possible from the same message group to maximize throughput for related messages.</p>
+<p><strong>Behavior:</strong>
+- Prioritizes filling the batch from the earliest message group first
+- Returns multiple messages from the same group when available
+- Only moves to other groups if the batch cannot be filled from the first group
+- Maintains strict FIFO ordering within each group</p>
+<h4 id="pgmqread_grouped_with_pollqueue_name-vt-qty-max_poll_seconds-poll_interval_ms"><code>pgmq.read_grouped_with_poll(queue_name, vt, qty, max_poll_seconds, poll_interval_ms)</code><a class="headerlink" href="#pgmqread_grouped_with_pollqueue_name-vt-qty-max_poll_seconds-poll_interval_ms" title="Permanent link">&para;</a></h4>
+<p>Same as <code>read_grouped()</code> but with polling support for real-time processing.</p>
+<h4 id="pgmqread_grouped_headqueue_name-vt-qty"><code>pgmq.read_grouped_head(queue_name, vt, qty)</code><a class="headerlink" href="#pgmqread_grouped_headqueue_name-vt-qty" title="Permanent link">&para;</a></h4>
+<p>Read exactly one message per FIFO group — the head (oldest, lowest <code>msg_id</code>) message in each group — across up to <code>qty</code> groups in a single operation. Only groups with a visible, unlocked head message are included.</p>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><code>queue_name</code> (text): Name of the queue</li>
+<li><code>vt</code> (integer): Visibility timeout in seconds applied to each returned message</li>
+<li><code>qty</code> (integer): Maximum number of groups (and therefore messages) to return</li>
+</ul>
+<p><strong>Behavior:</strong></p>
+<ul>
+<li>Determines the absolute head <code>msg_id</code> per FIFO group, regardless of current visibility</li>
+<li>Skips groups whose head message is not visible (being processed by another worker)</li>
+<li>Returns at most one message per group, ordered by <code>msg_id</code></li>
+<li>Uses <code>FOR UPDATE SKIP LOCKED</code> for safe concurrent access</li>
+</ul>
+<p><strong>Use when:</strong></p>
+<ul>
+<li>Horizontal scaling: multiple processes each call <code>read_grouped_head()</code> and handle distinct groups</li>
+<li>Process groups in parallel</li>
+</ul>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- Claim the head message from up to 10 groups, locking them for 30 seconds</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_head</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">);</span>
+</code></pre></div>
+
+<h4 id="pgmqread_grouped_head_with_pollqueue_name-vt-qty-max_poll_seconds-poll_interval_ms"><code>pgmq.read_grouped_head_with_poll(queue_name, vt, qty, max_poll_seconds, poll_interval_ms)</code><a class="headerlink" href="#pgmqread_grouped_head_with_pollqueue_name-vt-qty-max_poll_seconds-poll_interval_ms" title="Permanent link">&para;</a></h4>
+<p>Same as <code>read_grouped_head()</code> but with polling support for real-time processing.</p>
+<h3 id="utility-functions">Utility Functions<a class="headerlink" href="#utility-functions" title="Permanent link">&para;</a></h3>
+<h4 id="pgmqcreate_fifo_indexqueue_name"><code>pgmq.create_fifo_index(queue_name)</code><a class="headerlink" href="#pgmqcreate_fifo_indexqueue_name" title="Permanent link">&para;</a></h4>
+<p>Creates a GIN index on the headers column to improve FIFO read performance. Recommended when using FIFO functionality frequently.</p>
+<h4 id="pgmqcreate_fifo_indexes_all"><code>pgmq.create_fifo_indexes_all()</code><a class="headerlink" href="#pgmqcreate_fifo_indexes_all" title="Permanent link">&para;</a></h4>
+<p>Creates FIFO indexes on all existing queues.</p>
+<h2 id="usage-patterns">Usage Patterns<a class="headerlink" href="#usage-patterns" title="Permanent link">&para;</a></h2>
+<h3 id="1-user-specific-processing">1. User-Specific Processing<a class="headerlink" href="#1-user-specific-processing" title="Permanent link">&para;</a></h3>
+<p>Ensure messages for each user are processed in order:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- User 1 messages</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;user_events&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;action&quot;: &quot;login&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;user_123&quot;}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;user_events&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;action&quot;: &quot;purchase&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;user_123&quot;}&#39;</span><span class="p">);</span>
+
+<span class="c1">-- User 2 messages (can be processed in parallel)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;user_events&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;action&quot;: &quot;login&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;user_456&quot;}&#39;</span><span class="p">);</span>
+</code></pre></div>
+
+<h3 id="2-order-processing">2. Order Processing<a class="headerlink" href="#2-order-processing" title="Permanent link">&para;</a></h3>
+<p>Maintain order integrity for financial transactions:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- Order lifecycle events</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;orders&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;order_id&quot;: &quot;ord_1&quot;, &quot;action&quot;: &quot;create&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;ord_1&quot;}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;orders&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;order_id&quot;: &quot;ord_1&quot;, &quot;action&quot;: &quot;payment&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;ord_1&quot;}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;orders&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;order_id&quot;: &quot;ord_1&quot;, &quot;action&quot;: &quot;fulfill&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;ord_1&quot;}&#39;</span><span class="p">);</span>
+</code></pre></div>
+
+<h3 id="3-document-processing">3. Document Processing<a class="headerlink" href="#3-document-processing" title="Permanent link">&para;</a></h3>
+<p>Process document versions in sequence:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- Document updates</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;docs&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;doc_id&quot;: &quot;doc_1&quot;, &quot;version&quot;: 1}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;doc_1&quot;}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;docs&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;doc_id&quot;: &quot;doc_1&quot;, &quot;version&quot;: 2}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;doc_1&quot;}&#39;</span><span class="p">);</span>
+</code></pre></div>
+
+<h2 id="performance-considerations">Performance Considerations<a class="headerlink" href="#performance-considerations" title="Permanent link">&para;</a></h2>
+<h3 id="indexing">Indexing<a class="headerlink" href="#indexing" title="Permanent link">&para;</a></h3>
+<p>Create FIFO indexes for better performance:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- For a specific queue</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">create_fifo_index</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">);</span>
+
+<span class="c1">-- For all queues</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">create_fifo_indexes_all</span><span class="p">();</span>
+</code></pre></div>
+
+<h3 id="group-distribution">Group Distribution<a class="headerlink" href="#group-distribution" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Good</strong>: Many small groups with few messages each</li>
+<li><strong>Avoid</strong>: Few large groups with many messages (reduces parallelism)</li>
+</ul>
+<h3 id="message-processing">Message Processing<a class="headerlink" href="#message-processing" title="Permanent link">&para;</a></h3>
+<ul>
+<li>Process and delete/archive messages promptly to avoid blocking subsequent messages</li>
+<li>Use appropriate visibility timeouts to handle processing failures</li>
+<li>Monitor queue metrics to identify bottlenecks</li>
+</ul>
+<h2 id="error-handling">Error Handling<a class="headerlink" href="#error-handling" title="Permanent link">&para;</a></h2>
+<h3 id="visibility-timeout-expiry">Visibility Timeout Expiry<a class="headerlink" href="#visibility-timeout-expiry" title="Permanent link">&para;</a></h3>
+<p>If message processing fails, the visibility timeout will expire and the message becomes available again:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- Message fails processing, timeout expires</span>
+<span class="c1">-- Next read_grouped() call will return the same message for retry</span>
+</code></pre></div>
+
+<h3 id="manual-retry">Manual Retry<a class="headerlink" href="#manual-retry" title="Permanent link">&para;</a></h3>
+<p>Force a message to be immediately available:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- Set visibility timeout to 0 for immediate retry</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">set_vt</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">123</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+</code></pre></div>
+
+<h3 id="dead-letter-handling">Dead Letter Handling<a class="headerlink" href="#dead-letter-handling" title="Permanent link">&para;</a></h3>
+<p>Archive messages that fail repeatedly:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- After max retries, archive the problematic message</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">archive</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">123</span><span class="p">);</span>
+</code></pre></div>
+
+<h2 id="migration-from-regular-queues">Migration from Regular Queues<a class="headerlink" href="#migration-from-regular-queues" title="Permanent link">&para;</a></h2>
+<p>FIFO functionality is backward compatible:</p>
+<ol>
+<li><strong>Existing code continues to work</strong>: <code>pgmq.read()</code> functions unchanged</li>
+<li><strong>Gradual adoption</strong>: Start using <code>pgmq.read_grouped_rr()</code> or <code>pgmq.read_grouped()</code> for new consumers</li>
+<li><strong>Mixed usage</strong>: Some consumers can use FIFO, others regular reads</li>
+<li><strong>Performance</strong>: Add FIFO indexes when ready to optimize</li>
+</ol>
+<h2 id="fifo-reading-strategies">FIFO Reading Strategies<a class="headerlink" href="#fifo-reading-strategies" title="Permanent link">&para;</a></h2>
+<p>PGMQ provides two different FIFO reading strategies to suit different use cases:</p>
+<h3 id="fair-distribution-pgmqread_grouped_rr">Fair Distribution (<code>pgmq.read_grouped_rr()</code>)<a class="headerlink" href="#fair-distribution-pgmqread_grouped_rr" title="Permanent link">&para;</a></h3>
+<p>Interleaves messages across FIFO groups in layers:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- With groups A (5 messages), B (3 messages), C (2 messages)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_rr</span><span class="p">(</span><span class="s1">&#39;queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">);</span>
+<span class="c1">-- Returns (layered interleaving): A1, B1, C1, A2, B2, C2, A3, B3, A4, ...</span>
+</code></pre></div>
+
+<p><strong>Best for:</strong></p>
+<ul>
+<li>Ensuring fair processing across all groups</li>
+<li>Preventing starvation of groups with fewer messages</li>
+<li>Load balancing across different workflows</li>
+</ul>
+<h3 id="throughput-optimization-pgmqread_grouped">Throughput Optimization (<code>pgmq.read_grouped()</code>)<a class="headerlink" href="#throughput-optimization-pgmqread_grouped" title="Permanent link">&para;</a></h3>
+<p>Attempts to fill the batch from the earliest group first:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- With groups A (5 messages), B (3 messages), C (2 messages)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped</span><span class="p">(</span><span class="s1">&#39;queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">);</span>
+<span class="c1">-- Returns: 10 messages (5 from A + 3 from B + 2 from C)</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped</span><span class="p">(</span><span class="s1">&#39;queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span>
+<span class="c1">-- Returns: 3 messages (all from group A)</span>
+</code></pre></div>
+
+<p><strong>Best for:</strong>
+- Maximizing throughput for related messages
+- Processing workflows where batching related messages is beneficial
+- Mimicking AWS SQS FIFO behavior exactly</p>
+<h3 id="one-per-group-pgmqread_grouped_head">One-per-Group (<code>pgmq.read_grouped_head()</code>)<a class="headerlink" href="#one-per-group-pgmqread_grouped_head" title="Permanent link">&para;</a></h3>
+<p>Returns exactly one message per FIFO group, up to N groups:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- With groups A (5 messages), B (3 messages), C (2 messages)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_head</span><span class="p">(</span><span class="s1">&#39;queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">);</span>
+<span class="c1">-- Returns: 3 messages — 1 from A, 1 from B, 1 from C</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_head</span><span class="p">(</span><span class="s1">&#39;queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">);</span>
+<span class="c1">-- Returns: 2 messages — 1 from A, 1 from B (oldest two groups)</span>
+</code></pre></div>
+
+<p><strong>Best for:</strong></p>
+<ul>
+<li>Horizontal scaling scenarios where groups map to independent units of work (e.g. ordering key)</li>
+<li>Parallel per-group processing: spawn one worker per active group</li>
+<li>Strict per-group ordering with no intra-group batching</li>
+</ul>
+<h3 id="choosing-the-right-strategy">Choosing the Right Strategy<a class="headerlink" href="#choosing-the-right-strategy" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Scenario</th>
+<th>Recommended Function</th>
+<th>Reason</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Multi-tenant processing</td>
+<td><code>read_grouped_rr()</code></td>
+<td>Ensures fair resource allocation</td>
+</tr>
+<tr>
+<td>Order processing pipeline</td>
+<td><code>read_grouped()</code></td>
+<td>Related orders processed together</td>
+</tr>
+<tr>
+<td>User activity streams</td>
+<td><code>read_grouped_rr()</code></td>
+<td>Prevents one active user from blocking others</td>
+</tr>
+<tr>
+<td>Document workflows</td>
+<td><code>read_grouped()</code></td>
+<td>Process all versions of a document together</td>
+</tr>
+<tr>
+<td>Financial transactions</td>
+<td><code>read_grouped()</code></td>
+<td>Batch related transactions for efficiency</td>
+</tr>
+<tr>
+<td>Parallel per-group workers</td>
+<td><code>read_grouped_head()</code></td>
+<td>One outstanding message per group at a time</td>
+</tr>
+<tr>
+<td>Horizontally scaled consumers</td>
+<td><code>read_grouped_head()</code></td>
+<td>Safely dispatches distinct groups to separate workers</td>
+</tr>
+</tbody>
+</table>
+<h2 id="comparison-with-aws-sqs-fifo">Comparison with AWS SQS FIFO<a class="headerlink" href="#comparison-with-aws-sqs-fifo" title="Permanent link">&para;</a></h2>
+<table>
+<thead>
+<tr>
+<th>Feature</th>
+<th>PGMQ FIFO (RR)</th>
+<th>PGMQ read_grouped</th>
+<th>AWS SQS FIFO</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>Group-based ordering</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Parallel group processing</td>
+<td>✅</td>
+<td>✅</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Batch retrieval strategy</td>
+<td>Fair (layered interleaving)</td>
+<td>Throughput-optimized</td>
+<td>Throughput-optimized</td>
+</tr>
+<tr>
+<td>Message deduplication</td>
+<td>❌</td>
+<td>❌</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Throughput limits</td>
+<td>No limits</td>
+<td>No limits</td>
+<td>300 TPS per group</td>
+</tr>
+<tr>
+<td>Exactly-once delivery</td>
+<td>❌</td>
+<td>❌</td>
+<td>✅</td>
+</tr>
+<tr>
+<td>Cost</td>
+<td>Free</td>
+<td>Free</td>
+<td>Pay per request</td>
+</tr>
+</tbody>
+</table>
+<h2 id="best-practices">Best Practices<a class="headerlink" href="#best-practices" title="Permanent link">&para;</a></h2>
+<ol>
+<li><strong>Choose appropriate group keys</strong>: Balance between ordering requirements and parallelism</li>
+<li><strong>Create FIFO indexes</strong>: Improve performance for frequently used queues</li>
+<li><strong>Monitor group distribution</strong>: Ensure even distribution across groups</li>
+<li><strong>Handle failures gracefully</strong>: Implement retry logic and dead letter handling</li>
+<li><strong>Test thoroughly</strong>: Verify ordering behavior under load</li>
+<li><strong>Use meaningful group IDs</strong>: Make debugging and monitoring easier</li>
+</ol>
+<h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
+<p>See <a href="../examples/fifo_example.sql">examples/fifo_example.sql</a> for comprehensive usage examples.</p>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": [], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>

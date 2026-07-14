@@ -1,0 +1,1937 @@
+
+<!doctype html>
+<html lang="en" class="no-js">
+  <head>
+    
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width,initial-scale=1">
+      
+      
+      
+      
+        <link rel="prev" href="../partitioned-queues/">
+      
+      
+      
+        
+      
+      
+      <link rel="icon" href="../assets/images/favicon.png">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+    
+    
+      
+        <title>Topic Routing - PGMQ</title>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      
+        
+        <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
+      
+      
+
+
+    
+    
+      
+    
+    
+      
+        
+        
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+        <link rel="stylesheet" href="https://fonts.googleapis.com/css?family=Roboto:300,300i,400,400i,700,700i%7CRoboto+Mono:400,400i,700,700i&display=fallback">
+        <style>:root{--md-text-font:"Roboto";--md-code-font:"Roboto Mono"}</style>
+      
+    
+    
+      <link rel="stylesheet" href="../assets/_mkdocstrings.css">
+    
+    <script>__md_scope=new URL("..",location),__md_hash=e=>[...e].reduce(((e,_)=>(e<<5)-e+_.charCodeAt(0)),0),__md_get=(e,_=localStorage,t=__md_scope)=>JSON.parse(_.getItem(t.pathname+"."+e)),__md_set=(e,_,t=localStorage,a=__md_scope)=>{try{t.setItem(a.pathname+"."+e,JSON.stringify(_))}catch(e){}}</script>
+    
+      
+
+    
+    
+  </head>
+  
+  
+    
+    
+      
+    
+    
+    
+    
+    <body dir="ltr" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo">
+  
+    
+    <input class="md-toggle" data-md-toggle="drawer" type="checkbox" id="__drawer" autocomplete="off">
+    <input class="md-toggle" data-md-toggle="search" type="checkbox" id="__search" autocomplete="off">
+    <label class="md-overlay" for="__drawer"></label>
+    <div data-md-component="skip">
+      
+        
+        <a href="#topic-based-routing" class="md-skip">
+          Skip to content
+        </a>
+      
+    </div>
+    <div data-md-component="announce">
+      
+    </div>
+    
+      <div data-md-color-scheme="default" data-md-component="outdated" hidden>
+        
+      </div>
+    
+    
+      
+
+  
+
+<header class="md-header md-header--shadow" data-md-component="header">
+  <nav class="md-header__inner md-grid" aria-label="Header">
+    <a href=".." title="PGMQ" class="md-header__button md-logo" aria-label="PGMQ" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    <label class="md-header__button md-icon" for="__drawer">
+      
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg>
+    </label>
+    <div class="md-header__title" data-md-component="header-title">
+      <div class="md-header__ellipsis">
+        <div class="md-header__topic">
+          <span class="md-ellipsis">
+            PGMQ
+          </span>
+        </div>
+        <div class="md-header__topic" data-md-component="header-topic">
+          <span class="md-ellipsis">
+            
+              Topic Routing
+            
+          </span>
+        </div>
+      </div>
+    </div>
+    
+      
+        <form class="md-header__option" data-md-component="palette">
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="default" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="dark mode"  type="radio" name="__palette" id="__palette_0">
+    
+      <label class="md-header__button md-icon" title="dark mode" for="__palette_1" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="m17.75 4.09-2.53 1.94.91 3.06-2.63-1.81-2.63 1.81.91-3.06-2.53-1.94L12.44 4l1.06-3 1.06 3zm3.5 6.91-1.64 1.25.59 1.98-1.7-1.17-1.7 1.17.59-1.98L15.75 11l2.06-.05L18.5 9l.69 1.95zm-2.28 4.95c.83-.08 1.72 1.1 1.19 1.85-.32.45-.66.87-1.08 1.27C15.17 23 8.84 23 4.94 19.07c-3.91-3.9-3.91-10.24 0-14.14.4-.4.82-.76 1.27-1.08.75-.53 1.93.36 1.85 1.19-.27 2.86.69 5.83 2.89 8.02a9.96 9.96 0 0 0 8.02 2.89m-1.64 2.02a12.08 12.08 0 0 1-7.8-3.47c-2.17-2.19-3.33-5-3.49-7.82-2.81 3.14-2.7 7.96.31 10.98 3.02 3.01 7.84 3.12 10.98.31"/></svg>
+      </label>
+    
+  
+    
+    
+    
+    <input class="md-option" data-md-color-media="" data-md-color-scheme="slate" data-md-color-primary="teal" data-md-color-accent="indigo"  aria-label="light mode"  type="radio" name="__palette" id="__palette_1">
+    
+      <label class="md-header__button md-icon" title="light mode" for="__palette_0" hidden>
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 7a5 5 0 0 1 5 5 5 5 0 0 1-5 5 5 5 0 0 1-5-5 5 5 0 0 1 5-5m0 2a3 3 0 0 0-3 3 3 3 0 0 0 3 3 3 3 0 0 0 3-3 3 3 0 0 0-3-3m0-7 2.39 3.42C13.65 5.15 12.84 5 12 5s-1.65.15-2.39.42zM3.34 7l4.16-.35A7.2 7.2 0 0 0 5.94 8.5c-.44.74-.69 1.5-.83 2.29zm.02 10 1.76-3.77a7.131 7.131 0 0 0 2.38 4.14zM20.65 7l-1.77 3.79a7.02 7.02 0 0 0-2.38-4.15zm-.01 10-4.14.36c.59-.51 1.12-1.14 1.54-1.86.42-.73.69-1.5.83-2.29zM12 22l-2.41-3.44c.74.27 1.55.44 2.41.44.82 0 1.63-.17 2.37-.44z"/></svg>
+      </label>
+    
+  
+</form>
+      
+    
+    
+      <script>var palette=__md_get("__palette");if(palette&&palette.color){if("(prefers-color-scheme)"===palette.color.media){var media=matchMedia("(prefers-color-scheme: light)"),input=document.querySelector(media.matches?"[data-md-color-media='(prefers-color-scheme: light)']":"[data-md-color-media='(prefers-color-scheme: dark)']");palette.color.media=input.getAttribute("data-md-color-media"),palette.color.scheme=input.getAttribute("data-md-color-scheme"),palette.color.primary=input.getAttribute("data-md-color-primary"),palette.color.accent=input.getAttribute("data-md-color-accent")}for(var[key,value]of Object.entries(palette.color))document.body.setAttribute("data-md-color-"+key,value)}</script>
+    
+    
+    
+      
+      
+        <label class="md-header__button md-icon" for="__search">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        </label>
+        <div class="md-search" data-md-component="search" role="dialog">
+  <label class="md-search__overlay" for="__search"></label>
+  <div class="md-search__inner" role="search">
+    <form class="md-search__form" name="search">
+      <input type="text" class="md-search__input" name="query" aria-label="Search" placeholder="Search" autocapitalize="off" autocorrect="off" autocomplete="off" spellcheck="false" data-md-component="search-query" required>
+      <label class="md-search__icon md-icon" for="__search">
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M9.5 3A6.5 6.5 0 0 1 16 9.5c0 1.61-.59 3.09-1.56 4.23l.27.27h.79l5 5-1.5 1.5-5-5v-.79l-.27-.27A6.52 6.52 0 0 1 9.5 16 6.5 6.5 0 0 1 3 9.5 6.5 6.5 0 0 1 9.5 3m0 2C7 5 5 7 5 9.5S7 14 9.5 14 14 12 14 9.5 12 5 9.5 5"/></svg>
+        
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M20 11v2H8l5.5 5.5-1.42 1.42L4.16 12l7.92-7.92L13.5 5.5 8 11z"/></svg>
+      </label>
+      <nav class="md-search__options" aria-label="Search">
+        
+        <button type="reset" class="md-search__icon md-icon" title="Clear" aria-label="Clear" tabindex="-1">
+          
+          <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"/></svg>
+        </button>
+      </nav>
+      
+    </form>
+    <div class="md-search__output">
+      <div class="md-search__scrollwrap" tabindex="0" data-md-scrollfix>
+        <div class="md-search-result" data-md-component="search-result">
+          <div class="md-search-result__meta">
+            Initializing search
+          </div>
+          <ol class="md-search-result__list" role="presentation"></ol>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+      
+    
+    
+  </nav>
+  
+</header>
+    
+    <div class="md-container" data-md-component="container">
+      
+      
+        
+          
+        
+      
+      <main class="md-main" data-md-component="main">
+        <div class="md-main__inner md-grid">
+          
+            
+              
+              <div class="md-sidebar md-sidebar--primary" data-md-component="sidebar" data-md-type="navigation" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+
+
+<nav class="md-nav md-nav--primary" aria-label="Navigation" data-md-level="0">
+  <label class="md-nav__title" for="__drawer">
+    <a href=".." title="PGMQ" class="md-nav__button md-logo" aria-label="PGMQ" data-md-component="logo">
+      
+  
+  <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M12 8a3 3 0 0 0 3-3 3 3 0 0 0-3-3 3 3 0 0 0-3 3 3 3 0 0 0 3 3m0 3.54C9.64 9.35 6.5 8 3 8v11c3.5 0 6.64 1.35 9 3.54 2.36-2.19 5.5-3.54 9-3.54V8c-3.5 0-6.64 1.35-9 3.54"/></svg>
+
+    </a>
+    PGMQ
+  </label>
+  
+  <ul class="md-nav__list" data-md-scrollfix>
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href=".." class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    PGMQ
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2" >
+        
+          
+          <label class="md-nav__link" for="__nav_2" id="__nav_2_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    API
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="1" aria-labelledby="__nav_2_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    API
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    
+    
+    
+    
+    
+    <li class="md-nav__item md-nav__item--nested">
+      
+        
+        
+        <input class="md-nav__toggle md-toggle " type="checkbox" id="__nav_2_1" >
+        
+          
+          <label class="md-nav__link" for="__nav_2_1" id="__nav_2_1_label" tabindex="0">
+            
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    SQL
+  
+
+    
+  </span>
+  
+  
+
+            <span class="md-nav__icon md-icon"></span>
+          </label>
+        
+        <nav class="md-nav" data-md-level="2" aria-labelledby="__nav_2_1_label" aria-expanded="false">
+          <label class="md-nav__title" for="__nav_2_1">
+            <span class="md-nav__icon md-icon"></span>
+            
+  
+    SQL
+  
+
+          </label>
+          <ul class="md-nav__list" data-md-scrollfix>
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/sql/types/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Types
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+              
+                
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../api/sql/functions/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Functions
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+              
+            
+          </ul>
+        </nav>
+      
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../fifo-queues/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    FIFO Queues
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+  
+  
+    <li class="md-nav__item">
+      <a href="../partitioned-queues/" class="md-nav__link">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Partitioned Queues
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+    </li>
+  
+
+    
+      
+      
+  
+  
+    
+  
+  
+  
+    <li class="md-nav__item md-nav__item--active">
+      
+      <input class="md-nav__toggle md-toggle" type="checkbox" id="__toc">
+      
+      
+        
+      
+      
+        <label class="md-nav__link md-nav__link--active" for="__toc">
+          
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Topic Routing
+  
+
+    
+  </span>
+  
+  
+
+          <span class="md-nav__icon md-icon"></span>
+        </label>
+      
+      <a href="./" class="md-nav__link md-nav__link--active">
+        
+  
+  
+  <span class="md-ellipsis">
+    
+  
+    Topic Routing
+  
+
+    
+  </span>
+  
+  
+
+      </a>
+      
+        
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How It Works
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How It Works">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#routing-keys-and-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Routing Keys and Patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wildcards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wildcards
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#binding-patterns-to-queues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Binding Patterns to Queues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sending-messages-with-routing-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sending Messages with Routing Keys
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#binding-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Binding Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Binding Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pgmqbind_topicpattern-queue_name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.bind_topic(pattern, queue_name)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pgmqunbind_topicpattern-queue_name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.unbind_topic(pattern, queue_name)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pgmqlist_topic_bindings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.list_topic_bindings()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pgmqlist_topic_bindingsqueue_name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.list_topic_bindings(queue_name)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sending-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sending Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sending Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pgmqsend_topicrouting_key-msg-headers-delay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.send_topic(routing_key, msg, headers, delay)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pgmqsend_batch_topicrouting_key-msgs-headers-delay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.send_batch_topic(routing_key, msgs, headers, delay)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#testing-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Testing Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pgmqtest_routingrouting_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.test_routing(routing_key)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validation-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Validation Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pgmqvalidate_routing_keyrouting_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.validate_routing_key(routing_key)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pgmqvalidate_topic_patternpattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.validate_topic_pattern(pattern)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Usage Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-log-aggregation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Log Aggregation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-event-broadcasting-fanout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Event Broadcasting (Fanout)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-direct-routing-exact-match" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Direct Routing (Exact Match)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-geographic-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Geographic Routing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-multi-tenant-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Multi-Tenant Processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-batch-message-publishing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Batch Message Publishing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pattern-compilation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern Compilation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#indexing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Indexing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+      
+    </li>
+  
+
+    
+  </ul>
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+            
+              
+              <div class="md-sidebar md-sidebar--secondary" data-md-component="sidebar" data-md-type="toc" >
+                <div class="md-sidebar__scrollwrap">
+                  <div class="md-sidebar__inner">
+                    
+
+<nav class="md-nav md-nav--secondary" aria-label="Table of contents">
+  
+  
+  
+    
+  
+  
+    <label class="md-nav__title" for="__toc">
+      <span class="md-nav__icon md-icon"></span>
+      Table of contents
+    </label>
+    <ul class="md-nav__list" data-md-component="toc" data-md-scrollfix>
+      
+        <li class="md-nav__item">
+  <a href="#overview" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Overview
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Overview">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#key-features" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Key Features
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#how-it-works" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        How It Works
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="How It Works">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#routing-keys-and-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Routing Keys and Patterns
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#wildcards" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Wildcards
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#binding-patterns-to-queues" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Binding Patterns to Queues
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sending-messages-with-routing-keys" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sending Messages with Routing Keys
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#api-reference" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        API Reference
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="API Reference">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#binding-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Binding Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Binding Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pgmqbind_topicpattern-queue_name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.bind_topic(pattern, queue_name)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pgmqunbind_topicpattern-queue_name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.unbind_topic(pattern, queue_name)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pgmqlist_topic_bindings" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.list_topic_bindings()
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pgmqlist_topic_bindingsqueue_name" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.list_topic_bindings(queue_name)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#sending-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Sending Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Sending Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pgmqsend_topicrouting_key-msg-headers-delay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.send_topic(routing_key, msg, headers, delay)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pgmqsend_batch_topicrouting_key-msgs-headers-delay" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.send_batch_topic(routing_key, msgs, headers, delay)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#testing-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Testing Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Testing Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pgmqtest_routingrouting_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.test_routing(routing_key)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#validation-functions" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Validation Functions
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Validation Functions">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pgmqvalidate_routing_keyrouting_key" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.validate_routing_key(routing_key)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#pgmqvalidate_topic_patternpattern" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        pgmq.validate_topic_pattern(pattern)
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#usage-patterns" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Usage Patterns
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Usage Patterns">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#1-log-aggregation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        1. Log Aggregation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#2-event-broadcasting-fanout" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        2. Event Broadcasting (Fanout)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#3-direct-routing-exact-match" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        3. Direct Routing (Exact Match)
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#4-geographic-routing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        4. Geographic Routing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#5-multi-tenant-processing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        5. Multi-Tenant Processing
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#6-batch-message-publishing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        6. Batch Message Publishing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#performance-considerations" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Performance Considerations
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Performance Considerations">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#pattern-compilation" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Pattern Compilation
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#indexing" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Indexing
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
+        <li class="md-nav__item">
+  <a href="#examples" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Examples
+      
+    </span>
+  </a>
+  
+</li>
+      
+    </ul>
+  
+</nav>
+                  </div>
+                </div>
+              </div>
+            
+          
+          
+            <div class="md-content" data-md-component="content">
+              
+              <article class="md-content__inner md-typeset">
+                
+                  
+
+
+
+<h1 id="topic-based-routing">Topic-Based Routing<a class="headerlink" href="#topic-based-routing" title="Permanent link">&para;</a></h1>
+<p>PGMQ supports topic-based message routing with wildcard patterns, similar to AMQP topic exchanges. This feature allows
+you to route messages to multiple queues based on routing keys and pattern matching.</p>
+<h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
+<p>Topic routing in PGMQ works by binding patterns to queues. When a message is sent with a routing key, it is delivered to
+all queues whose patterns match that key. This enables flexible publish-subscribe patterns and content-based routing.</p>
+<h3 id="key-features">Key Features<a class="headerlink" href="#key-features" title="Permanent link">&para;</a></h3>
+<ul>
+<li><strong>Wildcard patterns</strong>: Use <code>*</code> (one segment) and <code>#</code> (zero or more segments) for flexible matching</li>
+<li><strong>Multiple queue delivery</strong>: A single message can be routed to multiple queues</li>
+<li><strong>Pattern-based subscriptions</strong>: Queues subscribe to message types via patterns</li>
+<li><strong>Dry-run testing</strong>: Test routing without sending messages using <code>test_routing()</code></li>
+<li><strong>Precompiled regex</strong>: Patterns are compiled to regex at bind time for fast matching</li>
+<li><strong>Automatic cleanup</strong>: Bindings are removed when queues are dropped (CASCADE)</li>
+</ul>
+<h2 id="how-it-works">How It Works<a class="headerlink" href="#how-it-works" title="Permanent link">&para;</a></h2>
+<h3 id="routing-keys-and-patterns">Routing Keys and Patterns<a class="headerlink" href="#routing-keys-and-patterns" title="Permanent link">&para;</a></h3>
+<p>Routing keys and patterns use dot-separated segments:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- Routing keys (used when sending messages)</span>
+<span class="s1">&#39;logs.api.error&#39;</span>
+<span class="s1">&#39;orders.created&#39;</span>
+<span class="s1">&#39;user.signup.completed&#39;</span>
+
+<span class="c1">-- Patterns (used when binding to queues)</span>
+<span class="s1">&#39;logs.*&#39;</span><span class="w">           </span><span class="c1">-- Matches exactly one segment after &#39;logs.&#39;</span>
+<span class="s1">&#39;logs.#&#39;</span><span class="w">           </span><span class="c1">-- Matches zero or more segments after &#39;logs.&#39;</span>
+<span class="s1">&#39;*.error&#39;</span><span class="w">          </span><span class="c1">-- Matches any single segment before &#39;.error&#39;</span>
+<span class="s1">&#39;#.error&#39;</span><span class="w">          </span><span class="c1">-- Matches zero or more segments before &#39;.error&#39;</span>
+<span class="s1">&#39;logs.*.error&#39;</span><span class="w">     </span><span class="c1">-- Matches &#39;logs.{any}.error&#39;</span>
+</code></pre></div>
+
+<h3 id="wildcards">Wildcards<a class="headerlink" href="#wildcards" title="Permanent link">&para;</a></h3>
+<table>
+<thead>
+<tr>
+<th>Wildcard</th>
+<th>Meaning</th>
+<th>Example Pattern</th>
+<th>Matches</th>
+<th>Does Not Match</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>*</code></td>
+<td>Exactly one segment</td>
+<td><code>logs.*</code></td>
+<td><code>logs.error</code>, <code>logs.info</code></td>
+<td><code>logs</code>, <code>logs.api.error</code></td>
+</tr>
+<tr>
+<td><code>#</code></td>
+<td>Zero or more segments</td>
+<td><code>logs.#</code></td>
+<td><code>logs.error</code>, <code>logs.api.error</code></td>
+<td><code>logs</code> (no dot after)</td>
+</tr>
+</tbody>
+</table>
+<h3 id="binding-patterns-to-queues">Binding Patterns to Queues<a class="headerlink" href="#binding-patterns-to-queues" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- Create queues</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;all_logs&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;error_logs&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;api_errors&#39;</span><span class="p">);</span>
+
+<span class="c1">-- Bind patterns</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;logs.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;all_logs&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">-- All logs</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;logs.*.error&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;error_logs&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">-- Error logs from any service</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;logs.api.error&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;api_errors&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">-- Only API errors</span>
+</code></pre></div>
+
+<h3 id="sending-messages-with-routing-keys">Sending Messages with Routing Keys<a class="headerlink" href="#sending-messages-with-routing-keys" title="Permanent link">&para;</a></h3>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- This message routes to: all_logs, error_logs, api_errors (3 queues)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;logs.api.error&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;message&quot;: &quot;API failed&quot;}&#39;</span><span class="p">);</span>
+
+<span class="c1">-- This message routes to: all_logs, error_logs (2 queues)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;logs.db.error&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;message&quot;: &quot;DB connection failed&quot;}&#39;</span><span class="p">);</span>
+
+<span class="c1">-- This message routes to: all_logs only (1 queue)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;logs.api.info&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;message&quot;: &quot;Request received&quot;}&#39;</span><span class="p">);</span>
+</code></pre></div>
+
+<h2 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h2>
+<h3 id="binding-functions">Binding Functions<a class="headerlink" href="#binding-functions" title="Permanent link">&para;</a></h3>
+<h4 id="pgmqbind_topicpattern-queue_name"><code>pgmq.bind_topic(pattern, queue_name)</code><a class="headerlink" href="#pgmqbind_topicpattern-queue_name" title="Permanent link">&para;</a></h4>
+<p>Bind a pattern to a queue. Messages matching the pattern will be routed to this queue.</p>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><code>pattern</code> (text): The wildcard pattern to match routing keys</li>
+<li><code>queue_name</code> (text): Name of the queue to receive matching messages</li>
+</ul>
+<p><strong>Returns:</strong> void</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;orders.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;order_events&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;orders.*.failed&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;failed_orders&#39;</span><span class="p">);</span>
+</code></pre></div>
+
+<p><strong>Notes:</strong></p>
+<ul>
+<li>Patterns are validated before binding</li>
+<li>Binding the same pattern to the same queue is idempotent (no error, no duplicate)</li>
+<li>One pattern can be bound to multiple queues</li>
+<li>One queue can have multiple pattern bindings</li>
+</ul>
+<h4 id="pgmqunbind_topicpattern-queue_name"><code>pgmq.unbind_topic(pattern, queue_name)</code><a class="headerlink" href="#pgmqunbind_topicpattern-queue_name" title="Permanent link">&para;</a></h4>
+<p>Remove a pattern binding from a queue.</p>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><code>pattern</code> (text): The pattern to unbind</li>
+<li><code>queue_name</code> (text): Name of the queue</li>
+</ul>
+<p><strong>Returns:</strong> boolean - <code>true</code> if a binding was removed, <code>false</code> if no binding existed</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">unbind_topic</span><span class="p">(</span><span class="s1">&#39;orders.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;order_events&#39;</span><span class="p">);</span>
+</code></pre></div>
+
+<h4 id="pgmqlist_topic_bindings"><code>pgmq.list_topic_bindings()</code><a class="headerlink" href="#pgmqlist_topic_bindings" title="Permanent link">&para;</a></h4>
+<p>Returns all topic bindings across all queues.</p>
+<p><strong>Returns:</strong> Table with columns:</p>
+<ul>
+<li><code>pattern</code> (text): The wildcard pattern</li>
+<li><code>queue_name</code> (text): Name of the queue receiving matching messages</li>
+<li><code>bound_at</code> (timestamp with time zone): When the binding was created</li>
+<li><code>compiled_regex</code> (text): The internal regex used for matching</li>
+</ul>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">list_topic_bindings</span><span class="p">();</span>
+<span class="c1">-- Returns:</span>
+<span class="c1">--   pattern      | queue_name  | bound_at                   | compiled_regex</span>
+<span class="c1">--   -------------+-------------+----------------------------+-------------------</span>
+<span class="c1">--   orders.#     | all_orders  | 2024-01-15 10:30:00.000000 | ^orders\..*$</span>
+<span class="c1">--   logs.*.error | error_logs  | 2024-01-15 10:29:00.000000 | ^logs\.[^.]+\.error$</span>
+</code></pre></div>
+
+<p><strong>Notes:</strong></p>
+<ul>
+<li>Results are ordered by <code>bound_at</code> DESC (most recent first), then by <code>pattern</code> and <code>queue_name</code></li>
+<li>Use this to audit or debug your topic routing configuration</li>
+</ul>
+<h4 id="pgmqlist_topic_bindingsqueue_name"><code>pgmq.list_topic_bindings(queue_name)</code><a class="headerlink" href="#pgmqlist_topic_bindingsqueue_name" title="Permanent link">&para;</a></h4>
+<p>Returns all topic bindings for a specific queue.</p>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><code>queue_name</code> (text): Name of the queue</li>
+</ul>
+<p><strong>Returns:</strong> Table with columns:</p>
+<ul>
+<li><code>pattern</code> (text): The wildcard pattern</li>
+<li><code>queue_name</code> (text): Name of the queue (always matches the parameter)</li>
+<li><code>bound_at</code> (timestamp with time zone): When the binding was created</li>
+<li><code>compiled_regex</code> (text): The internal regex used for matching</li>
+</ul>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">list_topic_bindings</span><span class="p">(</span><span class="s1">&#39;order_events&#39;</span><span class="p">);</span>
+<span class="c1">-- Returns:</span>
+<span class="c1">--   pattern         | queue_name    | bound_at                   | compiled_regex</span>
+<span class="c1">--   ----------------+---------------+----------------------------+---------------------</span>
+<span class="c1">--   orders.#        | order_events  | 2024-01-15 10:30:00.000000 | ^orders\..*$</span>
+<span class="c1">--   orders.*.failed | order_events  | 2024-01-15 10:28:00.000000 | ^orders\.[^.]+\.failed$</span>
+</code></pre></div>
+
+<p><strong>Notes:</strong></p>
+<ul>
+<li>Results are ordered by <code>bound_at</code> DESC (most recent first), then by <code>pattern</code></li>
+<li>Returns empty result if queue has no bindings</li>
+<li><code>queue_name</code> column is included for consistency with the no-argument version</li>
+</ul>
+<h3 id="sending-functions">Sending Functions<a class="headerlink" href="#sending-functions" title="Permanent link">&para;</a></h3>
+<h4 id="pgmqsend_topicrouting_key-msg-headers-delay"><code>pgmq.send_topic(routing_key, msg, headers, delay)</code><a class="headerlink" href="#pgmqsend_topicrouting_key-msg-headers-delay" title="Permanent link">&para;</a></h4>
+<p>Send a message to all queues whose patterns match the routing key.</p>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><code>routing_key</code> (text): The routing key for pattern matching</li>
+<li><code>msg</code> (jsonb): The message payload</li>
+<li><code>headers</code> (jsonb): Optional message headers</li>
+<li><code>delay</code> (integer): Delay in seconds before message becomes visible</li>
+</ul>
+<p><strong>Returns:</strong> integer - Number of queues the message was sent to</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- Full signature</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;orders.created&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;order_id&quot;: 123}&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;priority&quot;: &quot;high&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+
+<span class="c1">-- Simplified versions</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;orders.created&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;order_id&quot;: 123}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;orders.created&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;order_id&quot;: 123}&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span><span class="w"> </span><span class="c1">-- 5 second delay</span>
+</code></pre></div>
+
+<p><strong>Notes:</strong></p>
+<ul>
+<li>If no patterns match the routing key, the message is not sent (returns 0)</li>
+<li>If multiple patterns match, the message is sent to all matching queues</li>
+<li>All sends succeed or all fail (transactional)</li>
+</ul>
+<h4 id="pgmqsend_batch_topicrouting_key-msgs-headers-delay"><code>pgmq.send_batch_topic(routing_key, msgs, headers, delay)</code><a class="headerlink" href="#pgmqsend_batch_topicrouting_key-msgs-headers-delay" title="Permanent link">&para;</a></h4>
+<p>Send multiple messages to all queues whose patterns match the routing key.</p>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><code>routing_key</code> (text): The routing key for pattern matching</li>
+<li><code>msgs</code> (jsonb[]): Array of message payloads to send</li>
+<li><code>headers</code> (jsonb[]): Optional array of headers for each message</li>
+<li><code>delay</code> (integer): Delay in seconds before messages become visible</li>
+<li><code>delay</code> (timestamp with time zone): Timestamp when messages become visible</li>
+</ul>
+<p><strong>Returns:</strong> Table with columns:
+- <code>queue_name</code> (text): Name of the queue that received messages
+- <code>msg_id</code> (bigint): ID of each message that was sent</p>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- Send 3 messages to all matching queues</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch_topic</span><span class="p">(</span>
+<span class="w">    </span><span class="s1">&#39;orders.created&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span>
+<span class="w">        </span><span class="s1">&#39;{&quot;order_id&quot;: 1, &quot;amount&quot;: 100}&#39;</span><span class="p">,</span>
+<span class="w">        </span><span class="s1">&#39;{&quot;order_id&quot;: 2, &quot;amount&quot;: 200}&#39;</span><span class="p">,</span>
+<span class="w">        </span><span class="s1">&#39;{&quot;order_id&quot;: 3, &quot;amount&quot;: 300}&#39;</span>
+<span class="w">    </span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[]</span>
+<span class="p">);</span>
+
+<span class="c1">-- Returns (if 2 queues match the pattern):</span>
+<span class="c1">--  queue_name       | msg_id</span>
+<span class="c1">-- ------------------+--------</span>
+<span class="c1">--  order_processor  | 1</span>
+<span class="c1">--  order_processor  | 2</span>
+<span class="c1">--  order_processor  | 3</span>
+<span class="c1">--  order_analytics  | 1</span>
+<span class="c1">--  order_analytics  | 2</span>
+<span class="c1">--  order_analytics  | 3</span>
+
+<span class="c1">-- With headers</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch_topic</span><span class="p">(</span>
+<span class="w">    </span><span class="s1">&#39;notifications.email&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">&#39;{&quot;to&quot;: &quot;user1@example.com&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;to&quot;: &quot;user2@example.com&quot;}&#39;</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span>
+<span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">&#39;{&quot;priority&quot;: &quot;high&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;priority&quot;: &quot;normal&quot;}&#39;</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[]</span>
+<span class="p">);</span>
+
+<span class="c1">-- Simplified versions</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch_topic</span><span class="p">(</span><span class="s1">&#39;logs.info&#39;</span><span class="p">,</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">&#39;{&quot;msg&quot;: &quot;test&quot;}&#39;</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[]);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch_topic</span><span class="p">(</span><span class="s1">&#39;alerts.critical&#39;</span><span class="p">,</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">&#39;{&quot;alert&quot;: &quot;down&quot;}&#39;</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span><span class="w"> </span><span class="mi">60</span><span class="p">);</span><span class="w"> </span><span class="c1">-- 60 second delay</span>
+
+<span class="c1">-- With timestamp delay (visible in 1 hour)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch_topic</span><span class="p">(</span>
+<span class="w">    </span><span class="s1">&#39;scheduled.tasks&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">&#39;{&quot;task&quot;: &quot;backup&quot;}&#39;</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span>
+<span class="w">    </span><span class="k">CURRENT_TIMESTAMP</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">INTERVAL</span><span class="w"> </span><span class="s1">&#39;1 hour&#39;</span>
+<span class="p">);</span>
+</code></pre></div>
+
+<p><strong>Notes:</strong></p>
+<ul>
+<li>Each message in the batch is sent to all matching queues</li>
+<li>If the routing key matches 2 queues and you send 3 messages, you get 6 total messages (3 per queue)</li>
+<li>Headers array length must exactly match messages array length when provided (not NULL). Empty headers arrays will fail validation if msgs is not empty. To send without headers, omit the parameter or pass NULL</li>
+<li>If no patterns match the routing key, returns an empty result set</li>
+<li>All sends succeed or all fail (transactional)</li>
+</ul>
+<h3 id="testing-functions">Testing Functions<a class="headerlink" href="#testing-functions" title="Permanent link">&para;</a></h3>
+<h4 id="pgmqtest_routingrouting_key"><code>pgmq.test_routing(routing_key)</code><a class="headerlink" href="#pgmqtest_routingrouting_key" title="Permanent link">&para;</a></h4>
+<p>Test which queues would receive a message with the given routing key, without actually sending a message.</p>
+<p><strong>Parameters:</strong></p>
+<ul>
+<li><code>routing_key</code> (text): The routing key to test</li>
+</ul>
+<p><strong>Returns:</strong> Table with columns:</p>
+<ul>
+<li><code>pattern</code> (text): The matching pattern</li>
+<li><code>queue_name</code> (text): The queue that would receive the message</li>
+<li><code>compiled_regex</code> (text): The internal regex used for matching</li>
+</ul>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">test_routing</span><span class="p">(</span><span class="s1">&#39;logs.api.error&#39;</span><span class="p">);</span>
+<span class="c1">-- Returns:</span>
+<span class="c1">--   pattern      | queue_name  | compiled_regex</span>
+<span class="c1">--   -------------+-------------+-------------------</span>
+<span class="c1">--   logs.#       | all_logs    | ^logs\..*$</span>
+<span class="c1">--   logs.*.error | error_logs  | ^logs\.[^.]+\.error$</span>
+</code></pre></div>
+
+<h3 id="validation-functions">Validation Functions<a class="headerlink" href="#validation-functions" title="Permanent link">&para;</a></h3>
+<h4 id="pgmqvalidate_routing_keyrouting_key"><code>pgmq.validate_routing_key(routing_key)</code><a class="headerlink" href="#pgmqvalidate_routing_keyrouting_key" title="Permanent link">&para;</a></h4>
+<p>Validate that a routing key is well-formed.</p>
+<p><strong>Valid routing keys:</strong></p>
+<ul>
+<li>Alphanumeric characters, dots, hyphens, and underscores</li>
+<li>Cannot start or end with a dot</li>
+<li>Cannot contain consecutive dots</li>
+<li>Cannot contain wildcards (<code>*</code> or <code>#</code>)</li>
+<li>Maximum 255 characters</li>
+</ul>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">validate_routing_key</span><span class="p">(</span><span class="s1">&#39;logs.api.error&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">-- Returns true</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">validate_routing_key</span><span class="p">(</span><span class="s1">&#39;logs..error&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">-- Raises exception</span>
+</code></pre></div>
+
+<h4 id="pgmqvalidate_topic_patternpattern"><code>pgmq.validate_topic_pattern(pattern)</code><a class="headerlink" href="#pgmqvalidate_topic_patternpattern" title="Permanent link">&para;</a></h4>
+<p>Validate that a topic pattern is well-formed.</p>
+<p><strong>Valid patterns:</strong></p>
+<ul>
+<li>Same rules as routing keys, plus <code>*</code> and <code>#</code> wildcards</li>
+<li>Cannot have consecutive wildcards (<code>**</code>, <code>##</code>, <code>*#</code>, <code>#*</code>)</li>
+</ul>
+<p><strong>Example:</strong></p>
+<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">validate_topic_pattern</span><span class="p">(</span><span class="s1">&#39;logs.*.error&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">-- Returns true</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">validate_topic_pattern</span><span class="p">(</span><span class="s1">&#39;logs.**&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">-- Raises exception</span>
+</code></pre></div>
+
+<h2 id="usage-patterns">Usage Patterns<a class="headerlink" href="#usage-patterns" title="Permanent link">&para;</a></h2>
+<h3 id="1-log-aggregation">1. Log Aggregation<a class="headerlink" href="#1-log-aggregation" title="Permanent link">&para;</a></h3>
+<p>Route logs to different queues based on severity and service:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- Create queues</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;logs_all&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;logs_errors&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;logs_critical&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;api_logs&#39;</span><span class="p">);</span>
+
+<span class="c1">-- Bind patterns</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;logs_all&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">-- All logs</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;*.error&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;logs_errors&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">-- All errors</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;*.critical&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;logs_critical&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">-- All critical</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;api.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;api_logs&#39;</span><span class="p">);</span>
+<span class="c1">-- API service logs</span>
+
+<span class="c1">-- Send logs</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;api.error&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;msg&quot;: &quot;API error&quot;}&#39;</span><span class="p">);</span>
+<span class="c1">-- Routes to: logs_all, logs_errors, api_logs</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;db.critical&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;msg&quot;: &quot;DB down&quot;}&#39;</span><span class="p">);</span>
+<span class="c1">-- Routes to: logs_all, logs_critical</span>
+</code></pre></div>
+
+<h3 id="2-event-broadcasting-fanout">2. Event Broadcasting (Fanout)<a class="headerlink" href="#2-event-broadcasting-fanout" title="Permanent link">&para;</a></h3>
+<p>Send events to all interested consumers:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- Create consumer queues</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;notifications&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;analytics&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;audit_log&#39;</span><span class="p">);</span>
+
+<span class="c1">-- All queues subscribe to everything</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;notifications&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;analytics&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;audit_log&#39;</span><span class="p">);</span>
+
+<span class="c1">-- Any event goes to all queues</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;user.signup&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;user_id&quot;: 123}&#39;</span><span class="p">);</span>
+<span class="c1">-- Routes to all 3 queues</span>
+</code></pre></div>
+
+<h3 id="3-direct-routing-exact-match">3. Direct Routing (Exact Match)<a class="headerlink" href="#3-direct-routing-exact-match" title="Permanent link">&para;</a></h3>
+<p>Route specific events to specific queues:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- Create queues</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;user_events&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;order_events&#39;</span><span class="p">);</span>
+
+<span class="c1">-- Bind exact patterns (no wildcards)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;user.created&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;user_events&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;user.updated&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;user_events&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;user.deleted&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;user_events&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;order.placed&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;order_events&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;order.shipped&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;order_events&#39;</span><span class="p">);</span>
+
+<span class="c1">-- Messages route to exactly one queue</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;user.created&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;user_id&quot;: 1}&#39;</span><span class="p">);</span>
+<span class="c1">-- Routes to: user_events only</span>
+</code></pre></div>
+
+<h3 id="4-geographic-routing">4. Geographic Routing<a class="headerlink" href="#4-geographic-routing" title="Permanent link">&para;</a></h3>
+<p>Route messages based on region:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- Create regional queues</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;events_us&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;events_eu&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;events_global&#39;</span><span class="p">);</span>
+
+<span class="c1">-- Bind regional patterns</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;us.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;events_us&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;eu.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;events_eu&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;events_global&#39;</span><span class="p">);</span>
+
+<span class="c1">-- Route by region</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;us.orders.created&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;order_id&quot;: 100}&#39;</span><span class="p">);</span>
+<span class="c1">-- Routes to: events_us, events_global</span>
+
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;eu.users.signup&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;user_id&quot;: 50}&#39;</span><span class="p">);</span>
+<span class="c1">-- Routes to: events_eu, events_global</span>
+</code></pre></div>
+
+<h3 id="5-multi-tenant-processing">5. Multi-Tenant Processing<a class="headerlink" href="#5-multi-tenant-processing" title="Permanent link">&para;</a></h3>
+<p>Route messages to tenant-specific and shared queues:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- Create queues</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;tenant_acme&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;tenant_globex&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;all_tenants&#39;</span><span class="p">);</span>
+
+<span class="c1">-- Bind patterns</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;acme.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;tenant_acme&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;globex.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;tenant_globex&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;all_tenants&#39;</span><span class="p">);</span>
+
+<span class="c1">-- Route by tenant</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;acme.orders.new&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;order&quot;: &quot;data&quot;}&#39;</span><span class="p">);</span>
+<span class="c1">-- Routes to: tenant_acme, all_tenants</span>
+</code></pre></div>
+
+<h3 id="6-batch-message-publishing">6. Batch Message Publishing<a class="headerlink" href="#6-batch-message-publishing" title="Permanent link">&para;</a></h3>
+<p>Send multiple messages at once using <code>send_batch_topic</code>:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- Create notification queues</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;email_queue&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;sms_queue&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;all_notifications&#39;</span><span class="p">);</span>
+
+<span class="c1">-- Bind patterns</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;notify.email.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;email_queue&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;notify.sms.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;sms_queue&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;notify.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;all_notifications&#39;</span><span class="p">);</span>
+
+<span class="c1">-- Send batch of email notifications</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch_topic</span><span class="p">(</span>
+<span class="w">    </span><span class="s1">&#39;notify.email.welcome&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span>
+<span class="w">        </span><span class="s1">&#39;{&quot;to&quot;: &quot;user1@example.com&quot;, &quot;name&quot;: &quot;Alice&quot;}&#39;</span><span class="p">,</span>
+<span class="w">        </span><span class="s1">&#39;{&quot;to&quot;: &quot;user2@example.com&quot;, &quot;name&quot;: &quot;Bob&quot;}&#39;</span><span class="p">,</span>
+<span class="w">        </span><span class="s1">&#39;{&quot;to&quot;: &quot;user3@example.com&quot;, &quot;name&quot;: &quot;Carol&quot;}&#39;</span>
+<span class="w">    </span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[]</span>
+<span class="p">);</span>
+<span class="c1">-- Routes 3 messages each to: email_queue and all_notifications (6 total messages)</span>
+
+<span class="c1">-- Send batch with headers for priority handling</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch_topic</span><span class="p">(</span>
+<span class="w">    </span><span class="s1">&#39;notify.sms.alert&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">&#39;{&quot;phone&quot;: &quot;+1234567890&quot;, &quot;msg&quot;: &quot;Alert!&quot;}&#39;</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span>
+<span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">&#39;{&quot;priority&quot;: &quot;urgent&quot;}&#39;</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[]</span>
+<span class="p">);</span>
+<span class="c1">-- Routes to: sms_queue and all_notifications with priority header</span>
+
+<span class="c1">-- Send batch with delay (e.g., scheduled notifications)</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch_topic</span><span class="p">(</span>
+<span class="w">    </span><span class="s1">&#39;notify.email.reminder&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span>
+<span class="w">        </span><span class="s1">&#39;{&quot;to&quot;: &quot;user@example.com&quot;, &quot;subject&quot;: &quot;Reminder&quot;}&#39;</span><span class="p">,</span>
+<span class="w">        </span><span class="s1">&#39;{&quot;to&quot;: &quot;admin@example.com&quot;, &quot;subject&quot;: &quot;Daily report&quot;}&#39;</span>
+<span class="w">    </span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span>
+<span class="w">    </span><span class="mi">3600</span><span class="w">  </span><span class="c1">-- Delay 1 hour</span>
+<span class="p">);</span>
+<span class="c1">-- Messages become visible in 1 hour</span>
+</code></pre></div>
+
+<h2 id="performance-considerations">Performance Considerations<a class="headerlink" href="#performance-considerations" title="Permanent link">&para;</a></h2>
+<h3 id="pattern-compilation">Pattern Compilation<a class="headerlink" href="#pattern-compilation" title="Permanent link">&para;</a></h3>
+<p>Patterns are compiled to regular expressions when bound, not at send time:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- View all patterns with their compiled regex</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pattern</span><span class="p">,</span><span class="w"> </span><span class="n">queue_name</span><span class="p">,</span><span class="w"> </span><span class="n">compiled_regex</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">list_topic_bindings</span><span class="p">();</span>
+</code></pre></div>
+
+<p>This means:</p>
+<ul>
+<li>Binding is slightly slower (regex compilation)</li>
+<li>Sending is fast (uses precompiled regex)</li>
+<li>Many bindings = more patterns to check per send</li>
+</ul>
+<h3 id="indexing">Indexing<a class="headerlink" href="#indexing" title="Permanent link">&para;</a></h3>
+<p>The <code>topic_bindings</code> table has a covering index for efficient pattern scanning:</p>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- Index includes queue_name for index-only scans</span>
+<span class="k">CREATE</span><span class="w"> </span><span class="k">INDEX</span><span class="w"> </span><span class="n">idx_topic_bindings_covering</span>
+<span class="w">    </span><span class="k">ON</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">topic_bindings</span><span class="w"> </span><span class="p">(</span><span class="n">pattern</span><span class="p">)</span><span class="w"> </span><span class="n">INCLUDE</span><span class="w"> </span><span class="p">(</span><span class="n">queue_name</span><span class="p">);</span>
+</code></pre></div>
+
+<h2 id="examples">Examples<a class="headerlink" href="#examples" title="Permanent link">&para;</a></h2>
+<p>See <a href="../examples/topics.sql">examples/topics.sql</a> for comprehensive usage examples including:</p>
+<ul>
+<li>Wildcard differences (<code>*</code> vs <code>#</code>)</li>
+<li>Topic-based routing</li>
+<li>Fanout pattern (broadcast)</li>
+<li>Direct routing (exact match)</li>
+<li>Dry-run testing</li>
+</ul>
+
+
+
+
+
+
+
+
+
+
+
+
+                
+              </article>
+            </div>
+          
+          
+<script>var target=document.getElementById(location.hash.slice(1));target&&target.name&&(target.checked=target.name.startsWith("__tabbed_"))</script>
+        </div>
+        
+      </main>
+      
+        <footer class="md-footer">
+  
+  <div class="md-footer-meta md-typeset">
+    <div class="md-footer-meta__inner md-grid">
+      <div class="md-copyright">
+  
+  
+    Made with
+    <a href="https://squidfunk.github.io/mkdocs-material/" target="_blank" rel="noopener">
+      Material for MkDocs
+    </a>
+  
+</div>
+      
+    </div>
+  </div>
+</footer>
+      
+    </div>
+    <div class="md-dialog" data-md-component="dialog">
+      <div class="md-dialog__inner md-typeset"></div>
+    </div>
+    
+    
+    
+      
+      
+      <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": [], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
+    
+    
+      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      
+    
+  </body>
+</html>
