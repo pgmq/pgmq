@@ -1115,14 +1115,9 @@ impl PGMQueueExt {
         msg_id: i64,
         executor: E,
     ) -> Result<bool, PgmqError> {
-        check_queue_name(queue_name)?;
-        let row =
-            sqlx::query("SELECT * from pgmq.delete(queue_name=>$1::text, msg_id=>$2::bigint)")
-                .bind(queue_name)
-                .bind(msg_id)
-                .fetch_one(executor)
-                .await?;
-        Ok(row.try_get("delete")?)
+        self.delete_batch_with_cxn(queue_name, &[msg_id], executor)
+            .await
+            .map(|deleted| !deleted.is_empty())
     }
 
     // Delete a message by message id.
@@ -1137,16 +1132,8 @@ impl PGMQueueExt {
         msg_ids: &[i64],
         executor: E,
     ) -> Result<Vec<i64>, PgmqError> {
-        check_queue_name(queue_name)?;
-        let deleted_msg_ids = sqlx::query_scalar(
-            "SELECT * from pgmq.delete(queue_name=>$1::text, msg_ids=>$2::bigint[])",
-        )
-        .bind(queue_name)
-        .bind(msg_ids)
-        .fetch_all(executor)
-        .await?;
-
-        Ok(deleted_msg_ids)
+        let queue_name = queue_name.try_into().map_err(QueueNameError::other)?;
+        crate::queue::sqlx::delete(executor, queue_name, msg_ids).await
     }
 
     // Delete with a slice of message ids

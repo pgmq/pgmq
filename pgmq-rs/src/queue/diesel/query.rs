@@ -1,5 +1,5 @@
 //! Extracted Diesel SQL query functions. Can be used by both diesel and diesel-async.
-use crate::queue::diesel::sql::{pgmq_archive, pgmq_create, pgmq_read, pgmq_send};
+use crate::queue::diesel::sql::{pgmq_archive, pgmq_create, pgmq_delete, pgmq_read, pgmq_send};
 use crate::types::{QueueName, VisibilityTimeoutOffset};
 use diesel::dsl::select;
 
@@ -36,4 +36,10 @@ pub fn read_query(
 pub fn archive_query<'q, 'm>(queue_name: QueueName<'q>, msg_ids: &'m [i64]) -> _ {
     let queue_name: &'q str = *queue_name;
     select(pgmq_archive(queue_name, msg_ids))
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn delete_query<'q, 'm>(queue_name: QueueName<'q>, msg_ids: &'m [i64]) -> _ {
+    let queue_name: &'q str = *queue_name;
+    select(pgmq_delete(queue_name, msg_ids))
 }

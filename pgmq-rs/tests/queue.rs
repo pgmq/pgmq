@@ -270,3 +270,25 @@ async fn archive(conn_details: ConnDetails, queue: impl Queue) {
         "Attempting to read after archiving the message should return nothing"
     );
 }
+
+#[pgmq_test_macro::queue_test]
+async fn delete(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+    let msg_id1 = queue.send(QUEUE, TestMessage::new(), (), 0).await.unwrap();
+    let msg_id2 = queue.send(QUEUE, TestMessage::new(), (), 0).await.unwrap();
+
+    let deleted = queue.delete(QUEUE, &[msg_id1, msg_id2]).await.unwrap();
+    assert_eq!(deleted, [msg_id1, msg_id2]);
+
+    let deleted = queue.delete(QUEUE, &[msg_id1]).await.unwrap();
+    assert!(
+        deleted.is_empty(),
+        "Attempting to delete a message that was already deleted should return `false`"
+    );
+
+    let read_msg: Vec<Message<TestMessage>> = queue.read(QUEUE, 10, 1).await.unwrap();
+    assert!(
+        read_msg.is_empty(),
+        "Attempting to read after deleting the message should return nothing"
+    );
+}

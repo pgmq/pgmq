@@ -155,6 +155,21 @@ macro_rules! impl_queue {
                     .map_err(crate::types::queue_name::QueueNameError::other)?;
                 archive($transform_self!(self), queue_name, msg_ids).await
             }
+
+            async fn delete<'q, Q, QE>(
+                self,
+                queue_name: Q,
+                msg_ids: &[i64],
+            ) -> Result<Vec<i64>, crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: ToString,
+            {
+                let queue_name = queue_name
+                    .try_into()
+                    .map_err(crate::types::queue_name::QueueNameError::other)?;
+                delete($transform_self!(self), queue_name, msg_ids).await
+            }
         }
     };
 }

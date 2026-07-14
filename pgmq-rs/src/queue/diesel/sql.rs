@@ -72,4 +72,7 @@ extern "SQL" {
 
     #[sql_name = "pgmq.archive"]
     fn pgmq_archive(queue_name: Text, msg_ids: Array<BigInt>) -> BigInt;
+
+    #[sql_name = "pgmq.delete"]
+    fn pgmq_delete(queue_name: Text, msg_ids: Array<BigInt>) -> BigInt;
 }

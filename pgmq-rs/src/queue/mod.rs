@@ -64,4 +64,9 @@ pub trait Queue: crate::private::Sealed {
     where
         Q: Send + TryInto<QueueName<'q>, Error = QE>,
         QE: ToString;
+
+    async fn delete<'q, Q, QE>(self, queue_name: Q, msg_ids: &[i64]) -> Result<Vec<i64>, PgmqError>
+    where
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: ToString;
 }

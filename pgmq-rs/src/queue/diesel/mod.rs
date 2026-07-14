@@ -84,6 +84,20 @@ macro_rules! diesel_functions {
             let archived = $transform_result!(archived)?;
             Ok(archived)
         }
+
+        async fn delete<C>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+            msg_ids: &[i64],
+        ) -> Result<Vec<i64>, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let deleted = crate::queue::diesel::query::delete_query(queue_name, msg_ids)
+                .get_results(executor);
+            let deleted = $transform_result!(deleted)?;
+            Ok(deleted)
+        }
     };
 }
 pub(crate) use diesel_functions;

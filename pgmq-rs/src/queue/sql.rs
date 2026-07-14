@@ -14,3 +14,6 @@ pub const READ: &str = "SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, m
 
 // language=PostgreSQL
 pub const ARCHIVE: &str = "SELECT * from pgmq.archive(queue_name=>$1::text, msg_ids=>$2::bigint[])";
+
+// language=PostgreSQL
+pub const DELETE: &str = "SELECT * from pgmq.delete(queue_name=>$1::text, msg_ids=>$2::bigint[])";

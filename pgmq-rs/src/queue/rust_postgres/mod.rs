@@ -126,6 +126,27 @@ macro_rules! rust_postgres_functions {
                 .collect::<Result<Vec<i64>, _>>()?;
             Ok(rows)
         }
+
+        async fn delete<C>(
+            executor: $ref_type!(C),
+            queue_name: crate::types::QueueName<'_>,
+            msg_ids: &[i64],
+        ) -> Result<Vec<i64>, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let params: [crate::queue::rust_postgres::SqlParam; _] = [
+                (&*queue_name, postgres_types::Type::TEXT),
+                (&msg_ids, postgres_types::Type::INT8_ARRAY),
+            ];
+            let rows = executor.query_typed(crate::queue::sql::DELETE, &params);
+            let rows = $transform_result!(rows)?;
+            let rows = rows
+                .into_iter()
+                .map(|row| row.try_get(0))
+                .collect::<Result<Vec<i64>, _>>()?;
+            Ok(rows)
+        }
     };
 }
 pub(crate) use rust_postgres_functions;
