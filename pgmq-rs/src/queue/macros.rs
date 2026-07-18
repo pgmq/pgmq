@@ -119,7 +119,7 @@ macro_rules! impl_queue {
                 queue_name: Q,
                 visibility_timeout: VT,
                 quantity: i32,
-            ) -> Result<Vec<crate::types::Message<T, H>>, crate::PgmqError>
+            ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
             where
                 T: 'static + Send + for<'de> serde::Deserialize<'de>,
                 H: 'static + Send + for<'de> serde::Deserialize<'de>,
@@ -169,6 +169,33 @@ macro_rules! impl_queue {
                     .try_into()
                     .map_err(crate::types::queue_name::QueueNameError::other)?;
                 delete($transform_self!(self), queue_name, msg_ids).await
+            }
+
+            async fn set_vt<'q, T, H, Q, QE, VT>(
+                self,
+                queue_name: Q,
+                msg_ids: &[i64],
+                visibility_timeout: VT,
+            ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+            where
+                T: 'static + Send + for<'de> serde::Deserialize<'de>,
+                H: 'static + Send + for<'de> serde::Deserialize<'de>,
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: ToString,
+                VT: Send + Into<crate::types::VisibilityTimeoutOffset>,
+            {
+                let queue_name = queue_name
+                    .try_into()
+                    .map_err(crate::types::queue_name::QueueNameError::other)?;
+                let visibility_timeout: crate::types::VisibilityTimeoutOffset =
+                    visibility_timeout.into();
+                set_vt(
+                    $transform_self!(self),
+                    queue_name,
+                    msg_ids,
+                    visibility_timeout,
+                )
+                .await
             }
         }
     };

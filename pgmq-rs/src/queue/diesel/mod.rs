@@ -58,7 +58,7 @@ macro_rules! diesel_functions {
             queue_name: crate::types::QueueName<'_>,
             visibility_timeout: crate::types::visibility_timeout_offset::VisibilityTimeoutOffset,
             quantity: i32,
-        ) -> Result<Vec<crate::types::Message<T, H>>, crate::PgmqError>
+        ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
         where
             C: $executor_trait,
             T: 'static + Send + for<'de> serde::Deserialize<'de>,
@@ -97,6 +97,24 @@ macro_rules! diesel_functions {
                 .get_results(executor);
             let deleted = $transform_result!(deleted)?;
             Ok(deleted)
+        }
+
+        async fn set_vt<C, T, H>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+            msg_ids: &'_ [i64],
+            visibility_timeout: crate::types::visibility_timeout_offset::VisibilityTimeoutOffset,
+        ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+        where
+            C: $executor_trait,
+            T: 'static + Send + for<'de> serde::Deserialize<'de>,
+            H: 'static + Send + for<'de> serde::Deserialize<'de>,
+        {
+            let messages =
+                crate::queue::diesel::query::set_vt_query(queue_name, msg_ids, visibility_timeout)
+                    .get_results(executor);
+            let messages = $transform_result!(messages)?;
+            Ok(messages)
         }
     };
 }

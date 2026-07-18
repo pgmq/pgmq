@@ -25,7 +25,7 @@ type PgMessage = diesel::sql_types::Record<(
     Nullable<Jsonb>,
 )>;
 
-impl<T, H> FromSql<PgMessage, Pg> for crate::types::Message<T, H>
+impl<T, H> FromSql<PgMessage, Pg> for crate::Message<T, H>
 where
     T: for<'de> serde::Deserialize<'de>,
     H: for<'de> serde::Deserialize<'de>,
@@ -75,4 +75,7 @@ extern "SQL" {
 
     #[sql_name = "pgmq.delete"]
     fn pgmq_delete(queue_name: Text, msg_ids: Array<BigInt>) -> BigInt;
+
+    #[sql_name = "pgmq.set_vt"]
+    fn pgmq_set_vt(queue_name: Text, msg_ids: Array<BigInt>, vt: Integer) -> PgMessage;
 }

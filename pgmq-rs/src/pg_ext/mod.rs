@@ -432,21 +432,12 @@ impl PGMQueueExt {
         msg_id: i64,
         vt: impl Into<VisibilityTimeoutOffset>,
         executor: E,
-    ) -> Result<Message<T, H>, PgmqError> {
-        check_queue_name(queue_name)?;
+    ) -> Result<Option<Message<T, H>>, PgmqError> {
+        let queue_name = queue_name.try_into().map_err(QueueNameError::other)?;
         let vt: VisibilityTimeoutOffset = vt.into();
-        // queue_name, created_at as "created_at: chrono::DateTime<Utc>", is_partitioned, is_unlogged
-        let updated = sqlx::query(
-            r#"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.set_vt(queue_name=>$1::text, msg_id=>$2::bigint, vt=>$3::integer);"#
-        )
-            .bind(queue_name)
-            .bind(msg_id)
-            .bind(vt)
-            .fetch_one(executor)
+        crate::queue::sqlx::set_vt(executor, queue_name, &[msg_id], vt)
             .await
-            .and_then(|row| Message::<T, H>::from_row(&row))?;
-
-        Ok(updated)
+            .map(|msgs| msgs.into_iter().next())
     }
     // Set the visibility time on an existing message.
     pub async fn set_vt<T: for<'de> Deserialize<'de>, H: for<'de> Deserialize<'de>>(
@@ -454,7 +445,7 @@ impl PGMQueueExt {
         queue_name: &str,
         msg_id: i64,
         vt: impl Into<VisibilityTimeoutOffset>,
-    ) -> Result<Message<T, H>, PgmqError> {
+    ) -> Result<Option<Message<T, H>>, PgmqError> {
         self.set_vt_with_cxn(queue_name, msg_id, vt, &self.connection)
             .await
     }

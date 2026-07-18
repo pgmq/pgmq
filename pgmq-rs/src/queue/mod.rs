@@ -48,7 +48,7 @@ pub trait Queue: crate::private::Sealed {
         queue_name: Q,
         visibility_timeout: VT,
         quantity: i32,
-    ) -> Result<Vec<crate::types::Message<T, H>>, PgmqError>
+    ) -> Result<Vec<crate::Message<T, H>>, PgmqError>
     where
         T: 'static + Send + for<'de> serde::Deserialize<'de>,
         H: 'static + Send + for<'de> serde::Deserialize<'de>,
@@ -69,4 +69,17 @@ pub trait Queue: crate::private::Sealed {
     where
         Q: Send + TryInto<QueueName<'q>, Error = QE>,
         QE: ToString;
+
+    async fn set_vt<'q, T, H, Q, QE, VT>(
+        self,
+        queue_name: Q,
+        msg_ids: &[i64],
+        visibility_timeout: VT,
+    ) -> Result<Vec<crate::Message<T, H>>, PgmqError>
+    where
+        T: 'static + Send + for<'de> serde::Deserialize<'de>,
+        H: 'static + Send + for<'de> serde::Deserialize<'de>,
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: ToString,
+        VT: Send + Into<VisibilityTimeoutOffset>;
 }

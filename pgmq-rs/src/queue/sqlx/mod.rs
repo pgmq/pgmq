@@ -1,5 +1,5 @@
 use crate::queue::macros::{identity_macro, impl_queue};
-use crate::queue::sql::{ARCHIVE, CREATE, DELETE, READ, SEND};
+use crate::queue::sql::{ARCHIVE, CREATE, DELETE, READ, SEND, SET_VT};
 use crate::types::{QueueName, VisibilityTimeoutOffset};
 use crate::{Message, PgmqError};
 use sqlx::{Executor, Postgres};
@@ -62,8 +62,8 @@ async fn read<'c, C, T, H>(
 ) -> Result<Vec<Message<T, H>>, PgmqError>
 where
     C: Executor<'c, Database = Postgres>,
-    T: Send + for<'de> serde::Deserialize<'de>,
-    H: Send + for<'de> serde::Deserialize<'de>,
+    T: for<'de> serde::Deserialize<'de>,
+    H: for<'de> serde::Deserialize<'de>,
 {
     let query = sqlx::query(READ);
     let rows = query
@@ -106,4 +106,25 @@ where
         .fetch_all(executor)
         .await?;
     Ok(deleted)
+}
+
+pub(crate) async fn set_vt<'c, C, T, H>(
+    executor: C,
+    queue_name: QueueName<'_>,
+    msg_ids: &[i64],
+    visibility_timeout: VisibilityTimeoutOffset,
+) -> Result<Vec<Message<T, H>>, PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+    T: for<'de> serde::Deserialize<'de>,
+    H: for<'de> serde::Deserialize<'de>,
+{
+    let rows = sqlx::query(SET_VT)
+        .bind(*queue_name)
+        .bind(msg_ids)
+        .bind(visibility_timeout)
+        .fetch_all(executor)
+        .await?;
+
+    handle_read_batch_result(rows)
 }

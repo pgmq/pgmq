@@ -15,6 +15,7 @@ use pgmq::Message;
 use rand::RngExt;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::json;
+use std::time::Duration;
 
 static QUEUE: &str = "queue";
 
@@ -290,5 +291,39 @@ async fn delete(conn_details: ConnDetails, queue: impl Queue) {
     assert!(
         read_msg.is_empty(),
         "Attempting to read after deleting the message should return nothing"
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn set_vt(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+    let msg_id1 = queue.send(QUEUE, TestMessage::new(), (), 0).await.unwrap();
+    let msg_id2 = queue.send(QUEUE, TestMessage::new(), (), 0).await.unwrap();
+
+    let duration = 5;
+
+    let vt_updated: Vec<Message<TestMessage>> = queue
+        .set_vt(QUEUE, &[msg_id1, msg_id2], duration)
+        .await
+        .unwrap();
+    let vt_updated = vt_updated
+        .into_iter()
+        .map(|msg| msg.msg_id)
+        .collect::<Vec<i64>>();
+    assert_eq!(vt_updated, [msg_id1, msg_id2]);
+
+    let read_msgs: Vec<Message<TestMessage>> = queue.read(QUEUE, 10, 2).await.unwrap();
+    assert!(
+        read_msgs.is_empty(),
+        "Attempting to read messages with updated vt should return nothing"
+    );
+
+    tokio::time::sleep(Duration::from_secs((duration + 1) as u64)).await;
+
+    let read_msgs: Vec<Message<TestMessage>> = queue.read(QUEUE, 10, 2).await.unwrap();
+    assert_eq!(
+        read_msgs.len(),
+        2,
+        "Attempting to read messages with updated vt after sleeping should return the messages"
     );
 }
