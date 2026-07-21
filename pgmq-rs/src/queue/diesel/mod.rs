@@ -53,6 +53,23 @@ macro_rules! diesel_functions {
             Ok(message_id)
         }
 
+        async fn send_batch<C>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+            messages: Vec<serde_json::Value>,
+            headers: Option<Vec<serde_json::Value>>,
+            delay: crate::types::visibility_timeout_offset::VisibilityTimeoutOffset,
+        ) -> Result<Vec<i64>, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let message_ids =
+                crate::queue::diesel::query::send_batch_query(queue_name, messages, headers, delay)
+                    .get_results(executor);
+            let message_ids = $transform_result!(message_ids)?;
+            Ok(message_ids)
+        }
+
         async fn read<C, T, H>(
             executor: &mut C,
             queue_name: crate::types::QueueName<'_>,

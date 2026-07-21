@@ -114,6 +114,31 @@ macro_rules! impl_queue {
                 send($transform_self!(self), queue_name, message, headers, delay).await
             }
 
+            async fn send_batch<'q, T, H, TI, HI, Q, QE, D>(
+                self,
+                queue_name: Q,
+                messages: TI,
+                headers: Option<HI>,
+                delay: D,
+            ) -> Result<Vec<i64>, crate::PgmqError>
+            where
+                T: serde::Serialize,
+                H: serde::Serialize,
+                TI: Send + IntoIterator<Item = T>,
+                HI: Send + IntoIterator<Item = H>,
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: ToString,
+                D: Send + Into<crate::types::VisibilityTimeoutOffset>,
+            {
+                let queue_name = queue_name
+                    .try_into()
+                    .map_err(crate::types::queue_name::QueueNameError::other)?;
+                let delay: crate::types::VisibilityTimeoutOffset = delay.into();
+                let messages = crate::util::serialize_list(messages)?;
+                let headers = crate::util::serialize_optional_list(headers)?;
+                send_batch($transform_self!(self), queue_name, messages, headers, delay).await
+            }
+
             async fn read<'q, T, H, Q, QE, VT>(
                 self,
                 queue_name: Q,

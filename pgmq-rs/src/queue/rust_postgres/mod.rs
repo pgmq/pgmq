@@ -83,6 +83,31 @@ macro_rules! rust_postgres_functions {
             Ok(row.try_get(0)?)
         }
 
+        async fn send_batch<C>(
+            executor: $ref_type!(C),
+            queue_name: crate::types::QueueName<'_>,
+            messages: Vec<serde_json::Value>,
+            headers: Option<Vec<serde_json::Value>>,
+            delay: crate::types::VisibilityTimeoutOffset,
+        ) -> Result<Vec<i64>, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let params: [crate::queue::rust_postgres::SqlParam; _] = [
+                (&*queue_name, postgres_types::Type::TEXT),
+                (&messages, postgres_types::Type::JSONB_ARRAY),
+                (&headers, postgres_types::Type::JSONB_ARRAY),
+                (&*delay, postgres_types::Type::INT4),
+            ];
+            let rows = executor.query_typed(crate::queue::sql::SEND_BATCH, &params);
+            let rows = $transform_result!(rows)?;
+            let rows = rows
+                .into_iter()
+                .map(|row| row.try_get(0))
+                .collect::<Result<Vec<i64>, _>>()?;
+            Ok(rows)
+        }
+
         async fn read<C, T, H>(
             executor: $ref_type!(C),
             queue_name: crate::types::QueueName<'_>,

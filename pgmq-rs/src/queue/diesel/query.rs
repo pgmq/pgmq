@@ -1,6 +1,6 @@
 //! Extracted Diesel SQL query functions. Can be used by both diesel and diesel-async.
 use crate::queue::diesel::sql::{
-    pgmq_archive, pgmq_create, pgmq_delete, pgmq_read, pgmq_send, pgmq_set_vt,
+    pgmq_archive, pgmq_create, pgmq_delete, pgmq_read, pgmq_send, pgmq_send_batch, pgmq_set_vt,
 };
 use crate::types::{QueueName, VisibilityTimeoutOffset};
 use diesel::dsl::select;
@@ -21,6 +21,18 @@ pub fn send_query(
     let queue_name: &str = *queue_name;
     let delay: i32 = *delay;
     select(pgmq_send(queue_name, message, headers, delay))
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn send_batch_query(
+    queue_name: QueueName<'_>,
+    messages: Vec<serde_json::Value>,
+    headers: Option<Vec<serde_json::Value>>,
+    delay: VisibilityTimeoutOffset,
+) -> _ {
+    let queue_name: &str = *queue_name;
+    let delay: i32 = *delay;
+    select(pgmq_send_batch(queue_name, messages, headers, delay))
 }
 
 #[diesel::dsl::auto_type(no_type_alias)]

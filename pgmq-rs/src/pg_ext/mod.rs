@@ -8,7 +8,7 @@ use crate::types::{
     SendBatchTopicRow, QUEUE_PREFIX,
 };
 use crate::types::{QueueName, VisibilityTimeoutOffset};
-use crate::util::connect;
+use crate::util::{connect, serialize_list, serialize_optional_list};
 use log::info;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Pool, Postgres, Row};
@@ -598,20 +598,11 @@ impl PGMQueueExt {
         delay: impl Into<VisibilityTimeoutOffset>,
         executor: E,
     ) -> Result<Vec<i64>, PgmqError> {
-        check_queue_name(queue_name)?;
+        let queue_name = queue_name.try_into().map_err(QueueNameError::other)?;
         let delay: VisibilityTimeoutOffset = delay.into();
-        let messages = Self::serialize_list(messages)?;
-        let headers = Self::serialize_optional_list(headers)?;
-        let sent: Vec<i64> = sqlx::query_scalar(
-            "SELECT * from pgmq.send_batch(queue_name=>$1::text, msgs=>$2::jsonb[], headers=>$3::jsonb[], delay=>$4::integer);",
-        )
-            .bind(queue_name)
-            .bind(messages)
-            .bind(headers)
-            .bind(delay)
-            .fetch_all(executor)
-            .await?;
-        Ok(sent)
+        let messages = serialize_list(messages)?;
+        let headers = serialize_optional_list(headers)?;
+        crate::queue::sqlx::send_batch(executor, queue_name, messages, headers, delay).await
     }
 
     pub async fn send_batch_with_delay_with_headers<T: Serialize, H: Serialize>(
@@ -1326,8 +1317,8 @@ impl PGMQueueExt {
         executor: E,
     ) -> Result<Vec<SendBatchTopicRow>, PgmqError> {
         let delay: VisibilityTimeoutOffset = delay.into();
-        let messages = Self::serialize_list(messages)?;
-        let headers = Self::serialize_optional_list(headers)?;
+        let messages = serialize_list(messages)?;
+        let headers = serialize_optional_list(headers)?;
         let sent = sqlx::query(
             "SELECT queue_name, msg_id from pgmq.send_batch_topic(routing_key=>$1::text, msgs=>$2::jsonb[], headers=>$3::jsonb[], delay=>$4::integer);",
         )
@@ -1354,25 +1345,6 @@ impl PGMQueueExt {
     ) -> Result<Vec<SendBatchTopicRow>, PgmqError> {
         self.send_batch_topic_with_cxn(routing_key, messages, headers, delay, &self.connection)
             .await
-    }
-
-    fn serialize_list<T: serde::Serialize>(
-        list: &[T],
-    ) -> Result<Vec<serde_json::Value>, serde_json::Error> {
-        list.iter()
-            .map(serde_json::to_value)
-            .collect::<Result<Vec<serde_json::Value>, _>>()
-    }
-
-    fn serialize_optional_list<H: serde::Serialize>(
-        list: Option<&[H]>,
-    ) -> Result<Option<Vec<serde_json::Value>>, serde_json::Error> {
-        let headers = if let Some(list) = list {
-            Some(Self::serialize_list(list)?)
-        } else {
-            None
-        };
-        Ok(headers)
     }
 
     /// Enable sending a Postgres notification when an item is inserted into the specified queue.

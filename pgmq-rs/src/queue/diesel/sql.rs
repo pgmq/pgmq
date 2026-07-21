@@ -67,6 +67,14 @@ extern "SQL" {
     #[sql_name = "pgmq.send"]
     fn pgmq_send(queue_name: Text, msg: Jsonb, headers: Jsonb, delay: Integer) -> BigInt;
 
+    #[sql_name = "pgmq.send_batch"]
+    fn pgmq_send_batch(
+        queue_name: Text,
+        msgs: Array<Jsonb>,
+        headers: Nullable<Array<Jsonb>>,
+        delay: Integer,
+    ) -> BigInt;
+
     #[sql_name = "pgmq.read"]
     fn pgmq_read(queue_name: Text, vt: Integer, qty: Integer) -> PgMessage;
 

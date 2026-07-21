@@ -43,6 +43,22 @@ pub trait Queue: crate::private::Sealed {
         QE: ToString,
         D: Send + Into<VisibilityTimeoutOffset>;
 
+    async fn send_batch<'q, T, H, TI, HI, Q, QE, D>(
+        self,
+        queue_name: Q,
+        messages: TI,
+        headers: Option<HI>,
+        delay: D,
+    ) -> Result<Vec<i64>, PgmqError>
+    where
+        T: serde::Serialize,
+        H: serde::Serialize,
+        TI: Send + IntoIterator<Item = T>,
+        HI: Send + IntoIterator<Item = H>,
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: ToString,
+        D: Send + Into<VisibilityTimeoutOffset>;
+
     async fn read<'q, T, H, Q, QE, VT>(
         self,
         queue_name: Q,

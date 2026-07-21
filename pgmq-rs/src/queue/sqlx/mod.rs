@@ -1,5 +1,5 @@
 use crate::queue::macros::{identity_macro, impl_queue};
-use crate::queue::sql::{ARCHIVE, CREATE, DELETE, READ, SEND, SET_VT};
+use crate::queue::sql::{ARCHIVE, CREATE, DELETE, READ, SEND, SEND_BATCH, SET_VT};
 use crate::types::{QueueName, VisibilityTimeoutOffset};
 use crate::{Message, PgmqError};
 use sqlx::{Executor, Postgres};
@@ -52,6 +52,26 @@ where
         .fetch_one(executor)
         .await?;
     Ok(msg_id)
+}
+
+pub(crate) async fn send_batch<'c, C>(
+    executor: C,
+    queue_name: QueueName<'_>,
+    messages: Vec<serde_json::Value>,
+    headers: Option<Vec<serde_json::Value>>,
+    delay: VisibilityTimeoutOffset,
+) -> Result<Vec<i64>, PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+{
+    let sent: Vec<i64> = sqlx::query_scalar(SEND_BATCH)
+        .bind(*queue_name)
+        .bind(messages)
+        .bind(headers)
+        .bind(delay)
+        .fetch_all(executor)
+        .await?;
+    Ok(sent)
 }
 
 async fn read<'c, C, T, H>(

@@ -327,3 +327,63 @@ async fn set_vt(conn_details: ConnDetails, queue: impl Queue) {
         "Attempting to read messages with updated vt after sleeping should return the messages"
     );
 }
+
+#[pgmq_test_macro::queue_test]
+async fn send_batch(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+    let count = 5;
+    let msgs = (0..count)
+        .map(|_| TestMessage::new())
+        .collect::<Vec<TestMessage>>();
+
+    let msg_ids = queue
+        .send_batch(QUEUE, msgs, Option::<&[()]>::None, 0)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        count,
+        msg_ids.len(),
+        "send_batch should return an ID for every sent message"
+    );
+
+    let read_msgs: Vec<Message<TestMessage>> =
+        queue.read(QUEUE, 10, (count + 1) as i32).await.unwrap();
+    assert_eq!(
+        count,
+        read_msgs.len(),
+        "Read should return messages sent with send_batch"
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn send_batch_with_headers(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+    let count = 5;
+    let msgs = (0..count)
+        .map(|_| TestMessage::new())
+        .collect::<Vec<TestMessage>>();
+    let header_for_message = |msg: &TestMessage| json!({"a": msg.a});
+    let headers = msgs.iter().map(header_for_message);
+
+    let msg_ids = queue
+        .send_batch(QUEUE, &msgs, Some(headers), 0)
+        .await
+        .unwrap();
+
+    assert_eq!(
+        count,
+        msg_ids.len(),
+        "send_batch should return an ID for every sent message"
+    );
+
+    let read_msgs: Vec<Message<TestMessage, serde_json::Value>> =
+        queue.read(QUEUE, 10, (count + 1) as i32).await.unwrap();
+    read_msgs.iter().for_each(|msg| {
+        assert_eq!(
+            msg.headers,
+            Some(header_for_message(&msg.message)),
+            "Read should properly deserialize headers sent with send_batch"
+        )
+    })
+}
