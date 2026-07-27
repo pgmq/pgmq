@@ -92,6 +92,7 @@ To update PGMQ versions, follow the instructions in [UPDATING.md](pgmq-extension
 Community
 
 - [.NET](https://github.com/brianpursley/Npgmq)
+- [C++](https://github.com/lite-tx/pgmq-cpp)
 - [Dart](https://github.com/Ofceab-Studio/dart_pgmq)
 - [Elixir + Broadway](https://github.com/v0idpwn/off_broadway_pgmq)
 - [Elixir](https://github.com/v0idpwn/pgmq-elixir)
