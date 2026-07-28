@@ -20,7 +20,11 @@ test:
 	psql ${DATABASE_URL} -c "CREATE DATABASE pgmq_ext_test;"
 	sqlx migrate run --database-url ${EXTENSION_DB}
 	cargo test --lib --all-features
+	cargo test --doc --all-features
 	cargo test
+
+test.doc:
+	cargo test --doc --all-features
 
 # Run the tests for `PGMQueueExt` with the embedded SQL-only installation approach. Assumes the DB is already running
 # and `pg_partman` is an available extension in the DB.

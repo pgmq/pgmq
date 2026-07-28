@@ -1,12 +1,40 @@
 pub mod queue_name;
 pub mod visibility_timeout_offset;
 
-pub use queue_name::QueueName;
-pub use visibility_timeout_offset::VisibilityTimeoutOffset;
-
 use chrono::{DateTime, Utc};
 use serde_derive::Deserialize;
 use std::time::Duration;
+
+pub use queue_name::QueueName;
+pub use visibility_timeout_offset::VisibilityTimeoutOffset;
+
+/// Convenience value to provide for an optional `headers` parameter when no headers
+/// need to be sent. This is useful to avoid the somewhat cumbersome syntax required to specify
+/// the [`Option`] type when providing a [`None`] value.
+///
+/// # Examples
+///
+/// The following are equivalent:
+///
+/// ```rust,no_run
+/// # #[cfg(feature = "queue-experimental")]
+/// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+/// # let msgs: [(); 0] = [];
+/// let msg_ids = queue.send_batch("my_queue", &msgs, Option::<[(); 0]>::None, 0).await?;
+/// # Ok(())
+/// # }
+/// ```
+///
+/// ```rust,no_run
+/// # #[cfg(feature = "queue-experimental")]
+/// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+/// # use pgmq::types::EMPTY_HEADERS;
+/// # let msgs: [(); 0] = [];
+/// let msg_ids = queue.send_batch("my_queue", &msgs, EMPTY_HEADERS, 0).await?;
+/// # Ok(())
+/// # }
+/// ```
+pub const EMPTY_HEADERS: Option<[(); 0]> = None;
 
 pub const VT_DEFAULT: i32 = 30;
 pub const READ_LIMIT_DEFAULT: i32 = 1;
