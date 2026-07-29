@@ -45,7 +45,7 @@ pub trait Queue: crate::private::Sealed {
     async fn create<'q, Q, QE>(self, queue_name: Q) -> Result<(), PgmqError>
     where
         Q: Send + TryInto<QueueName<'q>, Error = QE>,
-        QE: ToString;
+        QE: Into<crate::types::queue_name::QueueNameError>;
 
     /// Enqueue a message for the specified queue.
     ///
@@ -83,7 +83,7 @@ pub trait Queue: crate::private::Sealed {
         T: Send + serde::Serialize,
         H: Send + serde::Serialize,
         Q: Send + TryInto<QueueName<'q>, Error = QE>,
-        QE: ToString,
+        QE: Into<crate::types::queue_name::QueueNameError>,
         D: Send + Into<VisibilityTimeoutOffset>;
 
     /// Enqueue several messages for the specified queue.
@@ -127,7 +127,7 @@ pub trait Queue: crate::private::Sealed {
         TI: Send + IntoIterator<Item = T>,
         HI: Send + IntoIterator<Item = H>,
         Q: Send + TryInto<QueueName<'q>, Error = QE>,
-        QE: ToString,
+        QE: Into<crate::types::queue_name::QueueNameError>,
         D: Send + Into<VisibilityTimeoutOffset>;
 
     /// Read at most `quantity` messages from the queue with the provided `queue_name`. If no
@@ -141,7 +141,6 @@ pub trait Queue: crate::private::Sealed {
     /// # #[cfg(feature = "queue-experimental")]
     /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
     /// # use pgmq::{Message, PgmqError};
-    /// # use pgmq::types::EMPTY_HEADERS;
     /// // Read a message, deserializing as a `serde_json::Value`, using an integer to update
     /// // the visibility timeout (`vt`)
     /// let msgs: Vec<Message> = queue.read("my_queue", 10, 1).await?;
@@ -155,7 +154,6 @@ pub trait Queue: crate::private::Sealed {
     /// # use std::time::Duration;
     /// # use serde_derive::Deserialize;
     /// # use pgmq::{Message, PgmqError};
-    /// # use pgmq::types::EMPTY_HEADERS;
     /// #[derive(Deserialize)]
     /// struct MyMessage {
     ///     a: String
@@ -176,8 +174,57 @@ pub trait Queue: crate::private::Sealed {
         T: 'static + Send + for<'de> serde::Deserialize<'de>,
         H: 'static + Send + for<'de> serde::Deserialize<'de>,
         Q: Send + TryInto<QueueName<'q>, Error = QE>,
-        QE: ToString,
+        QE: Into<crate::types::queue_name::QueueNameError>,
         VT: Send + Into<VisibilityTimeoutOffset>;
+
+    /// Pop at most `quantity` messages from the queue with the provided `queue_name`. If no
+    /// messages are available, an empty [`Vec`] will be returned. The popped messages are deleted
+    /// from the queue -- this is the equivalent of [`Self::read`] + [`Self::delete`] within a
+    /// single command.
+    ///
+    /// Invokes the `pgmq.pop` SQL function.
+    ///
+    /// Take care when using this function -- if your application crashes while processing a
+    /// message and does not add the message back to the queue, the message may never be processed
+    /// because it was deleted.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// # use pgmq::{Message, PgmqError};
+    /// // Pop a message, deserializing as a `serde_json::Value`
+    /// let msgs: Vec<Message> = queue.pop("my_queue", 1).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// # use std::time::Duration;
+    /// # use serde_derive::Deserialize;
+    /// # use pgmq::{Message, PgmqError};
+    /// #[derive(Deserialize)]
+    /// struct MyMessage {
+    ///     a: String
+    /// }
+    /// // Pop multiple messages, deserializing as a custom message struct, `MyMessage`.
+    /// let msgs: Vec<Message<MyMessage>> = queue.pop("my_queue", 2).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn pop<'q, T, H, Q, QE>(
+        self,
+        queue_name: Q,
+        quantity: i32,
+    ) -> Result<Vec<Message<T, H>>, PgmqError>
+    where
+        T: 'static + Send + for<'de> serde::Deserialize<'de>,
+        H: 'static + Send + for<'de> serde::Deserialize<'de>,
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: Into<crate::types::queue_name::QueueNameError>;
 
     /// Mark the specified messages as archived. Moves the messages to the archive table for the
     /// specified queue. Returns the IDs of the messages that were successfully archived. This may
@@ -204,7 +251,7 @@ pub trait Queue: crate::private::Sealed {
     ) -> Result<Vec<i64>, PgmqError>
     where
         Q: Send + TryInto<QueueName<'q>, Error = QE>,
-        QE: ToString;
+        QE: Into<crate::types::queue_name::QueueNameError>;
 
     /// Delete the specified messages from the database. Returns the IDs of the messages that were
     /// successfully deleted. This may differ from the IDs provided to this method, e.g., if a
@@ -226,7 +273,7 @@ pub trait Queue: crate::private::Sealed {
     async fn delete<'q, Q, QE>(self, queue_name: Q, msg_ids: &[i64]) -> Result<Vec<i64>, PgmqError>
     where
         Q: Send + TryInto<QueueName<'q>, Error = QE>,
-        QE: ToString;
+        QE: Into<crate::types::queue_name::QueueNameError>;
 
     /// Update the visibility timeout (`vt`) of the specified messages. Returns the messages
     /// that were successfully updated. This may differ from the IDs provided to this method,
@@ -274,6 +321,6 @@ pub trait Queue: crate::private::Sealed {
         T: 'static + Send + for<'de> serde::Deserialize<'de>,
         H: 'static + Send + for<'de> serde::Deserialize<'de>,
         Q: Send + TryInto<QueueName<'q>, Error = QE>,
-        QE: ToString,
+        QE: Into<crate::types::queue_name::QueueNameError>,
         VT: Send + Into<VisibilityTimeoutOffset>;
 }

@@ -16,6 +16,9 @@ pub const SEND_BATCH: &str = "SELECT * from pgmq.send_batch(queue_name=>$1::text
 pub const READ: &str = "SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers FROM pgmq.read(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer)";
 
 // language=PostgreSQL
+pub const POP: &str = r"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.pop(queue_name=>$1::text, qty=>$2::integer)";
+
+// language=PostgreSQL
 pub const ARCHIVE: &str = "SELECT * from pgmq.archive(queue_name=>$1::text, msg_ids=>$2::bigint[])";
 
 // language=PostgreSQL

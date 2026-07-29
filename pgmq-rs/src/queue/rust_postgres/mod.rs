@@ -131,6 +131,27 @@ macro_rules! rust_postgres_functions {
                 .collect::<Result<Vec<crate::Message<T, H>>, crate::PgmqError>>()
         }
 
+        async fn pop<C, T, H>(
+            executor: $ref_type!(C),
+            queue_name: crate::types::QueueName<'_>,
+            quantity: i32,
+        ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+        where
+            C: $executor_trait,
+            T: for<'de> serde::Deserialize<'de>,
+            H: for<'de> serde::Deserialize<'de>,
+        {
+            let params: [crate::queue::rust_postgres::SqlParam; _] = [
+                (&*queue_name, postgres_types::Type::TEXT),
+                (&quantity, postgres_types::Type::INT4),
+            ];
+            let rows = executor.query_typed(crate::queue::sql::POP, &params);
+            let rows = $transform_result!(rows)?;
+            rows.into_iter()
+                .map(|row| crate::Message::<T, H>::try_from(row))
+                .collect::<Result<Vec<crate::Message<T, H>>, crate::PgmqError>>()
+        }
+
         async fn archive<C>(
             executor: $ref_type!(C),
             queue_name: crate::types::QueueName<'_>,

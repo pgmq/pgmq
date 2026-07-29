@@ -2,7 +2,7 @@ use crate::errors::PgmqError;
 use crate::queue::sql::READ;
 use crate::queue::sqlx::util::handle_read_batch_result;
 use crate::queue::Queue;
-use crate::types::queue_name::{check_queue_name, QueueNameError};
+use crate::types::queue_name::check_queue_name;
 use crate::types::{
     ListNotifyInsertThrottlesRow, ListTopicBindingsRow, Message, PGMQueueMeta, QueueMetrics,
     SendBatchTopicRow, QUEUE_PREFIX,
@@ -227,7 +227,7 @@ impl PGMQueueExt {
     where
         E: sqlx::Acquire<'c, Database = Postgres>,
     {
-        let queue_name: QueueName = queue_name.try_into().map_err(QueueNameError::other)?;
+        let queue_name: QueueName = queue_name.try_into()?;
         let mut txn = self
             .acquire_queue_lock_with_cxn(*queue_name, executor)
             .await?;
@@ -433,7 +433,7 @@ impl PGMQueueExt {
         vt: impl Into<VisibilityTimeoutOffset>,
         executor: E,
     ) -> Result<Option<Message<T, H>>, PgmqError> {
-        let queue_name = queue_name.try_into().map_err(QueueNameError::other)?;
+        let queue_name = queue_name.try_into()?;
         let vt: VisibilityTimeoutOffset = vt.into();
         crate::queue::sqlx::set_vt(executor, queue_name, &[msg_id], vt)
             .await
@@ -513,7 +513,7 @@ impl PGMQueueExt {
         delay: impl Into<VisibilityTimeoutOffset>,
         executor: E,
     ) -> Result<i64, PgmqError> {
-        let queue_name = queue_name.try_into().map_err(QueueNameError::other)?;
+        let queue_name = queue_name.try_into()?;
         let delay: VisibilityTimeoutOffset = delay.into();
         let message = serde_json::to_value(message)?;
         let headers = serde_json::to_value(headers)?;
@@ -598,7 +598,7 @@ impl PGMQueueExt {
         delay: impl Into<VisibilityTimeoutOffset>,
         executor: E,
     ) -> Result<Vec<i64>, PgmqError> {
-        let queue_name = queue_name.try_into().map_err(QueueNameError::other)?;
+        let queue_name = queue_name.try_into()?;
         let delay: VisibilityTimeoutOffset = delay.into();
         let messages = serialize_list(messages)?;
         let headers = serialize_optional_list(headers)?;
@@ -1043,7 +1043,7 @@ impl PGMQueueExt {
         msg_ids: &[i64],
         executor: E,
     ) -> Result<Vec<i64>, PgmqError> {
-        let queue_name = queue_name.try_into().map_err(QueueNameError::other)?;
+        let queue_name = queue_name.try_into()?;
         crate::queue::sqlx::archive(executor, queue_name, msg_ids).await
     }
 
@@ -1067,21 +1067,10 @@ impl PGMQueueExt {
         queue_name: &str,
         executor: E,
     ) -> Result<Option<Message<T, H>>, PgmqError> {
-        check_queue_name(queue_name)?;
-        let row = sqlx::query(r#"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.pop(queue_name=>$1::text)"#)
-            .bind(queue_name)
-            .fetch_optional(executor)
-            .await?;
-        match row {
-            Some(row) => {
-                // happy path - successfully read a message
-                Ok(Some(Message::<T, H>::from_row(&row)?))
-            }
-            None => {
-                // no message found
-                Ok(None)
-            }
-        }
+        let queue_name = queue_name.try_into()?;
+        crate::queue::sqlx::pop(executor, queue_name, 1)
+            .await
+            .map(|result| result.into_iter().next())
     }
     // Read and message and immediately delete it.
     pub async fn pop<T: for<'de> Deserialize<'de>, H: for<'de> Deserialize<'de>>(
@@ -1114,7 +1103,7 @@ impl PGMQueueExt {
         msg_ids: &[i64],
         executor: E,
     ) -> Result<Vec<i64>, PgmqError> {
-        let queue_name = queue_name.try_into().map_err(QueueNameError::other)?;
+        let queue_name = queue_name.try_into()?;
         crate::queue::sqlx::delete(executor, queue_name, msg_ids).await
     }
 

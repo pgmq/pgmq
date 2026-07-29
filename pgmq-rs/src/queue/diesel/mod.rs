@@ -88,6 +88,22 @@ macro_rules! diesel_functions {
             Ok(messages)
         }
 
+        async fn pop<C, T, H>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+            quantity: i32,
+        ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+        where
+            C: $executor_trait,
+            T: 'static + Send + for<'de> serde::Deserialize<'de>,
+            H: 'static + Send + for<'de> serde::Deserialize<'de>,
+        {
+            let messages =
+                crate::queue::diesel::query::pop_query(queue_name, quantity).get_results(executor);
+            let messages = $transform_result!(messages)?;
+            Ok(messages)
+        }
+
         async fn archive<C>(
             executor: &mut C,
             queue_name: crate::types::QueueName<'_>,

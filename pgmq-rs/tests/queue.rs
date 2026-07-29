@@ -11,10 +11,13 @@
 
 use initialization::ConnDetails;
 use pgmq::queue::Queue;
-use pgmq::Message;
+use pgmq::types::queue_name::QueueNameError;
+use pgmq::types::EMPTY_HEADERS;
+use pgmq::{Message, PgmqError};
 use rand::RngExt;
 use serde_derive::{Deserialize, Serialize};
 use serde_json::json;
+use std::assert_matches;
 use std::time::Duration;
 
 static QUEUE: &str = "queue";
@@ -211,6 +214,28 @@ impl TestMessage {
 }
 
 #[pgmq_test_macro::queue_test]
+async fn create_invalid_length(conn_details: ConnDetails, queue: impl Queue) {
+    let queue_name = std::iter::repeat_n("a", pgmq::types::queue_name::MAX_PGMQ_QUEUE_LEN + 1)
+        .collect::<String>();
+    let result = queue.create(&queue_name).await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidLength(_)))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn create_invalid_character(conn_details: ConnDetails, queue: impl Queue) {
+    let result = queue.create("invalid-queue-name").await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
 async fn read(conn_details: ConnDetails, queue: impl Queue) {
     queue.create(QUEUE).await.unwrap();
     let msg = TestMessage::new();
@@ -251,6 +276,70 @@ async fn read_multiple(conn_details: ConnDetails, queue: impl Queue) {
 }
 
 #[pgmq_test_macro::queue_test]
+async fn read_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result: Result<Vec<Message>, _> = queue.read("invalid-queue-name", 10, 1).await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn pop(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+    let msg = TestMessage::new();
+    let msg_id = queue.send(QUEUE, &msg, (), 0).await.unwrap();
+
+    // The first pop should return the message
+    let pop_msg: Message<TestMessage> = queue
+        .pop(QUEUE, 1)
+        .await
+        .unwrap()
+        .into_iter()
+        .next()
+        .unwrap();
+    assert_eq!(msg_id, pop_msg.msg_id);
+    assert_eq!(pop_msg.message, msg);
+
+    // A second pop should return no messages
+    let pop_msg: Vec<Message<TestMessage>> = queue.pop(QUEUE, 1).await.unwrap();
+    assert!(pop_msg.is_empty());
+}
+
+#[pgmq_test_macro::queue_test]
+async fn pop_multiple(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+    let count = 2;
+    let msgs = (0..count)
+        .map(|_| TestMessage::new())
+        .collect::<Vec<TestMessage>>();
+    queue
+        .send_batch(QUEUE, msgs, EMPTY_HEADERS, 0)
+        .await
+        .unwrap();
+
+    let popped_msgs: Vec<Message<TestMessage>> = queue.pop(QUEUE, count).await.unwrap();
+    assert_eq!(
+        count as usize,
+        popped_msgs.len(),
+        "Pop should return multiple messages"
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn pop_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result: Result<Vec<Message>, _> = queue.pop("invalid-queue-name", 1).await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
 async fn archive(conn_details: ConnDetails, queue: impl Queue) {
     queue.create(QUEUE).await.unwrap();
     let msg_id1 = queue.send(QUEUE, TestMessage::new(), (), 0).await.unwrap();
@@ -273,6 +362,17 @@ async fn archive(conn_details: ConnDetails, queue: impl Queue) {
 }
 
 #[pgmq_test_macro::queue_test]
+async fn archive_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result = queue.archive("invalid-queue-name", &[]).await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
 async fn delete(conn_details: ConnDetails, queue: impl Queue) {
     queue.create(QUEUE).await.unwrap();
     let msg_id1 = queue.send(QUEUE, TestMessage::new(), (), 0).await.unwrap();
@@ -291,6 +391,17 @@ async fn delete(conn_details: ConnDetails, queue: impl Queue) {
     assert!(
         read_msg.is_empty(),
         "Attempting to read after deleting the message should return nothing"
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn delete_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result = queue.delete("invalid-queue-name", &[]).await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
     );
 }
 
@@ -329,6 +440,17 @@ async fn set_vt(conn_details: ConnDetails, queue: impl Queue) {
 }
 
 #[pgmq_test_macro::queue_test]
+async fn set_vt_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result: Result<Vec<Message>, _> = queue.set_vt("invalid-queue-name", &[], 1).await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
 async fn send_batch(conn_details: ConnDetails, queue: impl Queue) {
     queue.create(QUEUE).await.unwrap();
     let count = 5;
@@ -337,7 +459,7 @@ async fn send_batch(conn_details: ConnDetails, queue: impl Queue) {
         .collect::<Vec<TestMessage>>();
 
     let msg_ids = queue
-        .send_batch(QUEUE, msgs, Option::<&[()]>::None, 0)
+        .send_batch(QUEUE, msgs, EMPTY_HEADERS, 0)
         .await
         .unwrap();
 
@@ -386,4 +508,17 @@ async fn send_batch_with_headers(conn_details: ConnDetails, queue: impl Queue) {
             "Read should properly deserialize headers sent with send_batch"
         )
     })
+}
+
+#[pgmq_test_macro::queue_test]
+async fn send_batch_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result = queue
+        .send_batch("invalid-queue-name", [()], EMPTY_HEADERS, 0)
+        .await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
 }

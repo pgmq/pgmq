@@ -1,4 +1,4 @@
-use constants::MAX_PGMQ_QUEUE_LEN;
+use std::convert::Infallible;
 use std::fmt::{Display, Formatter};
 use std::ops::Deref;
 use thiserror::Error;
@@ -19,8 +19,10 @@ mod constants {
 
     /// The max length of the name of a PGMQ queue, considering that the biggest postgres
     /// identifier created by PGMQ is the index on archived_at.
-    pub(super) const MAX_PGMQ_QUEUE_LEN: usize = MAX_IDENTIFIER_LEN - BIGGEST_CONCAT.len();
+    pub const MAX_PGMQ_QUEUE_LEN: usize = MAX_IDENTIFIER_LEN - BIGGEST_CONCAT.len();
 }
+
+pub use constants::MAX_PGMQ_QUEUE_LEN;
 
 #[derive(Debug, Error)]
 #[non_exhaustive]
@@ -39,6 +41,30 @@ impl QueueNameError {
     /// Construct [`QueueNameError::Other`] from the given error/message.
     pub fn other(err: impl ToString) -> Self {
         Self::Other(err.to_string())
+    }
+}
+
+impl From<String> for QueueNameError {
+    fn from(value: String) -> Self {
+        Self::other(value)
+    }
+}
+
+impl<'a> From<&'a str> for QueueNameError {
+    fn from(value: &'a str) -> Self {
+        Self::other(value)
+    }
+}
+
+impl From<()> for QueueNameError {
+    fn from(_: ()) -> Self {
+        Self::other("Unknown error")
+    }
+}
+
+impl From<Infallible> for QueueNameError {
+    fn from(_: Infallible) -> Self {
+        unreachable!("Experienced an Infallible error -- this should be impossible!")
     }
 }
 
@@ -109,7 +135,7 @@ pub fn check_queue_name(input: &str) -> Result<(), QueueNameError> {
 
 #[cfg(test)]
 mod tests {
-    use super::constants::MAX_PGMQ_QUEUE_LEN;
+    use super::MAX_PGMQ_QUEUE_LEN;
     use crate::types::QueueName;
     use rstest::rstest;
     use std::assert_matches;
