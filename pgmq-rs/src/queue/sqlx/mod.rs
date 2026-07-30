@@ -1,5 +1,5 @@
 use crate::queue::macros::{identity_macro, impl_queue};
-use crate::queue::sql::{ARCHIVE, CREATE, DELETE, READ, SEND, SEND_BATCH, SET_VT};
+use crate::queue::sql::{ARCHIVE, CREATE, DELETE, POP, READ, SEND, SEND_BATCH, SET_VT};
 use crate::types::{QueueName, VisibilityTimeoutOffset};
 use crate::{Message, PgmqError};
 use sqlx::{Executor, Postgres};
@@ -89,6 +89,26 @@ where
     let rows = query
         .bind(*queue_name)
         .bind(visibility_timeout)
+        .bind(quantity)
+        .fetch_all(executor)
+        .await?;
+
+    handle_read_batch_result(rows)
+}
+
+pub(crate) async fn pop<'c, C, T, H>(
+    executor: C,
+    queue_name: QueueName<'_>,
+    quantity: i32,
+) -> Result<Vec<Message<T, H>>, PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+    T: for<'de> serde::Deserialize<'de>,
+    H: for<'de> serde::Deserialize<'de>,
+{
+    let query = sqlx::query(POP);
+    let rows = query
+        .bind(*queue_name)
         .bind(quantity)
         .fetch_all(executor)
         .await?;

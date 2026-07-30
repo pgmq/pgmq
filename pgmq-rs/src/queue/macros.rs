@@ -83,11 +83,9 @@ macro_rules! impl_queue {
             async fn create<'q, Q, QE>(self, queue_name: Q) -> Result<(), crate::PgmqError>
             where
                 Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
-                QE: ToString,
+                QE: Into<crate::types::queue_name::QueueNameError>,
             {
-                let queue_name = queue_name
-                    .try_into()
-                    .map_err(crate::types::queue_name::QueueNameError::other)?;
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
                 create($transform_self!(self), queue_name).await
             }
 
@@ -102,12 +100,11 @@ macro_rules! impl_queue {
                 T: Send + serde::Serialize,
                 H: Send + serde::Serialize,
                 Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
-                QE: ToString,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+
                 D: Send + Into<crate::types::VisibilityTimeoutOffset>,
             {
-                let queue_name = queue_name
-                    .try_into()
-                    .map_err(crate::types::queue_name::QueueNameError::other)?;
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
                 let delay: crate::types::VisibilityTimeoutOffset = delay.into();
                 let message = serde_json::to_value(message)?;
                 let headers = serde_json::to_value(headers)?;
@@ -127,12 +124,11 @@ macro_rules! impl_queue {
                 TI: Send + IntoIterator<Item = T>,
                 HI: Send + IntoIterator<Item = H>,
                 Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
-                QE: ToString,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+
                 D: Send + Into<crate::types::VisibilityTimeoutOffset>,
             {
-                let queue_name = queue_name
-                    .try_into()
-                    .map_err(crate::types::queue_name::QueueNameError::other)?;
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
                 let delay: crate::types::VisibilityTimeoutOffset = delay.into();
                 let messages = crate::util::serialize_list(messages)?;
                 let headers = crate::util::serialize_optional_list(headers)?;
@@ -149,12 +145,11 @@ macro_rules! impl_queue {
                 T: 'static + Send + for<'de> serde::Deserialize<'de>,
                 H: 'static + Send + for<'de> serde::Deserialize<'de>,
                 Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
-                QE: ToString,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+
                 VT: Send + Into<crate::types::VisibilityTimeoutOffset>,
             {
-                let queue_name = queue_name
-                    .try_into()
-                    .map_err(crate::types::queue_name::QueueNameError::other)?;
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
                 let visibility_timeout: crate::types::VisibilityTimeoutOffset =
                     visibility_timeout.into();
                 read(
@@ -166,6 +161,21 @@ macro_rules! impl_queue {
                 .await
             }
 
+            async fn pop<'q, T, H, Q, QE>(
+                self,
+                queue_name: Q,
+                quantity: i32,
+            ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+            where
+                T: 'static + Send + for<'de> serde::Deserialize<'de>,
+                H: 'static + Send + for<'de> serde::Deserialize<'de>,
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                pop($transform_self!(self), queue_name, quantity).await
+            }
+
             async fn archive<'q, Q, QE>(
                 self,
                 queue_name: Q,
@@ -173,11 +183,9 @@ macro_rules! impl_queue {
             ) -> Result<Vec<i64>, crate::PgmqError>
             where
                 Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
-                QE: ToString,
+                QE: Into<crate::types::queue_name::QueueNameError>,
             {
-                let queue_name = queue_name
-                    .try_into()
-                    .map_err(crate::types::queue_name::QueueNameError::other)?;
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
                 archive($transform_self!(self), queue_name, msg_ids).await
             }
 
@@ -188,11 +196,9 @@ macro_rules! impl_queue {
             ) -> Result<Vec<i64>, crate::PgmqError>
             where
                 Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
-                QE: ToString,
+                QE: Into<crate::types::queue_name::QueueNameError>,
             {
-                let queue_name = queue_name
-                    .try_into()
-                    .map_err(crate::types::queue_name::QueueNameError::other)?;
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
                 delete($transform_self!(self), queue_name, msg_ids).await
             }
 
@@ -206,12 +212,11 @@ macro_rules! impl_queue {
                 T: 'static + Send + for<'de> serde::Deserialize<'de>,
                 H: 'static + Send + for<'de> serde::Deserialize<'de>,
                 Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
-                QE: ToString,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+
                 VT: Send + Into<crate::types::VisibilityTimeoutOffset>,
             {
-                let queue_name = queue_name
-                    .try_into()
-                    .map_err(crate::types::queue_name::QueueNameError::other)?;
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
                 let visibility_timeout: crate::types::VisibilityTimeoutOffset =
                     visibility_timeout.into();
                 set_vt(

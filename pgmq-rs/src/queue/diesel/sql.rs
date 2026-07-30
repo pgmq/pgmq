@@ -78,6 +78,9 @@ extern "SQL" {
     #[sql_name = "pgmq.read"]
     fn pgmq_read(queue_name: Text, vt: Integer, qty: Integer) -> PgMessage;
 
+    #[sql_name = "pgmq.pop"]
+    fn pgmq_pop(queue_name: Text, qty: Integer) -> PgMessage;
+
     #[sql_name = "pgmq.archive"]
     fn pgmq_archive(queue_name: Text, msg_ids: Array<BigInt>) -> BigInt;
 
