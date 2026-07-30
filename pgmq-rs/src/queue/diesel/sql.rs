@@ -89,4 +89,10 @@ extern "SQL" {
 
     #[sql_name = "pgmq.set_vt"]
     fn pgmq_set_vt(queue_name: Text, msg_ids: Array<BigInt>, vt: Integer) -> PgMessage;
+
+    #[sql_name = "pgmq.create_fifo_index"]
+    fn pgmq_create_fifo_index(queue_name: Text);
+
+    #[sql_name = "pgmq.create_fifo_indexes_all"]
+    fn pgmq_create_fifo_indexes_all();
 }

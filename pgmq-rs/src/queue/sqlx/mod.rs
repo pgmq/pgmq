@@ -1,5 +1,8 @@
 use crate::queue::macros::{identity_macro, impl_queue};
-use crate::queue::sql::{ARCHIVE, CREATE, DELETE, POP, READ, SEND, SEND_BATCH, SET_VT};
+use crate::queue::sql::{
+    ARCHIVE, CREATE, CREATE_FIFO_INDEX, CREATE_FIFO_INDEXES_ALL, DELETE, POP, READ, SEND,
+    SEND_BATCH, SET_VT,
+};
 use crate::types::{QueueName, VisibilityTimeoutOffset};
 use crate::{Message, PgmqError};
 use sqlx::{Executor, Postgres};
@@ -167,4 +170,30 @@ where
         .await?;
 
     handle_read_batch_result(rows)
+}
+
+pub(crate) async fn create_fifo_index<'c, C>(
+    executor: C,
+    queue_name: QueueName<'_>,
+) -> Result<(), PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+{
+    sqlx::query(CREATE_FIFO_INDEX)
+        .bind(*queue_name)
+        .execute(executor)
+        .await?;
+
+    Ok(())
+}
+
+pub(crate) async fn create_fifo_indexes_all<'c, C>(executor: C) -> Result<(), PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+{
+    sqlx::query(CREATE_FIFO_INDEXES_ALL)
+        .execute(executor)
+        .await?;
+
+    Ok(())
 }

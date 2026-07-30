@@ -26,3 +26,9 @@ pub const DELETE: &str = "SELECT * from pgmq.delete(queue_name=>$1::text, msg_id
 
 // language=PostgreSQL
 pub const SET_VT: &str = "SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.set_vt(queue_name=>$1::text, msg_ids=>$2::bigint[], vt=>$3::integer)";
+
+// language=PostgreSQL
+pub const CREATE_FIFO_INDEX: &str = "SELECT pgmq.create_fifo_index(queue_name=>$1::text)";
+
+// language=PostgreSQL
+pub const CREATE_FIFO_INDEXES_ALL: &str = "SELECT pgmq.create_fifo_indexes_all()";

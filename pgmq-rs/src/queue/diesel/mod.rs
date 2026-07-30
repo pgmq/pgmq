@@ -149,6 +149,29 @@ macro_rules! diesel_functions {
             let messages = $transform_result!(messages)?;
             Ok(messages)
         }
+
+        async fn create_fifo_index<C>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+        ) -> Result<(), crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let result =
+                crate::queue::diesel::query::create_fifo_index_query(queue_name).execute(executor);
+            $transform_result!(result)?;
+            Ok(())
+        }
+
+        async fn create_fifo_indexes_all<C>(executor: &mut C) -> Result<(), crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let result =
+                crate::queue::diesel::query::create_fifo_indexes_all_query().execute(executor);
+            $transform_result!(result)?;
+            Ok(())
+        }
     };
 }
 pub(crate) use diesel_functions;
