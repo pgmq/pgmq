@@ -323,4 +323,37 @@ pub trait Queue: crate::private::Sealed {
         Q: Send + TryInto<QueueName<'q>, Error = QE>,
         QE: Into<crate::types::queue_name::QueueNameError>,
         VT: Send + Into<VisibilityTimeoutOffset>;
+
+    /// Create an index on the `headers` column of the queue to improve FIFO read performance.
+    ///
+    /// Invokes the `pgmq.create_fifo_index` SQL function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// queue.create_fifo_index("my_queue").await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn create_fifo_index<'q, Q, QE>(self, queue_name: Q) -> Result<(), PgmqError>
+    where
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: Into<crate::types::queue_name::QueueNameError>;
+
+    /// Create an index on the `headers` column of all queues to improve FIFO read performance.
+    ///
+    /// Invokes the `pgmq.create_fifo_indexes_all` SQL function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// queue.create_fifo_indexes_all().await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn create_fifo_indexes_all(self) -> Result<(), PgmqError>;
 }

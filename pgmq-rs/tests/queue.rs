@@ -522,3 +522,26 @@ async fn send_batch_invalid_queue_name(conn_details: ConnDetails, queue: impl Qu
         )))
     );
 }
+
+#[pgmq_test_macro::queue_test]
+async fn create_fifo_index(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+    queue.create_fifo_index(QUEUE).await.unwrap();
+}
+
+#[pgmq_test_macro::queue_test]
+async fn create_fifo_index_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result = queue.create_fifo_index("invalid-queue-name").await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn create_fifo_indexes_all(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+    queue.create_fifo_indexes_all().await.unwrap();
+}

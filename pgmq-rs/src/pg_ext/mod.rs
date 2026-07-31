@@ -1122,13 +1122,8 @@ impl PGMQueueExt {
         queue_name: &str,
         executor: E,
     ) -> Result<(), PgmqError> {
-        check_queue_name(queue_name)?;
-        sqlx::query("SELECT pgmq.create_fifo_index(queue_name=>$1::text);")
-            .bind(queue_name)
-            .execute(executor)
-            .await?;
-
-        Ok(())
+        let queue_name = queue_name.try_into()?;
+        crate::queue::sqlx::create_fifo_index(executor, queue_name).await
     }
 
     pub async fn create_fifo_index(&self, queue_name: &str) -> Result<(), PgmqError> {
@@ -1143,11 +1138,7 @@ impl PGMQueueExt {
         &self,
         executor: E,
     ) -> Result<(), PgmqError> {
-        sqlx::query("SELECT pgmq.create_fifo_indexes_all();")
-            .execute(executor)
-            .await?;
-
-        Ok(())
+        crate::queue::sqlx::create_fifo_indexes_all(executor).await
     }
 
     pub async fn create_fifo_indexes_all(&self) -> Result<(), PgmqError> {

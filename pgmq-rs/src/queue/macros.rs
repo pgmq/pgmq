@@ -227,6 +227,22 @@ macro_rules! impl_queue {
                 )
                 .await
             }
+
+            async fn create_fifo_index<'q, Q, QE>(
+                self,
+                queue_name: Q,
+            ) -> Result<(), crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                create_fifo_index($transform_self!(self), queue_name).await
+            }
+
+            async fn create_fifo_indexes_all(self) -> Result<(), crate::PgmqError> {
+                create_fifo_indexes_all($transform_self!(self)).await
+            }
         }
     };
 }
