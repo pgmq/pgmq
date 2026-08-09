@@ -778,9 +778,8 @@ impl PGMQueueExt {
         qty: i32,
         executor: E,
     ) -> Result<Vec<Message<T, H>>, PgmqError> {
-        let query = sqlx::query("SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.read_grouped(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer);");
-
-        Self::read_batch_common(query, queue_name, vt, qty, executor).await
+        let queue_name = queue_name.try_into()?;
+        crate::queue::sqlx::read_grouped(executor, queue_name, vt.into(), qty).await
     }
 
     pub async fn read_grouped<T: for<'de> Deserialize<'de>, H: for<'de> Deserialize<'de>>(
@@ -863,9 +862,8 @@ impl PGMQueueExt {
         qty: i32,
         executor: E,
     ) -> Result<Vec<Message<T, H>>, PgmqError> {
-        let query = sqlx::query("SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.read_grouped_head(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer);");
-
-        Self::read_batch_common(query, queue_name, vt, qty, executor).await
+        let queue_name = queue_name.try_into()?;
+        crate::queue::sqlx::read_grouped_head(executor, queue_name, vt.into(), qty).await
     }
 
     pub async fn read_grouped_head<T: for<'de> Deserialize<'de>, H: for<'de> Deserialize<'de>>(
@@ -890,9 +888,8 @@ impl PGMQueueExt {
         qty: i32,
         executor: E,
     ) -> Result<Vec<Message<T, H>>, PgmqError> {
-        let query = sqlx::query("SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.read_grouped_rr(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer);");
-
-        Self::read_batch_common(query, queue_name, vt, qty, executor).await
+        let queue_name = queue_name.try_into()?;
+        crate::queue::sqlx::read_grouped_rr(executor, queue_name, vt.into(), qty).await
     }
 
     pub async fn read_grouped_rr<T: for<'de> Deserialize<'de>, H: for<'de> Deserialize<'de>>(

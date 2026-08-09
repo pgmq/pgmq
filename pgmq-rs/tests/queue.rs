@@ -545,3 +545,266 @@ async fn create_fifo_indexes_all(conn_details: ConnDetails, queue: impl Queue) {
     queue.create(QUEUE).await.unwrap();
     queue.create_fifo_indexes_all().await.unwrap();
 }
+
+#[pgmq_test_macro::queue_test]
+async fn read_grouped_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result: Result<Vec<Message>, _> = queue.read_grouped("invalid-queue-name", 10, 1).await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn read_grouped_default_group(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+
+    let msg1 = TestMessage::new();
+    let id1 = queue.send(QUEUE, &msg1, EMPTY_HEADERS, 0).await.unwrap();
+    let msg2 = TestMessage::new();
+    let _ = queue.send(QUEUE, &msg2, EMPTY_HEADERS, 0).await.unwrap();
+
+    {
+        let read_msg1: Option<Message<TestMessage>> = queue
+            .read_grouped(QUEUE, 100, 1)
+            .await
+            .unwrap()
+            .into_iter()
+            .next();
+        let read_msg2: Option<Message<TestMessage>> = queue
+            .read_grouped(QUEUE, 100, 1)
+            .await
+            .unwrap()
+            .into_iter()
+            .next();
+        assert!(read_msg1.is_some());
+        assert!(read_msg2.is_none(), "The second message should not become available until the first message has been processed");
+    }
+
+    {
+        queue.archive(QUEUE, &[id1]).await.unwrap();
+        let read_msg2: Option<Message<TestMessage>> = queue
+            .read_grouped(QUEUE, 100, 1)
+            .await
+            .unwrap()
+            .into_iter()
+            .next();
+        assert!(read_msg2.is_some());
+    }
+}
+
+#[pgmq_test_macro::queue_test]
+async fn read_grouped_default_group_many(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+
+    let msg1 = TestMessage::new();
+    queue.send(QUEUE, &msg1, EMPTY_HEADERS, 0).await.unwrap();
+    let msg2 = TestMessage::new();
+    queue.send(QUEUE, &msg2, EMPTY_HEADERS, 0).await.unwrap();
+
+    let read_msgs: Vec<Message<TestMessage>> = queue.read_grouped(QUEUE, 100, 2).await.unwrap();
+    assert_eq!(2, read_msgs.len());
+}
+
+#[pgmq_test_macro::queue_test]
+async fn read_grouped_custom_group(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+
+    let msg1 = TestMessage {
+        a: "a".to_string(),
+        b: 1,
+    };
+    let headers1 = json!({
+        "x-pgmq-group": msg1.b
+    });
+    let msg2 = TestMessage {
+        a: "b".to_string(),
+        b: 2,
+    };
+    let headers2 = json!({
+        "x-pgmq-group": msg2.b
+    });
+    queue
+        .send_batch(QUEUE, &[msg1, msg2], Some(&[headers1, headers2]), 0)
+        .await
+        .unwrap();
+
+    let read_msg1: Option<Message<TestMessage>> = queue
+        .read_grouped(QUEUE, 100, 1)
+        .await
+        .unwrap()
+        .into_iter()
+        .next();
+    let read_msg2: Option<Message<TestMessage>> = queue
+        .read_grouped(QUEUE, 100, 1)
+        .await
+        .unwrap()
+        .into_iter()
+        .next();
+    assert!(read_msg1.is_some());
+    assert!(read_msg2.is_some());
+}
+
+#[pgmq_test_macro::queue_test]
+async fn read_grouped_head_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result: Result<Vec<Message>, _> =
+        queue.read_grouped_head("invalid-queue-name", 10, 1).await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn read_grouped_head_diff_groups(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+
+    let msg1 = TestMessage {
+        a: "a".to_string(),
+        b: 1,
+    };
+    let headers1 = json!({
+        "x-pgmq-group": msg1.b
+    });
+    let msg2 = TestMessage {
+        a: "b".to_string(),
+        b: 1,
+    };
+    let headers2 = json!({
+        "x-pgmq-group": msg2.b
+    });
+    let msg3 = TestMessage {
+        a: "c".to_string(),
+        b: 2,
+    };
+    let headers3 = json!({
+        "x-pgmq-group": msg3.b
+    });
+    let msg4 = TestMessage {
+        a: "d".to_string(),
+        b: 2,
+    };
+    let headers4 = json!({
+        "x-pgmq-group": msg4.b
+    });
+    queue
+        .send_batch(
+            QUEUE,
+            &[msg1, msg2, msg3, msg4],
+            Some(&[headers1, headers2, headers3, headers4]),
+            0,
+        )
+        .await
+        .unwrap();
+
+    let read_msgs: Vec<Message<TestMessage>> =
+        queue.read_grouped_head(QUEUE, 100, 2).await.unwrap();
+    assert_eq!(2, read_msgs.len());
+    assert_ne!(
+        read_msgs.first().unwrap().message.b,
+        read_msgs.get(1).unwrap().message.b
+    );
+
+    let read_msgs2: Vec<Message<TestMessage>> =
+        queue.read_grouped_head(QUEUE, 100, 2).await.unwrap();
+    assert!(read_msgs2.is_empty(), "The second message in each group should not become available until the first message has been processed");
+
+    queue
+        .archive(
+            QUEUE,
+            &read_msgs.iter().map(|msg| msg.msg_id).collect::<Vec<_>>(),
+        )
+        .await
+        .unwrap();
+
+    let read_msgs: Vec<Message<TestMessage>> =
+        queue.read_grouped_head(QUEUE, 100, 2).await.unwrap();
+    assert_eq!(2, read_msgs.len());
+    assert_ne!(
+        read_msgs.first().unwrap().message.b,
+        read_msgs.get(1).unwrap().message.b
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn read_grouped_rr_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result: Result<Vec<Message>, _> = queue.read_grouped_rr("invalid-queue-name", 10, 1).await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn read_grouped_rr_diff_groups(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+
+    let msg1 = TestMessage {
+        a: "a".to_string(),
+        b: 1,
+    };
+    let headers1 = json!({
+        "x-pgmq-group": msg1.b
+    });
+    let msg2 = TestMessage {
+        a: "b".to_string(),
+        b: 1,
+    };
+    let headers2 = json!({
+        "x-pgmq-group": msg2.b
+    });
+    let msg3 = TestMessage {
+        a: "c".to_string(),
+        b: 2,
+    };
+    let headers3 = json!({
+        "x-pgmq-group": msg3.b
+    });
+    let msg4 = TestMessage {
+        a: "d".to_string(),
+        b: 2,
+    };
+    let headers4 = json!({
+        "x-pgmq-group": msg4.b
+    });
+    queue
+        .send_batch(
+            QUEUE,
+            &[msg1, msg2, msg3, msg4],
+            Some(&[headers1, headers2, headers3, headers4]),
+            0,
+        )
+        .await
+        .unwrap();
+
+    let read_msgs: Vec<Message<TestMessage>> = queue.read_grouped_rr(QUEUE, 100, 2).await.unwrap();
+    assert_eq!(2, read_msgs.len());
+    assert_ne!(
+        read_msgs.first().unwrap().message.b,
+        read_msgs.get(1).unwrap().message.b
+    );
+
+    let read_msgs2: Vec<Message<TestMessage>> = queue.read_grouped_rr(QUEUE, 100, 2).await.unwrap();
+    assert!(read_msgs2.is_empty(), "The second message in each group should not become available until the first message has been processed");
+
+    queue
+        .archive(
+            QUEUE,
+            &read_msgs.iter().map(|msg| msg.msg_id).collect::<Vec<_>>(),
+        )
+        .await
+        .unwrap();
+
+    let read_msgs: Vec<Message<TestMessage>> = queue.read_grouped_rr(QUEUE, 100, 2).await.unwrap();
+    assert_eq!(2, read_msgs.len());
+    assert_ne!(
+        read_msgs.first().unwrap().message.b,
+        read_msgs.get(1).unwrap().message.b
+    );
+}

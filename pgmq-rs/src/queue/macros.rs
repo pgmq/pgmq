@@ -243,6 +243,84 @@ macro_rules! impl_queue {
             async fn create_fifo_indexes_all(self) -> Result<(), crate::PgmqError> {
                 create_fifo_indexes_all($transform_self!(self)).await
             }
+
+            async fn read_grouped<'q, T, H, Q, QE, VT>(
+                self,
+                queue_name: Q,
+                visibility_timeout: VT,
+                quantity: i32,
+            ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+            where
+                T: 'static + Send + for<'de> serde::Deserialize<'de>,
+                H: 'static + Send + for<'de> serde::Deserialize<'de>,
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+
+                VT: Send + Into<crate::types::VisibilityTimeoutOffset>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                let visibility_timeout: crate::types::VisibilityTimeoutOffset =
+                    visibility_timeout.into();
+                read_grouped(
+                    $transform_self!(self),
+                    queue_name,
+                    visibility_timeout,
+                    quantity,
+                )
+                .await
+            }
+
+            async fn read_grouped_head<'q, T, H, Q, QE, VT>(
+                self,
+                queue_name: Q,
+                visibility_timeout: VT,
+                quantity: i32,
+            ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+            where
+                T: 'static + Send + for<'de> serde::Deserialize<'de>,
+                H: 'static + Send + for<'de> serde::Deserialize<'de>,
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+
+                VT: Send + Into<crate::types::VisibilityTimeoutOffset>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                let visibility_timeout: crate::types::VisibilityTimeoutOffset =
+                    visibility_timeout.into();
+                read_grouped_head(
+                    $transform_self!(self),
+                    queue_name,
+                    visibility_timeout,
+                    quantity,
+                )
+                .await
+            }
+
+            async fn read_grouped_rr<'q, T, H, Q, QE, VT>(
+                self,
+                queue_name: Q,
+                visibility_timeout: VT,
+                quantity: i32,
+            ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+            where
+                T: 'static + Send + for<'de> serde::Deserialize<'de>,
+                H: 'static + Send + for<'de> serde::Deserialize<'de>,
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+
+                VT: Send + Into<crate::types::VisibilityTimeoutOffset>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                let visibility_timeout: crate::types::VisibilityTimeoutOffset =
+                    visibility_timeout.into();
+                read_grouped_rr(
+                    $transform_self!(self),
+                    queue_name,
+                    visibility_timeout,
+                    quantity,
+                )
+                .await
+            }
         }
     };
 }

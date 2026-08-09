@@ -32,3 +32,12 @@ pub const CREATE_FIFO_INDEX: &str = "SELECT pgmq.create_fifo_index(queue_name=>$
 
 // language=PostgreSQL
 pub const CREATE_FIFO_INDEXES_ALL: &str = "SELECT pgmq.create_fifo_indexes_all()";
+
+// language=PostgreSQL
+pub const READ_GROUPED: &str = "SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers FROM pgmq.read_grouped(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer)";
+
+// language=PostgreSQL
+pub const READ_GROUPED_HEAD: &str = "SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers FROM pgmq.read_grouped_head(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer)";
+
+// language=PostgreSQL
+pub const READ_GROUPED_RR: &str = "SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers FROM pgmq.read_grouped_rr(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer)";
