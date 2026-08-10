@@ -1,7 +1,8 @@
 //! Extracted Diesel SQL query functions. Can be used by both diesel and diesel-async.
 use crate::queue::diesel::sql::{
     pgmq_archive, pgmq_create, pgmq_create_fifo_index, pgmq_create_fifo_indexes_all, pgmq_delete,
-    pgmq_pop, pgmq_read, pgmq_send, pgmq_send_batch, pgmq_set_vt,
+    pgmq_pop, pgmq_read, pgmq_read_grouped, pgmq_read_grouped_head, pgmq_read_grouped_rr,
+    pgmq_send, pgmq_send_batch, pgmq_set_vt,
 };
 use crate::types::{QueueName, VisibilityTimeoutOffset};
 use diesel::dsl::select;
@@ -85,4 +86,45 @@ pub fn create_fifo_index_query(queue_name: QueueName<'_>) -> _ {
 #[diesel::dsl::auto_type(no_type_alias)]
 pub fn create_fifo_indexes_all_query() -> _ {
     select(pgmq_create_fifo_indexes_all())
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn read_grouped_query(
+    queue_name: QueueName<'_>,
+    visibility_timeout: VisibilityTimeoutOffset,
+    quantity: i32,
+) -> _ {
+    let queue_name: &str = *queue_name;
+    let visibility_timeout: i32 = *visibility_timeout;
+    select(pgmq_read_grouped(queue_name, visibility_timeout, quantity))
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn read_grouped_head_query(
+    queue_name: QueueName<'_>,
+    visibility_timeout: VisibilityTimeoutOffset,
+    quantity: i32,
+) -> _ {
+    let queue_name: &str = *queue_name;
+    let visibility_timeout: i32 = *visibility_timeout;
+    select(pgmq_read_grouped_head(
+        queue_name,
+        visibility_timeout,
+        quantity,
+    ))
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn read_grouped_rr_query(
+    queue_name: QueueName<'_>,
+    visibility_timeout: VisibilityTimeoutOffset,
+    quantity: i32,
+) -> _ {
+    let queue_name: &str = *queue_name;
+    let visibility_timeout: i32 = *visibility_timeout;
+    select(pgmq_read_grouped_rr(
+        queue_name,
+        visibility_timeout,
+        quantity,
+    ))
 }

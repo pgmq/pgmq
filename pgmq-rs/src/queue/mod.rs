@@ -356,4 +356,149 @@ pub trait Queue: crate::private::Sealed {
     /// # }
     /// ```
     async fn create_fifo_indexes_all(self) -> Result<(), PgmqError>;
+
+    /// Reads messages with AWS SQS FIFO-style batch retrieval behavior. Returns at most `quantity`
+    /// messages from the same FIFO group from the queue with the provided `queue_name`. If no
+    /// messages are available, an empty [`Vec`] will be returned.
+    ///
+    /// Invokes the `pgmq.read_grouped` SQL function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// # use pgmq::{Message, PgmqError};
+    /// // Read a message, deserializing as a `serde_json::Value`, using an integer to update
+    /// // the visibility timeout (`vt`)
+    /// let msgs: Vec<Message> = queue.read_grouped("my_queue", 10, 1).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// # use std::time::Duration;
+    /// # use serde_derive::Deserialize;
+    /// # use pgmq::{Message, PgmqError};
+    /// #[derive(Deserialize)]
+    /// struct MyMessage {
+    ///     a: String
+    /// }
+    /// // Read multiple messages, deserializing as a custom message struct, `MyMessage`, using
+    /// // a `Duration` to update the visibility timeout (`vt`)
+    /// let msgs: Vec<Message<MyMessage>> = queue.read_grouped("my_queue", Duration::from_secs(10), 2).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn read_grouped<'q, T, H, Q, QE, VT>(
+        self,
+        queue_name: Q,
+        visibility_timeout: VT,
+        quantity: i32,
+    ) -> Result<Vec<Message<T, H>>, PgmqError>
+    where
+        T: 'static + Send + for<'de> serde::Deserialize<'de>,
+        H: 'static + Send + for<'de> serde::Deserialize<'de>,
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: Into<crate::types::queue_name::QueueNameError>,
+        VT: Send + Into<VisibilityTimeoutOffset>;
+
+    /// Read the head of at most `quantity` FIFO groups from the queue with the provided
+    /// `queue_name`. This supports horizontal scaling by processing groups in parallel while
+    /// ensuring message ordering is preserved per group. If no messages are available, an
+    /// empty [`Vec`] will be returned.
+    ///
+    /// Invokes the `pgmq.read_grouped_head` SQL function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// # use pgmq::{Message, PgmqError};
+    /// // Read a message, deserializing as a `serde_json::Value`, using an integer to update
+    /// // the visibility timeout (`vt`)
+    /// let msgs: Vec<Message> = queue.read_grouped_head("my_queue", 10, 1).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// # use std::time::Duration;
+    /// # use serde_derive::Deserialize;
+    /// # use pgmq::{Message, PgmqError};
+    /// #[derive(Deserialize)]
+    /// struct MyMessage {
+    ///     a: String
+    /// }
+    /// // Read multiple messages, deserializing as a custom message struct, `MyMessage`, using
+    /// // a `Duration` to update the visibility timeout (`vt`)
+    /// let msgs: Vec<Message<MyMessage>> = queue.read_grouped_head("my_queue", Duration::from_secs(10), 2).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn read_grouped_head<'q, T, H, Q, QE, VT>(
+        self,
+        queue_name: Q,
+        visibility_timeout: VT,
+        quantity: i32,
+    ) -> Result<Vec<Message<T, H>>, PgmqError>
+    where
+        T: 'static + Send + for<'de> serde::Deserialize<'de>,
+        H: 'static + Send + for<'de> serde::Deserialize<'de>,
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: Into<crate::types::queue_name::QueueNameError>,
+        VT: Send + Into<VisibilityTimeoutOffset>;
+
+    /// Read at most `quantity` messages from the queue with the provided `queue_name`. Preserves
+    /// FIFO order within groups and interleaves across groups (layered round-robin). If no
+    /// messages are available, an empty [`Vec`] will be returned.
+    ///
+    /// Invokes the `pgmq.read_grouped_rr` SQL function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// # use pgmq::{Message, PgmqError};
+    /// // Read a message, deserializing as a `serde_json::Value`, using an integer to update
+    /// // the visibility timeout (`vt`)
+    /// let msgs: Vec<Message> = queue.read_grouped_rr("my_queue", 10, 1).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// # use std::time::Duration;
+    /// # use serde_derive::Deserialize;
+    /// # use pgmq::{Message, PgmqError};
+    /// #[derive(Deserialize)]
+    /// struct MyMessage {
+    ///     a: String
+    /// }
+    /// // Read multiple messages, deserializing as a custom message struct, `MyMessage`, using
+    /// // a `Duration` to update the visibility timeout (`vt`)
+    /// let msgs: Vec<Message<MyMessage>> = queue.read_grouped_rr("my_queue", Duration::from_secs(10), 2).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn read_grouped_rr<'q, T, H, Q, QE, VT>(
+        self,
+        queue_name: Q,
+        visibility_timeout: VT,
+        quantity: i32,
+    ) -> Result<Vec<Message<T, H>>, PgmqError>
+    where
+        T: 'static + Send + for<'de> serde::Deserialize<'de>,
+        H: 'static + Send + for<'de> serde::Deserialize<'de>,
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: Into<crate::types::queue_name::QueueNameError>,
+        VT: Send + Into<VisibilityTimeoutOffset>;
 }

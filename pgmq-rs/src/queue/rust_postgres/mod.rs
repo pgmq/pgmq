@@ -119,16 +119,14 @@ macro_rules! rust_postgres_functions {
             T: for<'de> serde::Deserialize<'de>,
             H: for<'de> serde::Deserialize<'de>,
         {
-            let params: [crate::queue::rust_postgres::SqlParam; _] = [
-                (&*queue_name, postgres_types::Type::TEXT),
-                (&*visibility_timeout, postgres_types::Type::INT4),
-                (&quantity, postgres_types::Type::INT4),
-            ];
-            let rows = executor.query_typed(crate::queue::sql::READ, &params);
-            let rows = $transform_result!(rows)?;
-            rows.into_iter()
-                .map(|row| crate::Message::<T, H>::try_from(row))
-                .collect::<Result<Vec<crate::Message<T, H>>, crate::PgmqError>>()
+            read_common(
+                executor,
+                crate::queue::sql::READ,
+                queue_name,
+                visibility_timeout,
+                quantity,
+            )
+            .await
         }
 
         async fn pop<C, T, H>(
@@ -238,6 +236,93 @@ macro_rules! rust_postgres_functions {
             let result = executor.execute_typed(crate::queue::sql::CREATE_FIFO_INDEXES_ALL, &[]);
             $transform_result!(result)?;
             Ok(())
+        }
+
+        async fn read_grouped<C, T, H>(
+            executor: $ref_type!(C),
+            queue_name: crate::types::QueueName<'_>,
+            visibility_timeout: crate::types::VisibilityTimeoutOffset,
+            quantity: i32,
+        ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+        where
+            C: $executor_trait,
+            T: for<'de> serde::Deserialize<'de>,
+            H: for<'de> serde::Deserialize<'de>,
+        {
+            read_common(
+                executor,
+                crate::queue::sql::READ_GROUPED,
+                queue_name,
+                visibility_timeout,
+                quantity,
+            )
+            .await
+        }
+
+        async fn read_grouped_head<C, T, H>(
+            executor: $ref_type!(C),
+            queue_name: crate::types::QueueName<'_>,
+            visibility_timeout: crate::types::VisibilityTimeoutOffset,
+            quantity: i32,
+        ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+        where
+            C: $executor_trait,
+            T: for<'de> serde::Deserialize<'de>,
+            H: for<'de> serde::Deserialize<'de>,
+        {
+            read_common(
+                executor,
+                crate::queue::sql::READ_GROUPED_HEAD,
+                queue_name,
+                visibility_timeout,
+                quantity,
+            )
+            .await
+        }
+
+        async fn read_grouped_rr<C, T, H>(
+            executor: $ref_type!(C),
+            queue_name: crate::types::QueueName<'_>,
+            visibility_timeout: crate::types::VisibilityTimeoutOffset,
+            quantity: i32,
+        ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+        where
+            C: $executor_trait,
+            T: for<'de> serde::Deserialize<'de>,
+            H: for<'de> serde::Deserialize<'de>,
+        {
+            read_common(
+                executor,
+                crate::queue::sql::READ_GROUPED_RR,
+                queue_name,
+                visibility_timeout,
+                quantity,
+            )
+            .await
+        }
+
+        async fn read_common<C, T, H>(
+            executor: $ref_type!(C),
+            query: &'static str,
+            queue_name: crate::types::QueueName<'_>,
+            visibility_timeout: crate::types::VisibilityTimeoutOffset,
+            quantity: i32,
+        ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+        where
+            C: $executor_trait,
+            T: for<'de> serde::Deserialize<'de>,
+            H: for<'de> serde::Deserialize<'de>,
+        {
+            let params: [crate::queue::rust_postgres::SqlParam; _] = [
+                (&*queue_name, postgres_types::Type::TEXT),
+                (&*visibility_timeout, postgres_types::Type::INT4),
+                (&quantity, postgres_types::Type::INT4),
+            ];
+            let rows = executor.query_typed(query, &params);
+            let rows = $transform_result!(rows)?;
+            rows.into_iter()
+                .map(|row| crate::Message::<T, H>::try_from(row))
+                .collect::<Result<Vec<crate::Message<T, H>>, crate::PgmqError>>()
         }
     };
 }

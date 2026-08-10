@@ -95,4 +95,13 @@ extern "SQL" {
 
     #[sql_name = "pgmq.create_fifo_indexes_all"]
     fn pgmq_create_fifo_indexes_all();
+
+    #[sql_name = "pgmq.read_grouped"]
+    fn pgmq_read_grouped(queue_name: Text, vt: Integer, qty: Integer) -> PgMessage;
+
+    #[sql_name = "pgmq.read_grouped_head"]
+    fn pgmq_read_grouped_head(queue_name: Text, vt: Integer, qty: Integer) -> PgMessage;
+
+    #[sql_name = "pgmq.read_grouped_rr"]
+    fn pgmq_read_grouped_rr(queue_name: Text, vt: Integer, qty: Integer) -> PgMessage;
 }

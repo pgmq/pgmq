@@ -1,7 +1,7 @@
 use crate::queue::macros::{identity_macro, impl_queue};
 use crate::queue::sql::{
-    ARCHIVE, CREATE, CREATE_FIFO_INDEX, CREATE_FIFO_INDEXES_ALL, DELETE, POP, READ, SEND,
-    SEND_BATCH, SET_VT,
+    ARCHIVE, CREATE, CREATE_FIFO_INDEX, CREATE_FIFO_INDEXES_ALL, DELETE, POP, READ, READ_GROUPED,
+    READ_GROUPED_HEAD, READ_GROUPED_RR, SEND, SEND_BATCH, SET_VT,
 };
 use crate::types::{QueueName, VisibilityTimeoutOffset};
 use crate::{Message, PgmqError};
@@ -88,15 +88,7 @@ where
     T: for<'de> serde::Deserialize<'de>,
     H: for<'de> serde::Deserialize<'de>,
 {
-    let query = sqlx::query(READ);
-    let rows = query
-        .bind(*queue_name)
-        .bind(visibility_timeout)
-        .bind(quantity)
-        .fetch_all(executor)
-        .await?;
-
-    handle_read_batch_result(rows)
+    read_common(executor, READ, queue_name, visibility_timeout, quantity).await
 }
 
 pub(crate) async fn pop<'c, C, T, H>(
@@ -196,4 +188,90 @@ where
         .await?;
 
     Ok(())
+}
+
+pub(crate) async fn read_grouped<'c, C, T, H>(
+    executor: C,
+    queue_name: QueueName<'_>,
+    visibility_timeout: VisibilityTimeoutOffset,
+    quantity: i32,
+) -> Result<Vec<Message<T, H>>, PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+    T: for<'de> serde::Deserialize<'de>,
+    H: for<'de> serde::Deserialize<'de>,
+{
+    read_common(
+        executor,
+        READ_GROUPED,
+        queue_name,
+        visibility_timeout,
+        quantity,
+    )
+    .await
+}
+
+pub(crate) async fn read_grouped_head<'c, C, T, H>(
+    executor: C,
+    queue_name: QueueName<'_>,
+    visibility_timeout: VisibilityTimeoutOffset,
+    quantity: i32,
+) -> Result<Vec<Message<T, H>>, PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+    T: for<'de> serde::Deserialize<'de>,
+    H: for<'de> serde::Deserialize<'de>,
+{
+    read_common(
+        executor,
+        READ_GROUPED_HEAD,
+        queue_name,
+        visibility_timeout,
+        quantity,
+    )
+    .await
+}
+
+pub(crate) async fn read_grouped_rr<'c, C, T, H>(
+    executor: C,
+    queue_name: QueueName<'_>,
+    visibility_timeout: VisibilityTimeoutOffset,
+    quantity: i32,
+) -> Result<Vec<Message<T, H>>, PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+    T: for<'de> serde::Deserialize<'de>,
+    H: for<'de> serde::Deserialize<'de>,
+{
+    read_common(
+        executor,
+        READ_GROUPED_RR,
+        queue_name,
+        visibility_timeout,
+        quantity,
+    )
+    .await
+}
+
+async fn read_common<'c, C, T, H>(
+    executor: C,
+    query: &'static str,
+    queue_name: QueueName<'_>,
+    visibility_timeout: VisibilityTimeoutOffset,
+    quantity: i32,
+) -> Result<Vec<Message<T, H>>, PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+    T: for<'de> serde::Deserialize<'de>,
+    H: for<'de> serde::Deserialize<'de>,
+{
+    let query = sqlx::query(query);
+    let rows = query
+        .bind(*queue_name)
+        .bind(visibility_timeout)
+        .bind(quantity)
+        .fetch_all(executor)
+        .await?;
+
+    handle_read_batch_result(rows)
 }

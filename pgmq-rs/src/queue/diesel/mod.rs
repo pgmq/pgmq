@@ -41,7 +41,7 @@ macro_rules! diesel_functions {
             queue_name: crate::types::QueueName<'_>,
             message: serde_json::Value,
             headers: serde_json::Value,
-            delay: crate::types::visibility_timeout_offset::VisibilityTimeoutOffset,
+            delay: crate::types::VisibilityTimeoutOffset,
         ) -> Result<i64, crate::PgmqError>
         where
             C: $executor_trait,
@@ -58,7 +58,7 @@ macro_rules! diesel_functions {
             queue_name: crate::types::QueueName<'_>,
             messages: Vec<serde_json::Value>,
             headers: Option<Vec<serde_json::Value>>,
-            delay: crate::types::visibility_timeout_offset::VisibilityTimeoutOffset,
+            delay: crate::types::VisibilityTimeoutOffset,
         ) -> Result<Vec<i64>, crate::PgmqError>
         where
             C: $executor_trait,
@@ -73,7 +73,7 @@ macro_rules! diesel_functions {
         async fn read<C, T, H>(
             executor: &mut C,
             queue_name: crate::types::QueueName<'_>,
-            visibility_timeout: crate::types::visibility_timeout_offset::VisibilityTimeoutOffset,
+            visibility_timeout: crate::types::VisibilityTimeoutOffset,
             quantity: i32,
         ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
         where
@@ -136,7 +136,7 @@ macro_rules! diesel_functions {
             executor: &mut C,
             queue_name: crate::types::QueueName<'_>,
             msg_ids: &'_ [i64],
-            visibility_timeout: crate::types::visibility_timeout_offset::VisibilityTimeoutOffset,
+            visibility_timeout: crate::types::VisibilityTimeoutOffset,
         ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
         where
             C: $executor_trait,
@@ -171,6 +171,69 @@ macro_rules! diesel_functions {
                 crate::queue::diesel::query::create_fifo_indexes_all_query().execute(executor);
             $transform_result!(result)?;
             Ok(())
+        }
+
+        async fn read_grouped<C, T, H>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+            visibility_timeout: crate::types::VisibilityTimeoutOffset,
+            quantity: i32,
+        ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+        where
+            C: $executor_trait,
+            T: 'static + Send + for<'de> serde::Deserialize<'de>,
+            H: 'static + Send + for<'de> serde::Deserialize<'de>,
+        {
+            let messages = crate::queue::diesel::query::read_grouped_query(
+                queue_name,
+                visibility_timeout,
+                quantity,
+            )
+            .get_results(executor);
+            let messages = $transform_result!(messages)?;
+            Ok(messages)
+        }
+
+        async fn read_grouped_head<C, T, H>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+            visibility_timeout: crate::types::VisibilityTimeoutOffset,
+            quantity: i32,
+        ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+        where
+            C: $executor_trait,
+            T: 'static + Send + for<'de> serde::Deserialize<'de>,
+            H: 'static + Send + for<'de> serde::Deserialize<'de>,
+        {
+            let messages = crate::queue::diesel::query::read_grouped_head_query(
+                queue_name,
+                visibility_timeout,
+                quantity,
+            )
+            .get_results(executor);
+            let messages = $transform_result!(messages)?;
+            Ok(messages)
+        }
+
+        async fn read_grouped_rr<C, T, H>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+            visibility_timeout: crate::types::VisibilityTimeoutOffset,
+            quantity: i32,
+        ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+        where
+            C: $executor_trait,
+            T: 'static + Send + for<'de> serde::Deserialize<'de>,
+            H: 'static + Send + for<'de> serde::Deserialize<'de>,
+        {
+            let messages = crate::queue::diesel::query::read_grouped_rr_query(
+                queue_name,
+                visibility_timeout,
+                quantity,
+            )
+            .get_results(executor);
+            let messages = $transform_result!(messages)?;
+            Ok(messages)
         }
     };
 }
