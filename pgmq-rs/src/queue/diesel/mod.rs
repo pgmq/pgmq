@@ -235,6 +235,97 @@ macro_rules! diesel_functions {
             let messages = $transform_result!(messages)?;
             Ok(messages)
         }
+
+        async fn bind_topic<C>(
+            executor: &mut C,
+            pattern: &str,
+            queue_name: crate::types::QueueName<'_>,
+        ) -> Result<(), crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let result = crate::queue::diesel::query::bind_topic_query(pattern, queue_name)
+                .execute(executor);
+            $transform_result!(result)?;
+            Ok(())
+        }
+
+        async fn unbind_topic<C>(
+            executor: &mut C,
+            pattern: &str,
+            queue_name: crate::types::QueueName<'_>,
+        ) -> Result<(), crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let result = crate::queue::diesel::query::unbind_topic_query(pattern, queue_name)
+                .execute(executor);
+            $transform_result!(result)?;
+            Ok(())
+        }
+
+        async fn list_topic_bindings<C>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+        ) -> Result<Vec<crate::types::ListTopicBindingsRow>, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let rows = crate::queue::diesel::query::list_topic_bindings_query(queue_name)
+                .get_results(executor);
+            let rows = $transform_result!(rows)?;
+            Ok(rows)
+        }
+
+        async fn list_topic_bindings_all<C>(
+            executor: &mut C,
+        ) -> Result<Vec<crate::types::ListTopicBindingsRow>, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let rows =
+                crate::queue::diesel::query::list_topic_bindings_all_query().get_results(executor);
+            let rows = $transform_result!(rows)?;
+            Ok(rows)
+        }
+
+        async fn send_topic<C>(
+            executor: &mut C,
+            routing_key: &str,
+            message: serde_json::Value,
+            headers: serde_json::Value,
+            delay: crate::types::VisibilityTimeoutOffset,
+        ) -> Result<i32, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let matched_queue_count =
+                crate::queue::diesel::query::send_topic_query(routing_key, message, headers, delay)
+                    .get_result(executor);
+            let matched_queue_count = $transform_result!(matched_queue_count)?;
+            Ok(matched_queue_count)
+        }
+
+        async fn send_batch_topic<C>(
+            executor: &mut C,
+            routing_key: &str,
+            messages: Vec<serde_json::Value>,
+            headers: Option<Vec<serde_json::Value>>,
+            delay: crate::types::VisibilityTimeoutOffset,
+        ) -> Result<Vec<crate::types::SendBatchTopicRow>, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let rows = crate::queue::diesel::query::send_batch_topic_query(
+                routing_key,
+                messages,
+                headers,
+                delay,
+            )
+            .get_results(executor);
+            let rows = $transform_result!(rows)?;
+            Ok(rows)
+        }
     };
 }
 pub(crate) use diesel_functions;

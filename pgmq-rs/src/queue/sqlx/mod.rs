@@ -1,11 +1,12 @@
 use crate::queue::macros::{identity_macro, impl_queue};
 use crate::queue::sql::{
-    ARCHIVE, CREATE, CREATE_FIFO_INDEX, CREATE_FIFO_INDEXES_ALL, DELETE, POP, READ, READ_GROUPED,
-    READ_GROUPED_HEAD, READ_GROUPED_RR, SEND, SEND_BATCH, SET_VT,
+    ARCHIVE, BIND_TOPIC, CREATE, CREATE_FIFO_INDEX, CREATE_FIFO_INDEXES_ALL, DELETE,
+    LIST_TOPIC_BINDINGS, LIST_TOPIC_BINDINGS_ALL, POP, READ, READ_GROUPED, READ_GROUPED_HEAD,
+    READ_GROUPED_RR, SEND, SEND_BATCH, SEND_BATCH_TOPIC, SEND_TOPIC, SET_VT, UNBIND_TOPIC,
 };
-use crate::types::{QueueName, VisibilityTimeoutOffset};
+use crate::types::{ListTopicBindingsRow, QueueName, SendBatchTopicRow, VisibilityTimeoutOffset};
 use crate::{Message, PgmqError};
-use sqlx::{Executor, Postgres};
+use sqlx::{Executor, FromRow, Postgres};
 use util::handle_read_batch_result;
 
 pub(crate) mod util;
@@ -274,4 +275,118 @@ where
         .await?;
 
     handle_read_batch_result(rows)
+}
+
+pub(crate) async fn bind_topic<'c, C>(
+    executor: C,
+    pattern: &str,
+    queue_name: QueueName<'_>,
+) -> Result<(), PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+{
+    sqlx::query(BIND_TOPIC)
+        .bind(pattern)
+        .bind(*queue_name)
+        .execute(executor)
+        .await?;
+    Ok(())
+}
+
+pub(crate) async fn unbind_topic<'c, C>(
+    executor: C,
+    pattern: &str,
+    queue_name: QueueName<'_>,
+) -> Result<(), PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+{
+    sqlx::query(UNBIND_TOPIC)
+        .bind(pattern)
+        .bind(*queue_name)
+        .execute(executor)
+        .await?;
+    Ok(())
+}
+
+pub(crate) async fn list_topic_bindings<'c, C>(
+    executor: C,
+    queue_name: QueueName<'_>,
+) -> Result<Vec<ListTopicBindingsRow>, PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+{
+    let query = sqlx::query(LIST_TOPIC_BINDINGS).bind(*queue_name);
+    list_topic_bindings_common(executor, query).await
+}
+
+pub(crate) async fn list_topic_bindings_all<'c, C>(
+    executor: C,
+) -> Result<Vec<ListTopicBindingsRow>, PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+{
+    let query = sqlx::query(LIST_TOPIC_BINDINGS_ALL);
+    list_topic_bindings_common(executor, query).await
+}
+
+async fn list_topic_bindings_common<'q, 'c, C>(
+    executor: C,
+    query: sqlx::query::Query<'q, Postgres, <Postgres as sqlx::Database>::Arguments>,
+) -> Result<Vec<ListTopicBindingsRow>, PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+{
+    let rows = query.fetch_all(executor).await?;
+    let rows = rows
+        .into_iter()
+        .map(|row| ListTopicBindingsRow::from_row(&row))
+        .collect::<Result<Vec<ListTopicBindingsRow>, _>>()?;
+    Ok(rows)
+}
+
+pub(crate) async fn send_topic<'c, C>(
+    executor: C,
+    routing_key: &str,
+    message: serde_json::Value,
+    headers: serde_json::Value,
+    delay: VisibilityTimeoutOffset,
+) -> Result<i32, PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+{
+    let matched_queue_count: i32 = sqlx::query_scalar(SEND_TOPIC)
+        .bind(routing_key)
+        .bind(message)
+        .bind(headers)
+        .bind(delay)
+        .fetch_one(executor)
+        .await?;
+    Ok(matched_queue_count)
+}
+
+pub(crate) async fn send_batch_topic<'c, C>(
+    executor: C,
+    routing_key: &str,
+    messages: Vec<serde_json::Value>,
+    headers: Option<Vec<serde_json::Value>>,
+    delay: VisibilityTimeoutOffset,
+) -> Result<Vec<SendBatchTopicRow>, PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+{
+    let sent = sqlx::query(SEND_BATCH_TOPIC)
+        .bind(routing_key)
+        .bind(messages)
+        .bind(headers)
+        .bind(delay)
+        .fetch_all(executor)
+        .await?;
+
+    let sent = sent
+        .into_iter()
+        .map(|row| SendBatchTopicRow::from_row(&row))
+        .collect::<Result<Vec<SendBatchTopicRow>, _>>()?;
+
+    Ok(sent)
 }

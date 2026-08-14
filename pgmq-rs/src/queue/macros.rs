@@ -321,6 +321,95 @@ macro_rules! impl_queue {
                 )
                 .await
             }
+
+            async fn bind_topic<'q, Q, QE>(
+                self,
+                pattern: &str,
+                queue_name: Q,
+            ) -> Result<(), crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                bind_topic($transform_self!(self), pattern, queue_name).await
+            }
+
+            async fn unbind_topic<'q, Q, QE>(
+                self,
+                pattern: &str,
+                queue_name: Q,
+            ) -> Result<(), crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                unbind_topic($transform_self!(self), pattern, queue_name).await
+            }
+
+            async fn list_topic_bindings<'q, Q, QE>(
+                self,
+                queue_name: Q,
+            ) -> Result<Vec<crate::types::ListTopicBindingsRow>, crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                list_topic_bindings($transform_self!(self), queue_name).await
+            }
+
+            async fn list_topic_bindings_all(
+                self,
+            ) -> Result<Vec<crate::types::ListTopicBindingsRow>, crate::PgmqError> {
+                list_topic_bindings_all($transform_self!(self)).await
+            }
+
+            async fn send_topic<T, H, D>(
+                self,
+                routing_key: &str,
+                message: T,
+                headers: H,
+                delay: D,
+            ) -> Result<i32, crate::PgmqError>
+            where
+                T: Send + serde::Serialize,
+                H: Send + serde::Serialize,
+                D: Send + Into<crate::types::VisibilityTimeoutOffset>,
+            {
+                let delay: crate::types::VisibilityTimeoutOffset = delay.into();
+                let message = serde_json::to_value(message)?;
+                let headers = serde_json::to_value(headers)?;
+                send_topic($transform_self!(self), routing_key, message, headers, delay).await
+            }
+
+            async fn send_batch_topic<'q, T, H, TI, HI, D>(
+                self,
+                routing_key: &str,
+                messages: TI,
+                headers: Option<HI>,
+                delay: D,
+            ) -> Result<Vec<crate::types::SendBatchTopicRow>, crate::PgmqError>
+            where
+                T: serde::Serialize,
+                H: serde::Serialize,
+                TI: Send + IntoIterator<Item = T>,
+                HI: Send + IntoIterator<Item = H>,
+                D: Send + Into<crate::types::VisibilityTimeoutOffset>,
+            {
+                let delay: crate::types::VisibilityTimeoutOffset = delay.into();
+                let messages = crate::util::serialize_list(messages)?;
+                let headers = crate::util::serialize_optional_list(headers)?;
+                send_batch_topic(
+                    $transform_self!(self),
+                    routing_key,
+                    messages,
+                    headers,
+                    delay,
+                )
+                .await
+            }
         }
     };
 }

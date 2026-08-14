@@ -41,3 +41,22 @@ pub const READ_GROUPED_HEAD: &str = "SELECT msg_id, read_ct, enqueued_at, last_r
 
 // language=PostgreSQL
 pub const READ_GROUPED_RR: &str = "SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers FROM pgmq.read_grouped_rr(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer)";
+
+// language=PostgreSQL
+pub const BIND_TOPIC: &str = "SELECT pgmq.bind_topic(pattern=>$1::text, queue_name=>$2::text)";
+
+// language=PostgreSQL
+pub const UNBIND_TOPIC: &str = "SELECT pgmq.unbind_topic(pattern=>$1::text, queue_name=>$2::text)";
+
+// language=PostgreSQL
+pub const LIST_TOPIC_BINDINGS: &str = "SELECT pattern, queue_name, bound_at, compiled_regex from pgmq.list_topic_bindings(queue_name=>$1::text)";
+
+// language=PostgreSQL
+pub const LIST_TOPIC_BINDINGS_ALL: &str =
+    "SELECT pattern, queue_name, bound_at, compiled_regex from pgmq.list_topic_bindings()";
+
+// language=PostgreSQL
+pub const SEND_TOPIC: &str = "SELECT * from pgmq.send_topic(routing_key=>$1::text, msg=>$2::jsonb, headers=>$3::jsonb, delay=>$4::int)";
+
+// language=PostgreSQL
+pub const SEND_BATCH_TOPIC: &str = "SELECT queue_name, msg_id from pgmq.send_batch_topic(routing_key=>$1::text, msgs=>$2::jsonb[], headers=>$3::jsonb[], delay=>$4::integer)";

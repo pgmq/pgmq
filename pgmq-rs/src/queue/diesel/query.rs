@@ -1,8 +1,10 @@
 //! Extracted Diesel SQL query functions. Can be used by both diesel and diesel-async.
 use crate::queue::diesel::sql::{
-    pgmq_archive, pgmq_create, pgmq_create_fifo_index, pgmq_create_fifo_indexes_all, pgmq_delete,
-    pgmq_pop, pgmq_read, pgmq_read_grouped, pgmq_read_grouped_head, pgmq_read_grouped_rr,
-    pgmq_send, pgmq_send_batch, pgmq_set_vt,
+    pgmq_archive, pgmq_bind_topic, pgmq_create, pgmq_create_fifo_index,
+    pgmq_create_fifo_indexes_all, pgmq_delete, pgmq_list_topic_bindings,
+    pgmq_list_topic_bindings_all, pgmq_pop, pgmq_read, pgmq_read_grouped, pgmq_read_grouped_head,
+    pgmq_read_grouped_rr, pgmq_send, pgmq_send_batch, pgmq_send_batch_topic, pgmq_send_topic,
+    pgmq_set_vt, pgmq_unbind_topic,
 };
 use crate::types::{QueueName, VisibilityTimeoutOffset};
 use diesel::dsl::select;
@@ -127,4 +129,49 @@ pub fn read_grouped_rr_query(
         visibility_timeout,
         quantity,
     ))
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn bind_topic_query<'p, 'q>(pattern: &'p str, queue_name: QueueName<'q>) -> _ {
+    let queue_name: &'q str = *queue_name;
+    select(pgmq_bind_topic(pattern, queue_name))
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn unbind_topic_query<'p, 'q>(pattern: &'p str, queue_name: QueueName<'q>) -> _ {
+    let queue_name: &'q str = *queue_name;
+    select(pgmq_unbind_topic(pattern, queue_name))
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn list_topic_bindings_query(queue_name: QueueName<'_>) -> _ {
+    let queue_name: &str = *queue_name;
+    select(pgmq_list_topic_bindings(queue_name))
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn list_topic_bindings_all_query() -> _ {
+    select(pgmq_list_topic_bindings_all())
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn send_topic_query(
+    routing_key: &str,
+    message: serde_json::Value,
+    headers: serde_json::Value,
+    delay: VisibilityTimeoutOffset,
+) -> _ {
+    let delay: i32 = *delay;
+    select(pgmq_send_topic(routing_key, message, headers, delay))
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn send_batch_topic_query(
+    routing_key: &str,
+    messages: Vec<serde_json::Value>,
+    headers: Option<Vec<serde_json::Value>>,
+    delay: VisibilityTimeoutOffset,
+) -> _ {
+    let delay: i32 = *delay;
+    select(pgmq_send_batch_topic(routing_key, messages, headers, delay))
 }
