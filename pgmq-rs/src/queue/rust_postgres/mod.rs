@@ -30,6 +30,30 @@ where
     }
 }
 
+impl TryFrom<::tokio_postgres::Row> for crate::types::ListTopicBindingsRow {
+    type Error = ::tokio_postgres::Error;
+
+    fn try_from(value: ::tokio_postgres::Row) -> Result<Self, Self::Error> {
+        Ok(Self {
+            pattern: value.try_get("pattern")?,
+            queue_name: value.try_get("queue_name")?,
+            bound_at: value.try_get("bound_at")?,
+            compiled_regex: value.try_get("compiled_regex")?,
+        })
+    }
+}
+
+impl TryFrom<::tokio_postgres::Row> for crate::types::SendBatchTopicRow {
+    type Error = ::tokio_postgres::Error;
+
+    fn try_from(value: ::tokio_postgres::Row) -> Result<Self, Self::Error> {
+        Ok(Self {
+            queue_name: value.try_get("queue_name")?,
+            msg_id: value.try_get("msg_id")?,
+        })
+    }
+}
+
 type SqlParam<'a> = (&'a (dyn postgres_types::ToSql + Sync), postgres_types::Type);
 
 /// This macro defines all the functions required to implement [`crate::queue::Queue`] for both
@@ -323,6 +347,119 @@ macro_rules! rust_postgres_functions {
             rows.into_iter()
                 .map(|row| crate::Message::<T, H>::try_from(row))
                 .collect::<Result<Vec<crate::Message<T, H>>, crate::PgmqError>>()
+        }
+
+        async fn bind_topic<C>(
+            executor: $ref_type!(C),
+            pattern: &str,
+            queue_name: crate::types::QueueName<'_>,
+        ) -> Result<(), crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let params: [crate::queue::rust_postgres::SqlParam; _] = [
+                (&pattern, postgres_types::Type::TEXT),
+                (&*queue_name, postgres_types::Type::TEXT),
+            ];
+            let result = executor.execute_typed(crate::queue::sql::BIND_TOPIC, &params);
+            $transform_result!(result)?;
+            Ok(())
+        }
+
+        async fn unbind_topic<C>(
+            executor: $ref_type!(C),
+            pattern: &str,
+            queue_name: crate::types::QueueName<'_>,
+        ) -> Result<(), crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let params: [crate::queue::rust_postgres::SqlParam; _] = [
+                (&pattern, postgres_types::Type::TEXT),
+                (&*queue_name, postgres_types::Type::TEXT),
+            ];
+            let result = executor.execute_typed(crate::queue::sql::UNBIND_TOPIC, &params);
+            $transform_result!(result)?;
+            Ok(())
+        }
+
+        async fn list_topic_bindings<C>(
+            executor: $ref_type!(C),
+            queue_name: crate::types::QueueName<'_>,
+        ) -> Result<Vec<crate::types::ListTopicBindingsRow>, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let params: [crate::queue::rust_postgres::SqlParam; _] =
+                [(&*queue_name, postgres_types::Type::TEXT)];
+            let rows = executor.query_typed(crate::queue::sql::LIST_TOPIC_BINDINGS, &params);
+            let rows = $transform_result!(rows)?;
+            let rows = rows
+                .into_iter()
+                .map(|row| crate::types::ListTopicBindingsRow::try_from(row))
+                .collect::<Result<Vec<crate::types::ListTopicBindingsRow>, _>>()?;
+            Ok(rows)
+        }
+
+        async fn list_topic_bindings_all<C>(
+            executor: $ref_type!(C),
+        ) -> Result<Vec<crate::types::ListTopicBindingsRow>, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let rows = executor.query_typed(crate::queue::sql::LIST_TOPIC_BINDINGS_ALL, &[]);
+            let rows = $transform_result!(rows)?;
+            let rows = rows
+                .into_iter()
+                .map(|row| crate::types::ListTopicBindingsRow::try_from(row))
+                .collect::<Result<Vec<crate::types::ListTopicBindingsRow>, _>>()?;
+            Ok(rows)
+        }
+
+        async fn send_topic<C>(
+            executor: $ref_type!(C),
+            routing_key: &str,
+            message: serde_json::Value,
+            headers: serde_json::Value,
+            delay: crate::types::VisibilityTimeoutOffset,
+        ) -> Result<i32, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let params: [crate::queue::rust_postgres::SqlParam; _] = [
+                (&routing_key, postgres_types::Type::TEXT),
+                (&message, postgres_types::Type::JSONB),
+                (&headers, postgres_types::Type::JSONB),
+                (&*delay, postgres_types::Type::INT4),
+            ];
+            let row = executor.query_typed_one(crate::queue::sql::SEND_TOPIC, &params);
+            let row = $transform_result!(row)?;
+            Ok(row.try_get(0)?)
+        }
+
+        async fn send_batch_topic<C>(
+            executor: $ref_type!(C),
+            routing_key: &str,
+            messages: Vec<serde_json::Value>,
+            headers: Option<Vec<serde_json::Value>>,
+            delay: crate::types::VisibilityTimeoutOffset,
+        ) -> Result<Vec<crate::types::SendBatchTopicRow>, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let params: [crate::queue::rust_postgres::SqlParam; _] = [
+                (&routing_key, postgres_types::Type::TEXT),
+                (&messages, postgres_types::Type::JSONB_ARRAY),
+                (&headers, postgres_types::Type::JSONB_ARRAY),
+                (&*delay, postgres_types::Type::INT4),
+            ];
+            let rows = executor.query_typed(crate::queue::sql::SEND_BATCH_TOPIC, &params);
+            let rows = $transform_result!(rows)?;
+            let rows = rows
+                .into_iter()
+                .map(|row| crate::types::SendBatchTopicRow::try_from(row))
+                .collect::<Result<Vec<crate::types::SendBatchTopicRow>, _>>()?;
+            Ok(rows)
         }
     };
 }

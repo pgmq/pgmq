@@ -501,4 +501,162 @@ pub trait Queue: crate::private::Sealed {
         Q: Send + TryInto<QueueName<'q>, Error = QE>,
         QE: Into<crate::types::queue_name::QueueNameError>,
         VT: Send + Into<VisibilityTimeoutOffset>;
+
+    /// Bind a topic pattern to a queue. Messages matching the pattern will be routed to this queue when
+    /// they're sent with [`Self::send_topic`] or [`Self::send_batch_topic`].
+    ///
+    /// Invokes the `pgmq.bind_topic` SQL function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// queue.bind_topic("topic.*", "my_queue").await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn bind_topic<'q, Q, QE>(self, pattern: &str, queue_name: Q) -> Result<(), PgmqError>
+    where
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: Into<crate::types::queue_name::QueueNameError>;
+
+    /// Remove the topic pattern binding from the queue.
+    ///
+    /// Invokes the `pgmq.unbind_topic` SQL function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// queue.unbind_topic("topic.*", "my_queue").await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn unbind_topic<'q, Q, QE>(self, pattern: &str, queue_name: Q) -> Result<(), PgmqError>
+    where
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: Into<crate::types::queue_name::QueueNameError>;
+
+    /// Returns all topic bindings for the specified `queue_name`.
+    ///
+    /// Invokes the `pgmq.list_topic_bindings` SQL function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// let topic_bindings = queue.list_topic_bindings("my_queue").await?;
+    /// println!("{topic_bindings:?}");
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn list_topic_bindings<'q, Q, QE>(
+        self,
+        queue_name: Q,
+    ) -> Result<Vec<crate::types::ListTopicBindingsRow>, PgmqError>
+    where
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: Into<crate::types::queue_name::QueueNameError>;
+
+    /// Returns all topic bindings across all queues.
+    ///
+    /// Invokes the `pgmq.list_topic_bindings` SQL function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// let topic_bindings = queue.list_topic_bindings_all().await?;
+    /// println!("{topic_bindings:?}");
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn list_topic_bindings_all(
+        self,
+    ) -> Result<Vec<crate::types::ListTopicBindingsRow>, PgmqError>;
+
+    /// Send a message using topic-based routing. Will send the message to every queue that has
+    /// a topic binding that matches the given `routing_key`. Returns the number of queues that
+    /// the message was sent to. If the message ID and/or queues the message was sent to are needed,
+    /// use [`Self::send_batch_topic`] instead.
+    ///
+    /// Invokes the `pgmq.send_topic` SQL function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// // Send an owned message with no headers and no delay
+    /// let msg = serde_json::json!({"a": 1234});
+    /// queue.send_topic("topic", msg, (), 0).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// // Send a message reference with headers and a delay
+    /// let msg = serde_json::json!({"a": 1234});
+    /// queue.send_topic("topic", &msg, serde_json::json!({"headerA": 5678}), 10).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn send_topic<T, H, D>(
+        self,
+        routing_key: &str,
+        message: T,
+        headers: H,
+        delay: D,
+    ) -> Result<i32, PgmqError>
+    where
+        T: Send + serde::Serialize,
+        H: Send + serde::Serialize,
+        D: Send + Into<VisibilityTimeoutOffset>;
+
+    /// Send multiple messages using topic-based routing. Will send the messages to every queue
+    /// that has a topic binding that matches the given `routing_key`.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// # use pgmq::types::EMPTY_HEADERS;
+    /// // Send owned messages with no headers and no delay
+    /// let msgs = [serde_json::json!({"a": 1}), serde_json::json!({"a": 2})];
+    /// queue.send_batch_topic("topic", msgs, EMPTY_HEADERS, 0).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// # use std::time::Duration;
+    /// // Send a slice of messages with headers and a delay
+    /// let msgs = [serde_json::json!({"a": 1}), serde_json::json!({"a": 2})];
+    /// let headers = [serde_json::json!({"headerA": 3}), serde_json::json!({"headerA": 4})];
+    /// queue.send_batch_topic("topic", &msgs, Some(&headers), Duration::from_secs(10)).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn send_batch_topic<'q, T, H, TI, HI, D>(
+        self,
+        routing_key: &str,
+        messages: TI,
+        headers: Option<HI>,
+        delay: D,
+    ) -> Result<Vec<crate::types::SendBatchTopicRow>, PgmqError>
+    where
+        T: serde::Serialize,
+        H: serde::Serialize,
+        TI: Send + IntoIterator<Item = T>,
+        HI: Send + IntoIterator<Item = H>,
+        D: Send + Into<VisibilityTimeoutOffset>;
 }

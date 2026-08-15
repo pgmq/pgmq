@@ -59,6 +59,46 @@ where
     }
 }
 
+type PgListTopicBindingsRow = diesel::sql_types::Record<(
+    // pattern
+    Text,
+    // queue_name
+    Text,
+    // bound_at
+    Timestamptz,
+    // compiled_regex
+    Text,
+)>;
+
+impl FromSql<PgListTopicBindingsRow, Pg> for crate::types::ListTopicBindingsRow {
+    fn from_sql(bytes: PgValue) -> diesel::deserialize::Result<Self> {
+        let (pattern, queue_name, bound_at, compiled_regex) =
+            FromSql::<PgListTopicBindingsRow, Pg>::from_sql(bytes)?;
+
+        Ok(Self {
+            pattern,
+            queue_name,
+            bound_at,
+            compiled_regex,
+        })
+    }
+}
+
+type PgSendBatchTopicRow = diesel::sql_types::Record<(
+    // queue_name
+    Text,
+    // msg_id
+    BigInt,
+)>;
+
+impl FromSql<PgSendBatchTopicRow, Pg> for crate::types::SendBatchTopicRow {
+    fn from_sql(bytes: PgValue) -> diesel::deserialize::Result<Self> {
+        let (queue_name, msg_id) = FromSql::<PgSendBatchTopicRow, Pg>::from_sql(bytes)?;
+
+        Ok(Self { queue_name, msg_id })
+    }
+}
+
 #[declare_sql_function]
 extern "SQL" {
     #[sql_name = "pgmq.create"]
@@ -104,4 +144,27 @@ extern "SQL" {
 
     #[sql_name = "pgmq.read_grouped_rr"]
     fn pgmq_read_grouped_rr(queue_name: Text, vt: Integer, qty: Integer) -> PgMessage;
+
+    #[sql_name = "pgmq.bind_topic"]
+    fn pgmq_bind_topic(pattern: Text, queue_name: Text);
+
+    #[sql_name = "pgmq.unbind_topic"]
+    fn pgmq_unbind_topic(pattern: Text, queue_name: Text);
+
+    #[sql_name = "pgmq.list_topic_bindings"]
+    fn pgmq_list_topic_bindings(queue_name: Text) -> PgListTopicBindingsRow;
+
+    #[sql_name = "pgmq.list_topic_bindings"]
+    fn pgmq_list_topic_bindings_all() -> PgListTopicBindingsRow;
+
+    #[sql_name = "pgmq.send_topic"]
+    fn pgmq_send_topic(routing_key: Text, msg: Jsonb, headers: Jsonb, delay: Integer) -> Integer;
+
+    #[sql_name = "pgmq.send_batch_topic"]
+    fn pgmq_send_batch_topic(
+        routing_key: Text,
+        msgs: Array<Jsonb>,
+        headers: Nullable<Array<Jsonb>>,
+        delay: Integer,
+    ) -> PgSendBatchTopicRow;
 }

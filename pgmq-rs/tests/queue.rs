@@ -236,6 +236,17 @@ async fn create_invalid_character(conn_details: ConnDetails, queue: impl Queue) 
 }
 
 #[pgmq_test_macro::queue_test]
+async fn send_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result = queue.send("invalid-queue-name", (), (), 0).await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
 async fn read(conn_details: ConnDetails, queue: impl Queue) {
     queue.create(QUEUE).await.unwrap();
     let msg = TestMessage::new();
@@ -807,4 +818,124 @@ async fn read_grouped_rr_diff_groups(conn_details: ConnDetails, queue: impl Queu
         read_msgs.first().unwrap().message.b,
         read_msgs.get(1).unwrap().message.b
     );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn bind_topic_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result: Result<_, _> = queue.bind_topic("pattern", "invalid-queue-name").await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn unbind_topic_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result: Result<_, _> = queue.unbind_topic("pattern", "invalid-queue-name").await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn list_topic_bindings_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result: Result<_, _> = queue.list_topic_bindings("invalid-queue-name").await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn bind_and_list_topics(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+    let pattern = format!("{QUEUE}.*");
+
+    queue.bind_topic(&pattern, QUEUE).await.unwrap();
+    let topic_binding = queue
+        .list_topic_bindings(QUEUE)
+        .await
+        .unwrap()
+        .into_iter()
+        .next();
+    assert!(topic_binding.is_some());
+    let topic_binding = topic_binding.unwrap();
+    assert_eq!(topic_binding.queue_name, QUEUE);
+    assert_eq!(topic_binding.pattern, pattern);
+    assert_eq!(topic_binding.compiled_regex, format!("^{QUEUE}\\.[^.]+$"));
+}
+
+#[pgmq_test_macro::queue_test]
+async fn bind_and_list_topics_all(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+    let pattern = format!("{QUEUE}.*");
+
+    queue.bind_topic(&pattern, QUEUE).await.unwrap();
+    let topic_bindings = queue.list_topic_bindings_all().await.unwrap();
+    let topic_binding = topic_bindings
+        .into_iter()
+        .find(|binding| binding.queue_name == QUEUE)
+        .unwrap();
+    assert_eq!(topic_binding.queue_name, QUEUE);
+    assert_eq!(topic_binding.pattern, pattern);
+    assert_eq!(topic_binding.compiled_regex, format!("^{QUEUE}\\.[^.]+$"));
+}
+
+#[pgmq_test_macro::queue_test]
+async fn unbind_topic(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+    let pattern = format!("{QUEUE}.*");
+
+    queue.bind_topic(&pattern, QUEUE).await.unwrap();
+    queue.unbind_topic(&pattern, QUEUE).await.unwrap();
+    let topic_binding = queue
+        .list_topic_bindings(QUEUE)
+        .await
+        .unwrap()
+        .into_iter()
+        .next();
+    assert!(topic_binding.is_none());
+}
+
+#[pgmq_test_macro::queue_test]
+async fn send_topic(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+    let pattern = format!("{QUEUE}.*");
+
+    queue.bind_topic(&pattern, QUEUE).await.unwrap();
+
+    let msg = TestMessage::new();
+    let matched_queues = queue
+        .send_topic(&format!("{QUEUE}.foo"), &msg, Option::<&()>::None, 0)
+        .await
+        .unwrap();
+    assert_eq!(1, matched_queues);
+
+    let read_msg: Vec<Message<TestMessage>> = queue.read(QUEUE, 100, 1).await.unwrap();
+    assert!(!read_msg.is_empty());
+}
+
+#[pgmq_test_macro::queue_test]
+async fn send_batch_topic(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+    let pattern = format!("{QUEUE}.*");
+
+    queue.bind_topic(&pattern, QUEUE).await.unwrap();
+
+    let msgs = [TestMessage::new(), TestMessage::new()];
+    let send_batch_rows = queue
+        .send_batch_topic(&format!("{QUEUE}.foo"), &msgs, EMPTY_HEADERS, 0)
+        .await
+        .unwrap();
+    assert_eq!(msgs.len(), send_batch_rows.len());
+
+    let read_msgs: Vec<Message<TestMessage>> = queue.read(QUEUE, 100, 2).await.unwrap();
+    assert_eq!(msgs.len(), read_msgs.len());
 }

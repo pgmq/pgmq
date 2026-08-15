@@ -1149,14 +1149,8 @@ impl PGMQueueExt {
         queue_name: &str,
         executor: E,
     ) -> Result<(), PgmqError> {
-        check_queue_name(queue_name)?;
-        sqlx::query("SELECT pgmq.bind_topic(pattern=>$1::text, queue_name=>$2::text)")
-            .bind(pattern)
-            .bind(queue_name)
-            .execute(executor)
-            .await?;
-
-        Ok(())
+        let queue_name = queue_name.try_into()?;
+        crate::queue::sqlx::bind_topic(executor, pattern, queue_name).await
     }
 
     pub async fn bind_topic(&self, pattern: &str, queue_name: &str) -> Result<(), PgmqError> {
@@ -1170,14 +1164,8 @@ impl PGMQueueExt {
         queue_name: &str,
         executor: E,
     ) -> Result<(), PgmqError> {
-        check_queue_name(queue_name)?;
-        sqlx::query("SELECT pgmq.unbind_topic(pattern=>$1::text, queue_name=>$2::text)")
-            .bind(pattern)
-            .bind(queue_name)
-            .execute(executor)
-            .await?;
-
-        Ok(())
+        let queue_name = queue_name.try_into()?;
+        crate::queue::sqlx::unbind_topic(executor, pattern, queue_name).await
     }
 
     pub async fn unbind_topic(&self, pattern: &str, queue_name: &str) -> Result<(), PgmqError> {
@@ -1190,18 +1178,8 @@ impl PGMQueueExt {
         queue_name: &str,
         executor: E,
     ) -> Result<Vec<ListTopicBindingsRow>, PgmqError> {
-        let rows = sqlx::query(
-            "SELECT pattern, queue_name, bound_at, compiled_regex from pgmq.list_topic_bindings(queue_name=>$1::text);",
-        )
-            .bind(queue_name)
-            .fetch_all(executor)
-            .await?;
-
-        let rows = rows
-            .into_iter()
-            .map(|row| ListTopicBindingsRow::from_row(&row))
-            .collect::<Result<Vec<ListTopicBindingsRow>, _>>()?;
-        Ok(rows)
+        let queue_name = queue_name.try_into()?;
+        crate::queue::sqlx::list_topic_bindings(executor, queue_name).await
     }
 
     pub async fn list_topic_bindings(
@@ -1219,17 +1197,7 @@ impl PGMQueueExt {
         &self,
         executor: E,
     ) -> Result<Vec<ListTopicBindingsRow>, PgmqError> {
-        let rows = sqlx::query(
-            "SELECT pattern, queue_name, bound_at, compiled_regex from pgmq.list_topic_bindings();",
-        )
-        .fetch_all(executor)
-        .await?;
-
-        let rows = rows
-            .into_iter()
-            .map(|row| ListTopicBindingsRow::from_row(&row))
-            .collect::<Result<Vec<ListTopicBindingsRow>, _>>()?;
-        Ok(rows)
+        crate::queue::sqlx::list_topic_bindings_all(executor).await
     }
 
     pub async fn list_topic_bindings_all(&self) -> Result<Vec<ListTopicBindingsRow>, PgmqError> {
@@ -1256,15 +1224,7 @@ impl PGMQueueExt {
         let delay: VisibilityTimeoutOffset = delay.into();
         let message = serde_json::to_value(message)?;
         let headers = serde_json::to_value(headers)?;
-        let matched_queue_count = sqlx::query_scalar("SELECT * from pgmq.send_topic(routing_key=>$1::text, msg=>$2::jsonb, headers=>$3::jsonb, delay=>$4::int)")
-            .bind(routing_key)
-            .bind(message)
-            .bind(headers)
-            .bind(delay)
-            .fetch_one(executor)
-            .await?;
-
-        Ok(matched_queue_count)
+        crate::queue::sqlx::send_topic(executor, routing_key, message, headers, delay).await
     }
 
     pub async fn send_topic<T: Serialize, H: Serialize>(
@@ -1296,21 +1256,7 @@ impl PGMQueueExt {
         let delay: VisibilityTimeoutOffset = delay.into();
         let messages = serialize_list(messages)?;
         let headers = serialize_optional_list(headers)?;
-        let sent = sqlx::query(
-            "SELECT queue_name, msg_id from pgmq.send_batch_topic(routing_key=>$1::text, msgs=>$2::jsonb[], headers=>$3::jsonb[], delay=>$4::integer);",
-        )
-            .bind(routing_key)
-            .bind(messages)
-            .bind(headers)
-            .bind(delay)
-            .fetch_all(executor)
-            .await?;
-
-        let sent = sent
-            .into_iter()
-            .map(|row| SendBatchTopicRow::from_row(&row))
-            .collect::<Result<Vec<SendBatchTopicRow>, _>>()?;
-        Ok(sent)
+        crate::queue::sqlx::send_batch_topic(executor, routing_key, messages, headers, delay).await
     }
 
     pub async fn send_batch_topic<T: Serialize, H: Serialize>(
