@@ -1,7 +1,7 @@
 Install PGMQ using the SQL-only approach. This method will perform a fresh installation if PGMQ is not installed, or
 it will upgrade PGMQ to the latest version if it was previously installed and there's a newer version available.
 
-If the previous SQL-only installation approach (in crate version <= 0.32.1) was used to install PGMQ,
+If the previous SQL-only installation approach (in crate version < 0.33.0) was used to install PGMQ,
 run [`crate::PGMQueueExt::init_migrations_table`]/[`crate::PGMQueueExt::init_migrations_table_with_cxn`]/[
 `crate::install::init_migrations_table`] before running this method.
 

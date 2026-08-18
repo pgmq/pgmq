@@ -92,6 +92,7 @@ To update PGMQ versions, follow the instructions in [UPDATING.md](pgmq-extension
 Community
 
 - [.NET](https://github.com/brianpursley/Npgmq)
+- [C++](https://github.com/lite-tx/pgmq-cpp)
 - [Dart](https://github.com/Ofceab-Studio/dart_pgmq)
 - [Elixir + Broadway](https://github.com/v0idpwn/off_broadway_pgmq)
 - [Elixir](https://github.com/v0idpwn/pgmq-elixir)
@@ -356,6 +357,7 @@ Currently, officially using pgmq:
 3. [Sprinters](https://sprinters.sh) [[@sprinters-sh](https://github.com/sprinters-sh)]
 4. [pgflow](https://pgflow.dev) [[@pgflow-dev/pgflow](https://github.com/pgflow-dev/pgflow)]
 5. [pgflow for Elixir](https://github.com/agoodway/pgflow) [[@agoodway/pgflow](https://github.com/agoodway/pgflow)]
+6. [FFmpegLab Server](https://ffmpeglab.com) [[@ffmpeglab/server](https://github.com/ffmpeglab/server)]
 
 ## ✨ Contributors
 

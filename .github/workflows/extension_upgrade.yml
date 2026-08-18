@@ -38,6 +38,12 @@ jobs:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
+      - name: Install minimal rust toolchain
+        if: ${{ matrix.install == 'sql' }}
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          profile: minimal
+          toolchain: stable
 
       - name: Get current branch
         id: current-version
