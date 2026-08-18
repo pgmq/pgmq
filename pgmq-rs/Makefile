@@ -20,12 +20,24 @@ test:
 	psql ${DATABASE_URL} -c "CREATE DATABASE pgmq_ext_test;"
 	sqlx migrate run --database-url ${EXTENSION_DB}
 	cargo test --lib --all-features
+	cargo test --doc --all-features
 	cargo test
+
+test.doc:
+	cargo test --doc --all-features
 
 # Run the tests for `PGMQueueExt` with the embedded SQL-only installation approach. Assumes the DB is already running
 # and `pg_partman` is an available extension in the DB.
 test.pgmqext_sql:
 	cargo test --features install-sql-embedded --test pg_ext_integration_test
+
+# Run the tests for the all of the supported `Queue` trait implementations
+test.queue:
+	cargo test --test queue --features queue-experimental,sqlx,rust-postgres,tokio-postgres,diesel-sync,diesel-sync-pool,diesel-async,diesel-async-pool
+
+# Run the tests for the all of the supported `Queue` trait implementations using the SQL-only installation approach
+test.queue_sql:
+	cargo test --test queue --features install-sql-embedded,queue-experimental,sqlx,rust-postgres,tokio-postgres,diesel-sync,diesel-sync-pool,diesel-async,diesel-async-pool
 
 setup.env:
 	sqlx migrate run --database-url ${DATABASE_URL}
@@ -55,3 +67,9 @@ check.docs:
 # with version "1.0.0", ensure we don’t accidentally depend on a feature added in version "1.5.0".
 check.minimal-versions:
 	cargo minimal-versions check --direct --all-features
+
+check.msrv:
+	cargo msrv verify --all-features
+
+check.each_feature:
+	cargo hack build --each-feature

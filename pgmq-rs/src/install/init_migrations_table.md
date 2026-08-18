@@ -1,5 +1,5 @@
 Initialize the DB table that tracks which SQL scripts have been run for the SQL-only installation method. This is
-useful in order to switch from the previous SQL-only installation approach (in crate version <= 0.32.1) to the new
+useful in order to switch from the previous SQL-only installation approach (in crate version < 0.33.0) to the new
 approach that tracks which scripts have been run. This method is not needed for fresh installations, or if the new
 SQL-only installation method was used to install PGMQ.
 

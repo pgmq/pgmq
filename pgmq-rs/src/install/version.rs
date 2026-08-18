@@ -14,6 +14,7 @@ static VERSION_REGEX: OnceLock<Result<Regex, regex::Error>> = OnceLock::new();
 
 /// Struct to represent a basic semver version, e.g. `1.2.3`.
 #[derive(Debug, Clone, Eq, PartialEq, Hash)]
+#[non_exhaustive]
 pub struct Version {
     /// The first segment of the version string, e.g., for version `1.2.3`, this would be set to `1`
     pub major: u32,
@@ -40,7 +41,7 @@ where
 {
     fn encode_by_ref(
         &self,
-        buf: &mut <DB as Database>::ArgumentBuffer<'q>,
+        buf: &mut <DB as Database>::ArgumentBuffer,
     ) -> Result<IsNull, BoxDynError> {
         let value = self.to_string();
         <String as sqlx::Encode<'_, DB>>::encode_by_ref(&value, buf)

@@ -4,7 +4,7 @@ use crate::install::version::Version;
 use crate::PgmqError;
 use futures_util::StreamExt;
 use regex::Regex;
-use sqlx::{Executor, Postgres, Transaction};
+use sqlx::{AssertSqlSafe, Executor, Postgres, Transaction};
 use std::borrow::Cow;
 use std::cmp::Ordering;
 use std::str::FromStr;
@@ -17,6 +17,7 @@ pub static INIT_SCRIPT_NAME: &str = "pgmq.sql";
 static MIGRATION_SCRIPT_NAME_REGEX: OnceLock<Result<Regex, regex::Error>> = OnceLock::new();
 
 #[derive(Debug, Eq, PartialEq)]
+#[non_exhaustive]
 pub struct ParsedScriptName {
     pub original: String,
     pub from: Version,
@@ -79,6 +80,7 @@ pub trait ScriptFetcher {
 
 /// Struct to contain metadata for a pgmq extension migration script along with its content.
 #[derive(Debug, Eq)]
+#[non_exhaustive]
 pub struct MigrationScript {
     pub name: ParsedScriptName,
     pub content: Cow<'static, str>,
@@ -88,7 +90,7 @@ impl MigrationScript {
     /// Run this script and mark it as applied in the DB.
     pub async fn run(&self, txn: &mut Transaction<'static, Postgres>) -> Result<(), PgmqError> {
         {
-            let mut stream = txn.fetch_many(self.content.as_ref());
+            let mut stream = txn.fetch_many(AssertSqlSafe(self.content.as_ref()));
             while let Some(step) = stream.next().await {
                 let _ = step?;
             }

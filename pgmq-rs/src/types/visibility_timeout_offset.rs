@@ -1,4 +1,3 @@
-use sqlx::{Database, Encode, Type};
 use std::ops::Deref;
 
 /// Type to represent an offset that will be applied to the current timestamp in order to update
@@ -18,70 +17,71 @@ use std::ops::Deref;
 ///
 /// ## Convert from `i32`
 /// ```
-/// # use pgmq::pg_ext::VisibilityTimeoutOffset;
+/// # use pgmq::types::VisibilityTimeoutOffset;
 /// assert_eq!(10i32, *VisibilityTimeoutOffset::from(10i32));
 /// ```
 ///
 /// ## Convert from `u32`
 /// ```
-/// # use pgmq::pg_ext::VisibilityTimeoutOffset;
+/// # use pgmq::types::VisibilityTimeoutOffset;
 /// assert_eq!(10i32, *VisibilityTimeoutOffset::from(10u32));
 /// ```
 ///
 /// ## Convert from `u32` -- capped
 /// ```
-/// # use pgmq::pg_ext::VisibilityTimeoutOffset;
+/// # use pgmq::types::VisibilityTimeoutOffset;
 /// assert_eq!(i32::MAX, *VisibilityTimeoutOffset::from(u32::MAX));
 /// ```
 ///
 /// ## Convert from `i64`
 /// ```
-/// # use pgmq::pg_ext::VisibilityTimeoutOffset;
+/// # use pgmq::types::VisibilityTimeoutOffset;
 /// assert_eq!(10i32, *VisibilityTimeoutOffset::from(10i64));
 /// ```
 ///
 /// ## Convert from `i64` -- capped max
 /// ```
-/// # use pgmq::pg_ext::VisibilityTimeoutOffset;
+/// # use pgmq::types::VisibilityTimeoutOffset;
 /// assert_eq!(i32::MAX, *VisibilityTimeoutOffset::from(i64::MAX));
 /// ```
 ///
 /// ## Convert from `i64` -- capped min
 /// ```
-/// # use pgmq::pg_ext::VisibilityTimeoutOffset;
+/// # use pgmq::types::VisibilityTimeoutOffset;
 /// assert_eq!(i32::MIN, *VisibilityTimeoutOffset::from(i64::MIN));
 /// ```
 ///
 /// ## Convert from [`chrono::Duration`]
 /// ```
-/// # use pgmq::pg_ext::VisibilityTimeoutOffset;
+/// # use pgmq::types::VisibilityTimeoutOffset;
 /// assert_eq!(10i32, *VisibilityTimeoutOffset::from(chrono::Duration::seconds(10)));
 /// ```
 ///
 /// ## Convert from [`chrono::Duration`] -- capped max
 /// ```
-/// # use pgmq::pg_ext::VisibilityTimeoutOffset;
+/// # use pgmq::types::VisibilityTimeoutOffset;
 /// assert_eq!(VisibilityTimeoutOffset::MAX, VisibilityTimeoutOffset::from(chrono::Duration::MAX));
 /// ```
 ///
 /// ## Convert from [`chrono::Duration`] -- capped min
 /// ```
-/// # use pgmq::pg_ext::VisibilityTimeoutOffset;
+/// # use pgmq::types::VisibilityTimeoutOffset;
 /// assert_eq!(VisibilityTimeoutOffset::MAX, VisibilityTimeoutOffset::from(chrono::Duration::MAX));
 /// ```
 ///
 /// ## Convert from [`std::time::Duration`]
 /// ```
-/// # use pgmq::pg_ext::VisibilityTimeoutOffset;
+/// # use pgmq::types::VisibilityTimeoutOffset;
 /// assert_eq!(10i32, *VisibilityTimeoutOffset::from(std::time::Duration::from_secs(10)));
 /// ```
 ///
 /// ## Convert from [`std::time::Duration`] -- capped max
 /// ```
-/// # use pgmq::pg_ext::VisibilityTimeoutOffset;
+/// # use pgmq::types::VisibilityTimeoutOffset;
 /// assert_eq!(VisibilityTimeoutOffset::MAX, VisibilityTimeoutOffset::from(std::time::Duration::MAX));
 /// ```
-#[derive(Clone, Copy, Debug, PartialEq, Encode)]
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[cfg_attr(feature = "sqlx", derive(sqlx::Encode))]
 pub struct VisibilityTimeoutOffset(i32);
 
 impl VisibilityTimeoutOffset {
@@ -158,10 +158,11 @@ Manually implement `sqlx::Type` because the derive macro automatically implement
 `sqlx::Encode` and `sqlx::Decode`, but we only need `sqlx::Encode` for this type.
 However, `sqlx::Encode` is implemented via a derive macro.
 */
-impl<DB: Database> Type<DB> for VisibilityTimeoutOffset
+#[cfg(feature = "sqlx")]
+impl<DB: sqlx::Database> sqlx::Type<DB> for VisibilityTimeoutOffset
 where
-    i32: Type<DB>,
-    std::time::Duration: Type<DB>,
+    i32: sqlx::Type<DB>,
+    std::time::Duration: sqlx::Type<DB>,
 {
     fn type_info() -> DB::TypeInfo {
         <i32 as sqlx::Type<DB>>::type_info()

@@ -1,0 +1,417 @@
+//! Macros to help with implementing the [`crate::queue::Queue`] trait.
+
+/// "Identity" transformation macro -- simply returns the provided input.
+macro_rules! identity_macro {
+    ($input:tt) => {
+        $input
+    };
+}
+// Re-export the macro for use within this crate
+pub(crate) use identity_macro;
+
+/// `await`s the provided value
+macro_rules! transform_result_async {
+    ($result:tt) => {
+        $result.await
+    };
+}
+// Re-export the macro for use within this crate
+pub(crate) use transform_result_async;
+
+/// Helper macro to implement the [`crate::queue::Queue`] trait for a type. Assumes that async
+/// functions exist in scope with the same names as the trait's methods. The functions' parameters
+/// should match the trait's parameters as well, with the following exceptions:
+///
+/// 1. Concrete [`crate::types::QueueName`] and
+///    [`crate::types::VisibilityTimeoutOffset`] instances are passed
+///    instead of a generic parameter (the generic parameter has already been converted)
+/// 2. Serializable parameters (e.g., message and headers) are passed as pre-serialized
+///    [`serde_json::Value`] instances.
+/*
+Note: Ideally we would be able to implement `Queue` using blanket implementations, e.g.:
+
+```rust
+impl<T> Queue for T where T: for<'c> sqlx::Executor<'c, Database = sqlx::Postgres> {
+    ...
+}
+
+impl<T> Queue for T where T: diesel_async::AsyncConnection<Backend = diesel::pg::Pg> {
+    ...
+}
+```
+
+This works if we only have a single blanket implementation. However, since we want to support
+multiple external traits' executor types, we would need multiple blanket implementations, which
+results in a "conflicting implementations" compilation error. This is the case even if we add a
+"sealed" trait for each external crate's blanket implementation, e.g., something like this:
+
+```rust
+mod sqlx_impl {
+    trait SqlxSealed {}
+    impl SqlxSealed for &mut sqlx::PgConnection {}
+    impl<T> Queue for T where T: SqlxSealed + for<'c> sqlx::Executor<'c, Database = sqlx::Postgres> {
+        ...
+    }
+}
+
+mod diesel_impl {
+    trait DieselSealed {}
+    impl DieselSealed for &mut diesel::PgConnection {}
+    impl<T> Queue for T where
+        T: DieselSealed + diesel::connection::LoadConnection<Backend = diesel::pg::Pg>
+    {
+        ...
+    }
+}
+```
+
+So, instead of using a blanket implementation, the `impl_queue` macro can be used to reduce the
+boilerplate / code duplication required to implement the `Queue` trait for all the external
+types we want to support.
+ */
+macro_rules! impl_queue {
+    (
+        /// The type to implement the `Queue` trait for.
+        $for_type:ty,
+        /// Expression used to transform `self` into an implementation-specific executor type.
+        $transform_self:tt
+    ) => {
+        impl crate::private::Sealed for $for_type {}
+
+        #[async_trait::async_trait]
+        impl crate::queue::Queue for $for_type {
+            async fn create<'q, Q, QE>(self, queue_name: Q) -> Result<(), crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                create($transform_self!(self), queue_name).await
+            }
+
+            async fn send<'q, T, H, Q, QE, D>(
+                self,
+                queue_name: Q,
+                message: T,
+                headers: H,
+                delay: D,
+            ) -> Result<i64, crate::PgmqError>
+            where
+                T: Send + serde::Serialize,
+                H: Send + serde::Serialize,
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+
+                D: Send + Into<crate::types::VisibilityTimeoutOffset>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                let delay: crate::types::VisibilityTimeoutOffset = delay.into();
+                let message = serde_json::to_value(message)?;
+                let headers = serde_json::to_value(headers)?;
+                send($transform_self!(self), queue_name, message, headers, delay).await
+            }
+
+            async fn send_batch<'q, T, H, TI, HI, Q, QE, D>(
+                self,
+                queue_name: Q,
+                messages: TI,
+                headers: Option<HI>,
+                delay: D,
+            ) -> Result<Vec<i64>, crate::PgmqError>
+            where
+                T: serde::Serialize,
+                H: serde::Serialize,
+                TI: Send + IntoIterator<Item = T>,
+                HI: Send + IntoIterator<Item = H>,
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+
+                D: Send + Into<crate::types::VisibilityTimeoutOffset>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                let delay: crate::types::VisibilityTimeoutOffset = delay.into();
+                let messages = crate::util::serialize_list(messages)?;
+                let headers = crate::util::serialize_optional_list(headers)?;
+                send_batch($transform_self!(self), queue_name, messages, headers, delay).await
+            }
+
+            async fn read<'q, T, H, Q, QE, VT>(
+                self,
+                queue_name: Q,
+                visibility_timeout: VT,
+                quantity: i32,
+            ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+            where
+                T: 'static + Send + for<'de> serde::Deserialize<'de>,
+                H: 'static + Send + for<'de> serde::Deserialize<'de>,
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+
+                VT: Send + Into<crate::types::VisibilityTimeoutOffset>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                let visibility_timeout: crate::types::VisibilityTimeoutOffset =
+                    visibility_timeout.into();
+                read(
+                    $transform_self!(self),
+                    queue_name,
+                    visibility_timeout,
+                    quantity,
+                )
+                .await
+            }
+
+            async fn pop<'q, T, H, Q, QE>(
+                self,
+                queue_name: Q,
+                quantity: i32,
+            ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+            where
+                T: 'static + Send + for<'de> serde::Deserialize<'de>,
+                H: 'static + Send + for<'de> serde::Deserialize<'de>,
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                pop($transform_self!(self), queue_name, quantity).await
+            }
+
+            async fn archive<'q, Q, QE>(
+                self,
+                queue_name: Q,
+                msg_ids: &[i64],
+            ) -> Result<Vec<i64>, crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                archive($transform_self!(self), queue_name, msg_ids).await
+            }
+
+            async fn delete<'q, Q, QE>(
+                self,
+                queue_name: Q,
+                msg_ids: &[i64],
+            ) -> Result<Vec<i64>, crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                delete($transform_self!(self), queue_name, msg_ids).await
+            }
+
+            async fn set_vt<'q, T, H, Q, QE, VT>(
+                self,
+                queue_name: Q,
+                msg_ids: &[i64],
+                visibility_timeout: VT,
+            ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+            where
+                T: 'static + Send + for<'de> serde::Deserialize<'de>,
+                H: 'static + Send + for<'de> serde::Deserialize<'de>,
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+
+                VT: Send + Into<crate::types::VisibilityTimeoutOffset>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                let visibility_timeout: crate::types::VisibilityTimeoutOffset =
+                    visibility_timeout.into();
+                set_vt(
+                    $transform_self!(self),
+                    queue_name,
+                    msg_ids,
+                    visibility_timeout,
+                )
+                .await
+            }
+
+            async fn create_fifo_index<'q, Q, QE>(
+                self,
+                queue_name: Q,
+            ) -> Result<(), crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                create_fifo_index($transform_self!(self), queue_name).await
+            }
+
+            async fn create_fifo_indexes_all(self) -> Result<(), crate::PgmqError> {
+                create_fifo_indexes_all($transform_self!(self)).await
+            }
+
+            async fn read_grouped<'q, T, H, Q, QE, VT>(
+                self,
+                queue_name: Q,
+                visibility_timeout: VT,
+                quantity: i32,
+            ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+            where
+                T: 'static + Send + for<'de> serde::Deserialize<'de>,
+                H: 'static + Send + for<'de> serde::Deserialize<'de>,
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+
+                VT: Send + Into<crate::types::VisibilityTimeoutOffset>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                let visibility_timeout: crate::types::VisibilityTimeoutOffset =
+                    visibility_timeout.into();
+                read_grouped(
+                    $transform_self!(self),
+                    queue_name,
+                    visibility_timeout,
+                    quantity,
+                )
+                .await
+            }
+
+            async fn read_grouped_head<'q, T, H, Q, QE, VT>(
+                self,
+                queue_name: Q,
+                visibility_timeout: VT,
+                quantity: i32,
+            ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+            where
+                T: 'static + Send + for<'de> serde::Deserialize<'de>,
+                H: 'static + Send + for<'de> serde::Deserialize<'de>,
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+
+                VT: Send + Into<crate::types::VisibilityTimeoutOffset>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                let visibility_timeout: crate::types::VisibilityTimeoutOffset =
+                    visibility_timeout.into();
+                read_grouped_head(
+                    $transform_self!(self),
+                    queue_name,
+                    visibility_timeout,
+                    quantity,
+                )
+                .await
+            }
+
+            async fn read_grouped_rr<'q, T, H, Q, QE, VT>(
+                self,
+                queue_name: Q,
+                visibility_timeout: VT,
+                quantity: i32,
+            ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+            where
+                T: 'static + Send + for<'de> serde::Deserialize<'de>,
+                H: 'static + Send + for<'de> serde::Deserialize<'de>,
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+
+                VT: Send + Into<crate::types::VisibilityTimeoutOffset>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                let visibility_timeout: crate::types::VisibilityTimeoutOffset =
+                    visibility_timeout.into();
+                read_grouped_rr(
+                    $transform_self!(self),
+                    queue_name,
+                    visibility_timeout,
+                    quantity,
+                )
+                .await
+            }
+
+            async fn bind_topic<'q, Q, QE>(
+                self,
+                pattern: &str,
+                queue_name: Q,
+            ) -> Result<(), crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                bind_topic($transform_self!(self), pattern, queue_name).await
+            }
+
+            async fn unbind_topic<'q, Q, QE>(
+                self,
+                pattern: &str,
+                queue_name: Q,
+            ) -> Result<(), crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                unbind_topic($transform_self!(self), pattern, queue_name).await
+            }
+
+            async fn list_topic_bindings<'q, Q, QE>(
+                self,
+                queue_name: Q,
+            ) -> Result<Vec<crate::types::ListTopicBindingsRow>, crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                list_topic_bindings($transform_self!(self), queue_name).await
+            }
+
+            async fn list_topic_bindings_all(
+                self,
+            ) -> Result<Vec<crate::types::ListTopicBindingsRow>, crate::PgmqError> {
+                list_topic_bindings_all($transform_self!(self)).await
+            }
+
+            async fn send_topic<T, H, D>(
+                self,
+                routing_key: &str,
+                message: T,
+                headers: H,
+                delay: D,
+            ) -> Result<i32, crate::PgmqError>
+            where
+                T: Send + serde::Serialize,
+                H: Send + serde::Serialize,
+                D: Send + Into<crate::types::VisibilityTimeoutOffset>,
+            {
+                let delay: crate::types::VisibilityTimeoutOffset = delay.into();
+                let message = serde_json::to_value(message)?;
+                let headers = serde_json::to_value(headers)?;
+                send_topic($transform_self!(self), routing_key, message, headers, delay).await
+            }
+
+            async fn send_batch_topic<'q, T, H, TI, HI, D>(
+                self,
+                routing_key: &str,
+                messages: TI,
+                headers: Option<HI>,
+                delay: D,
+            ) -> Result<Vec<crate::types::SendBatchTopicRow>, crate::PgmqError>
+            where
+                T: serde::Serialize,
+                H: serde::Serialize,
+                TI: Send + IntoIterator<Item = T>,
+                HI: Send + IntoIterator<Item = H>,
+                D: Send + Into<crate::types::VisibilityTimeoutOffset>,
+            {
+                let delay: crate::types::VisibilityTimeoutOffset = delay.into();
+                let messages = crate::util::serialize_list(messages)?;
+                let headers = crate::util::serialize_optional_list(headers)?;
+                send_batch_topic(
+                    $transform_self!(self),
+                    routing_key,
+                    messages,
+                    headers,
+                    delay,
+                )
+                .await
+            }
+        }
+    };
+}
+// Re-export the macro for use within this crate
+pub(crate) use impl_queue;
