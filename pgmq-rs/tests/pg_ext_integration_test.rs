@@ -1480,7 +1480,7 @@ async fn test_queue_insert_listener() {
     let notification = listener.recv().await.unwrap();
     assert_eq!(
         notification.channel(),
-        pgmq::pg_ext::queue_name_to_insert_notification_channel_name(&test_queue)
+        pgmq::util::queue_name_to_insert_notification_channel_name(&test_queue).unwrap()
     );
 }
 
@@ -1510,7 +1510,7 @@ async fn test_queue_insert_listener_all() {
     let notification = listener.recv().await.unwrap();
     assert_eq!(
         notification.channel(),
-        pgmq::pg_ext::queue_name_to_insert_notification_channel_name(&test_queue)
+        pgmq::util::queue_name_to_insert_notification_channel_name(&test_queue).unwrap()
     );
 }
 

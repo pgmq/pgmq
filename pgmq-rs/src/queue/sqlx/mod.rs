@@ -1,12 +1,16 @@
 use crate::queue::macros::{identity_macro, impl_queue};
 use crate::queue::sql::{
     ARCHIVE, BIND_TOPIC, CREATE, CREATE_FIFO_INDEX, CREATE_FIFO_INDEXES_ALL, DELETE,
-    LIST_TOPIC_BINDINGS, LIST_TOPIC_BINDINGS_ALL, POP, READ, READ_GROUPED, READ_GROUPED_HEAD,
-    READ_GROUPED_RR, SEND, SEND_BATCH, SEND_BATCH_TOPIC, SEND_TOPIC, SET_VT, UNBIND_TOPIC,
+    DISABLE_NOTIFY_INSERT, ENABLE_NOTIFY_INSERT, LIST_NOTIFY_INSERT_THROTTLES, LIST_TOPIC_BINDINGS,
+    LIST_TOPIC_BINDINGS_ALL, POP, READ, READ_GROUPED, READ_GROUPED_HEAD, READ_GROUPED_RR, SEND,
+    SEND_BATCH, SEND_BATCH_TOPIC, SEND_TOPIC, SET_VT, UNBIND_TOPIC, UPDATE_NOTIFY_INSERT,
 };
-use crate::types::{ListTopicBindingsRow, QueueName, SendBatchTopicRow, VisibilityTimeoutOffset};
+use crate::types::{
+    InsertNotificationThrottleInterval, ListNotifyInsertThrottlesRow, ListTopicBindingsRow,
+    QueueName, SendBatchTopicRow, VisibilityTimeoutOffset,
+};
 use crate::{Message, PgmqError};
-use sqlx::{Executor, FromRow, Postgres};
+use sqlx::{Executor, Postgres};
 use util::handle_read_batch_result;
 
 pub(crate) mod util;
@@ -316,7 +320,7 @@ pub(crate) async fn list_topic_bindings<'c, C>(
 where
     C: Executor<'c, Database = Postgres>,
 {
-    let query = sqlx::query(LIST_TOPIC_BINDINGS).bind(*queue_name);
+    let query = sqlx::query_as(LIST_TOPIC_BINDINGS).bind(*queue_name);
     list_topic_bindings_common(executor, query).await
 }
 
@@ -326,22 +330,23 @@ pub(crate) async fn list_topic_bindings_all<'c, C>(
 where
     C: Executor<'c, Database = Postgres>,
 {
-    let query = sqlx::query(LIST_TOPIC_BINDINGS_ALL);
+    let query = sqlx::query_as(LIST_TOPIC_BINDINGS_ALL);
     list_topic_bindings_common(executor, query).await
 }
 
 async fn list_topic_bindings_common<'q, 'c, C>(
     executor: C,
-    query: sqlx::query::Query<'q, Postgres, <Postgres as sqlx::Database>::Arguments>,
+    query: sqlx::query::QueryAs<
+        'q,
+        Postgres,
+        ListTopicBindingsRow,
+        <Postgres as sqlx::Database>::Arguments,
+    >,
 ) -> Result<Vec<ListTopicBindingsRow>, PgmqError>
 where
     C: Executor<'c, Database = Postgres>,
 {
     let rows = query.fetch_all(executor).await?;
-    let rows = rows
-        .into_iter()
-        .map(|row| ListTopicBindingsRow::from_row(&row))
-        .collect::<Result<Vec<ListTopicBindingsRow>, _>>()?;
     Ok(rows)
 }
 
@@ -375,18 +380,70 @@ pub(crate) async fn send_batch_topic<'c, C>(
 where
     C: Executor<'c, Database = Postgres>,
 {
-    let sent = sqlx::query(SEND_BATCH_TOPIC)
+    let sent = sqlx::query_as(SEND_BATCH_TOPIC)
         .bind(routing_key)
         .bind(messages)
         .bind(headers)
         .bind(delay)
         .fetch_all(executor)
         .await?;
-
-    let sent = sent
-        .into_iter()
-        .map(|row| SendBatchTopicRow::from_row(&row))
-        .collect::<Result<Vec<SendBatchTopicRow>, _>>()?;
-
     Ok(sent)
+}
+
+pub(crate) async fn enable_notify_insert<'c, C>(
+    executor: C,
+    queue_name: QueueName<'_>,
+    throttle_interval: InsertNotificationThrottleInterval,
+) -> Result<(), PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+{
+    sqlx::query(ENABLE_NOTIFY_INSERT)
+        .bind(*queue_name)
+        .bind(throttle_interval)
+        .execute(executor)
+        .await?;
+    Ok(())
+}
+
+pub(crate) async fn update_notify_insert<'c, C>(
+    executor: C,
+    queue_name: QueueName<'_>,
+    throttle_interval: InsertNotificationThrottleInterval,
+) -> Result<(), PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+{
+    sqlx::query(UPDATE_NOTIFY_INSERT)
+        .bind(*queue_name)
+        .bind(throttle_interval)
+        .execute(executor)
+        .await?;
+    Ok(())
+}
+
+pub(crate) async fn disable_notify_insert<'c, C>(
+    executor: C,
+    queue_name: QueueName<'_>,
+) -> Result<(), PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+{
+    sqlx::query(DISABLE_NOTIFY_INSERT)
+        .bind(*queue_name)
+        .execute(executor)
+        .await?;
+    Ok(())
+}
+
+pub(crate) async fn list_notify_insert_throttles<'c, C>(
+    executor: C,
+) -> Result<Vec<ListNotifyInsertThrottlesRow>, PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+{
+    let rows = sqlx::query_as(LIST_NOTIFY_INSERT_THROTTLES)
+        .fetch_all(executor)
+        .await?;
+    Ok(rows)
 }

@@ -70,6 +70,15 @@ type PgListTopicBindingsRow = diesel::sql_types::Record<(
     Text,
 )>;
 
+type PgListNotifyInsertThrottlesRow = diesel::sql_types::Record<(
+    // queue_name
+    Text,
+    // throttle_interval_ms
+    Integer,
+    // last_notified_at
+    Timestamptz,
+)>;
+
 impl FromSql<PgListTopicBindingsRow, Pg> for crate::types::ListTopicBindingsRow {
     fn from_sql(bytes: PgValue) -> diesel::deserialize::Result<Self> {
         let (pattern, queue_name, bound_at, compiled_regex) =
@@ -96,6 +105,19 @@ impl FromSql<PgSendBatchTopicRow, Pg> for crate::types::SendBatchTopicRow {
         let (queue_name, msg_id) = FromSql::<PgSendBatchTopicRow, Pg>::from_sql(bytes)?;
 
         Ok(Self { queue_name, msg_id })
+    }
+}
+
+impl FromSql<PgListNotifyInsertThrottlesRow, Pg> for crate::types::ListNotifyInsertThrottlesRow {
+    fn from_sql(bytes: PgValue) -> diesel::deserialize::Result<Self> {
+        let (queue_name, throttle_interval_ms, last_notified_at) =
+            FromSql::<PgListNotifyInsertThrottlesRow, Pg>::from_sql(bytes)?;
+
+        Ok(Self {
+            queue_name,
+            throttle_interval_ms,
+            last_notified_at,
+        })
     }
 }
 
@@ -167,4 +189,16 @@ extern "SQL" {
         headers: Nullable<Array<Jsonb>>,
         delay: Integer,
     ) -> PgSendBatchTopicRow;
+
+    #[sql_name = "pgmq.enable_notify_insert"]
+    fn pgmq_enable_notify_insert(queue_name: Text, throttle_interval_ms: Integer);
+
+    #[sql_name = "pgmq.update_notify_insert"]
+    fn pgmq_update_notify_insert(queue_name: Text, throttle_interval_ms: Integer);
+
+    #[sql_name = "pgmq.disable_notify_insert"]
+    fn pgmq_disable_notify_insert(queue_name: Text);
+
+    #[sql_name = "pgmq.list_notify_insert_throttles"]
+    fn pgmq_list_notify_insert_throttles() -> PgListNotifyInsertThrottlesRow;
 }

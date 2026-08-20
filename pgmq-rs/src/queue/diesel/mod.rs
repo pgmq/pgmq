@@ -326,6 +326,65 @@ macro_rules! diesel_functions {
             let rows = $transform_result!(rows)?;
             Ok(rows)
         }
+
+        async fn enable_notify_insert<C>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+            throttle_interval: crate::types::InsertNotificationThrottleInterval,
+        ) -> Result<(), crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let result = crate::queue::diesel::query::enable_notify_insert_query(
+                queue_name,
+                throttle_interval,
+            )
+            .execute(executor);
+            $transform_result!(result)?;
+            Ok(())
+        }
+
+        async fn update_notify_insert<C>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+            throttle_interval: crate::types::InsertNotificationThrottleInterval,
+        ) -> Result<(), crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let result = crate::queue::diesel::query::update_notify_insert_query(
+                queue_name,
+                throttle_interval,
+            )
+            .execute(executor);
+            $transform_result!(result)?;
+            Ok(())
+        }
+
+        async fn disable_notify_insert<C>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+        ) -> Result<(), crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let result = crate::queue::diesel::query::disable_notify_insert_query(queue_name)
+                .execute(executor);
+            $transform_result!(result)?;
+            Ok(())
+        }
+
+        async fn list_notify_insert_throttles<C>(
+            executor: &mut C,
+        ) -> Result<Vec<crate::types::ListNotifyInsertThrottlesRow>, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let rows = crate::queue::diesel::query::list_notify_insert_throttles_query()
+                .get_results(executor);
+            let rows = $transform_result!(rows)?;
+            Ok(rows)
+        }
     };
 }
 pub(crate) use diesel_functions;

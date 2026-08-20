@@ -1,5 +1,6 @@
 #[cfg(feature = "sqlx")]
 use crate::errors::PgmqError;
+use crate::types::QueueName;
 #[cfg(feature = "sqlx")]
 use log::LevelFilter;
 #[cfg(feature = "sqlx")]
@@ -94,4 +95,31 @@ pub(crate) fn serialize_optional_list<H: serde::Serialize>(
         None
     };
     Ok(headers)
+}
+
+/// Translate the given queue name into the name of the Postgres notification channel that will
+/// be triggered when using the `pgmq.enable_notify_insert` functionality.
+///
+/// This method is useful for creating the listener object in your Postgres client required to
+/// receive the notifications in your application.
+///
+/// # Examples
+///
+/// ```
+/// # use pgmq::util::queue_name_to_insert_notification_channel_name;
+/// # fn example() -> Result<(), pgmq::PgmqError> {
+/// let channel_name = queue_name_to_insert_notification_channel_name("test")?;
+/// assert_eq!("pgmq.q_test.INSERT", channel_name);
+/// # Ok(())
+/// # }
+/// ```
+pub fn queue_name_to_insert_notification_channel_name<'q, Q, QE>(
+    queue_name: Q,
+) -> Result<String, QE>
+where
+    Q: Send + TryInto<QueueName<'q>, Error = QE>,
+    QE: Into<crate::types::queue_name::QueueNameError>,
+{
+    let queue_name: QueueName<'q> = queue_name.try_into()?;
+    Ok(format!("pgmq.q_{queue_name}.INSERT"))
 }

@@ -16,7 +16,10 @@ pub(crate) mod sql;
 #[cfg(feature = "sqlx")]
 pub mod sqlx;
 
-use crate::types::{QueueName, VisibilityTimeoutOffset};
+use crate::types::{
+    InsertNotificationThrottleInterval, ListNotifyInsertThrottlesRow, QueueName,
+    VisibilityTimeoutOffset,
+};
 use crate::{Message, PgmqError};
 
 /// Interface that provides methods for invoking PGMQ SQL functions.
@@ -646,7 +649,7 @@ pub trait Queue: crate::private::Sealed {
     /// # Ok(())
     /// # }
     /// ```
-    async fn send_batch_topic<'q, T, H, TI, HI, D>(
+    async fn send_batch_topic<T, H, TI, HI, D>(
         self,
         routing_key: &str,
         messages: TI,
@@ -659,4 +662,108 @@ pub trait Queue: crate::private::Sealed {
         TI: Send + IntoIterator<Item = T>,
         HI: Send + IntoIterator<Item = H>,
         D: Send + Into<VisibilityTimeoutOffset>;
+
+    /// Enable sending a Postgres notification when an item is inserted into the specified queue.
+    /// Provide a non-zero throttle interval to specify how often a notification can be sent.
+    ///
+    /// To actually receive the notification when an item is inserted, create a listener in your
+    /// Postgres client using the queue's channel name, which can be determined using
+    /// [`crate::util::queue_name_to_insert_notification_channel_name`].
+    ///
+    /// Postgres notifications can be useful for queues that must be acted upon immediately
+    /// but rarely have items. However, in most cases, it's recommended to use a polling mechanism
+    /// to fetch items from the queue. In fact, because Postgres notifications are transient and
+    /// may be missed, it's recommended to also use a polling mechanism as a fallback instead of
+    /// relying entirely on notifications.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// // Enable insert notifications with an integer delay (in milliseconds)
+    /// queue.enable_notify_insert("my_queue", 10_000).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// // Enable insert notifications with a duration delay
+    /// queue.enable_notify_insert("my_queue", std::time::Duration::from_secs(10)).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn enable_notify_insert<'q, Q, QE, I>(
+        self,
+        queue_name: Q,
+        throttle_interval: I,
+    ) -> Result<(), PgmqError>
+    where
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: Into<crate::types::queue_name::QueueNameError>,
+        I: Send + Into<InsertNotificationThrottleInterval>;
+
+    /// Update the throttle interval for Postgres notifications sent for the specified queue.
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// // Update the insert notification throttle interval with an integer delay (in milliseconds)
+    /// queue.update_notify_insert("my_queue", 10_000).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// // Enable insert notification throttle interval with a duration delay
+    /// queue.update_notify_insert("my_queue", std::time::Duration::from_secs(10)).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn update_notify_insert<'q, Q, QE, I>(
+        self,
+        queue_name: Q,
+        throttle_interval: I,
+    ) -> Result<(), PgmqError>
+    where
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: Into<crate::types::queue_name::QueueNameError>,
+        I: Send + Into<InsertNotificationThrottleInterval>;
+
+    /// Disable sending insert notifications for the specified queue.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// queue.disable_notify_insert("my_queue").await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn disable_notify_insert<'q, Q, QE>(self, queue_name: Q) -> Result<(), PgmqError>
+    where
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: Into<crate::types::queue_name::QueueNameError>;
+
+    /// List all queues with insert notifications enabled and their throttle intervals.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// let notify_insert_throttles = queue.list_notify_insert_throttles().await?;
+    /// println!("{notify_insert_throttles:?}");
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn list_notify_insert_throttles(
+        self,
+    ) -> Result<Vec<ListNotifyInsertThrottlesRow>, PgmqError>;
 }
