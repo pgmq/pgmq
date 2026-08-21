@@ -939,3 +939,63 @@ async fn send_batch_topic(conn_details: ConnDetails, queue: impl Queue) {
     let read_msgs: Vec<Message<TestMessage>> = queue.read(QUEUE, 100, 2).await.unwrap();
     assert_eq!(msgs.len(), read_msgs.len());
 }
+
+#[pgmq_test_macro::queue_test]
+async fn enable_notify_insert(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+
+    queue
+        .enable_notify_insert(QUEUE, Duration::from_secs(1))
+        .await
+        .unwrap();
+
+    let notify_insert_throttle = queue
+        .list_notify_insert_throttles()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|row| row.queue_name == QUEUE)
+        .unwrap();
+
+    assert_eq!(1000, notify_insert_throttle.throttle_interval_ms);
+}
+
+#[pgmq_test_macro::queue_test]
+async fn update_notify_insert(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+
+    queue.enable_notify_insert(QUEUE, 1000).await.unwrap();
+
+    queue.update_notify_insert(QUEUE, 2000).await.unwrap();
+
+    let notify_insert_throttle = queue
+        .list_notify_insert_throttles()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|row| row.queue_name == QUEUE)
+        .unwrap();
+
+    assert_eq!(2000, notify_insert_throttle.throttle_interval_ms);
+}
+
+#[pgmq_test_macro::queue_test]
+async fn disable_notify_insert(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+
+    queue
+        .enable_notify_insert(QUEUE, Duration::from_secs(1))
+        .await
+        .unwrap();
+
+    queue.disable_notify_insert(QUEUE).await.unwrap();
+
+    let notify_insert_throttle = queue
+        .list_notify_insert_throttles()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|row| row.queue_name == QUEUE);
+
+    assert!(notify_insert_throttle.is_none());
+}

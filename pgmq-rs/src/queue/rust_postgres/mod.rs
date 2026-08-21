@@ -54,6 +54,18 @@ impl TryFrom<::tokio_postgres::Row> for crate::types::SendBatchTopicRow {
     }
 }
 
+impl TryFrom<::tokio_postgres::Row> for crate::types::ListNotifyInsertThrottlesRow {
+    type Error = ::tokio_postgres::Error;
+
+    fn try_from(value: ::tokio_postgres::Row) -> Result<Self, Self::Error> {
+        Ok(Self {
+            queue_name: value.try_get("queue_name")?,
+            throttle_interval_ms: value.try_get("throttle_interval_ms")?,
+            last_notified_at: value.try_get("last_notified_at")?,
+        })
+    }
+}
+
 type SqlParam<'a> = (&'a (dyn postgres_types::ToSql + Sync), postgres_types::Type);
 
 /// This macro defines all the functions required to implement [`crate::queue::Queue`] for both
@@ -459,6 +471,70 @@ macro_rules! rust_postgres_functions {
                 .into_iter()
                 .map(|row| crate::types::SendBatchTopicRow::try_from(row))
                 .collect::<Result<Vec<crate::types::SendBatchTopicRow>, _>>()?;
+            Ok(rows)
+        }
+
+        async fn enable_notify_insert<C>(
+            executor: $ref_type!(C),
+            queue_name: crate::types::QueueName<'_>,
+            throttle_interval: crate::types::InsertNotificationThrottleInterval,
+        ) -> Result<(), crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let params: [crate::queue::rust_postgres::SqlParam; _] = [
+                (&*queue_name, postgres_types::Type::TEXT),
+                (&*throttle_interval, postgres_types::Type::INT4),
+            ];
+            let result = executor.execute_typed(crate::queue::sql::ENABLE_NOTIFY_INSERT, &params);
+            $transform_result!(result)?;
+            Ok(())
+        }
+
+        async fn update_notify_insert<C>(
+            executor: $ref_type!(C),
+            queue_name: crate::types::QueueName<'_>,
+            throttle_interval: crate::types::InsertNotificationThrottleInterval,
+        ) -> Result<(), crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let params: [crate::queue::rust_postgres::SqlParam; _] = [
+                (&*queue_name, postgres_types::Type::TEXT),
+                (&*throttle_interval, postgres_types::Type::INT4),
+            ];
+            let result = executor.execute_typed(crate::queue::sql::UPDATE_NOTIFY_INSERT, &params);
+            $transform_result!(result)?;
+            Ok(())
+        }
+
+        async fn disable_notify_insert<C>(
+            executor: $ref_type!(C),
+            queue_name: crate::types::QueueName<'_>,
+        ) -> Result<(), crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let params: [crate::queue::rust_postgres::SqlParam; _] =
+                [(&*queue_name, postgres_types::Type::TEXT)];
+            let result = executor.execute_typed(crate::queue::sql::DISABLE_NOTIFY_INSERT, &params);
+            $transform_result!(result)?;
+            Ok(())
+        }
+
+        async fn list_notify_insert_throttles<C>(
+            executor: $ref_type!(C),
+        ) -> Result<Vec<crate::types::ListNotifyInsertThrottlesRow>, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let rows = executor.query_typed(crate::queue::sql::LIST_NOTIFY_INSERT_THROTTLES, &[]);
+            let rows = $transform_result!(rows)?;
+            let rows = rows
+                .into_iter()
+                .map(|row| crate::types::ListNotifyInsertThrottlesRow::try_from(row))
+                .collect::<Result<Vec<crate::types::ListNotifyInsertThrottlesRow>, _>>()?;
+
             Ok(rows)
         }
     };
