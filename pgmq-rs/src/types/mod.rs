@@ -1,12 +1,19 @@
+pub mod duration;
 pub mod queue_name;
-pub mod visibility_timeout_offset;
 
 use chrono::{DateTime, Utc};
 use serde_derive::Deserialize;
 use std::time::Duration;
 
 pub use queue_name::QueueName;
-pub use visibility_timeout_offset::VisibilityTimeoutOffset;
+
+/// Alias for the duration type expected for visibility timeout (`vt`) parameters, e.g. in
+/// [`crate::queue::Queue::send`] and [`crate::pg_ext::PGMQueueExt::send`]
+pub type VisibilityTimeoutOffset = duration::Duration<duration::Seconds>;
+
+/// Alias for the duration type expected for queue insert notification throttle interval parameters,
+/// e.g. in [`crate::queue::Queue::enable_notify_insert`] and [`crate::pg_ext::PGMQueueExt::enable_notify_insert`].
+pub type InsertNotificationThrottleInterval = duration::Duration<duration::Milliseconds>;
 
 /// Convenience value to provide for an optional `headers` parameter when no headers
 /// need to be sent. This is useful to avoid the somewhat cumbersome syntax required to specify

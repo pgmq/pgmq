@@ -1,12 +1,13 @@
 //! Extracted Diesel SQL query functions. Can be used by both diesel and diesel-async.
 use crate::queue::diesel::sql::{
     pgmq_archive, pgmq_bind_topic, pgmq_create, pgmq_create_fifo_index,
-    pgmq_create_fifo_indexes_all, pgmq_delete, pgmq_list_topic_bindings,
+    pgmq_create_fifo_indexes_all, pgmq_delete, pgmq_disable_notify_insert,
+    pgmq_enable_notify_insert, pgmq_list_notify_insert_throttles, pgmq_list_topic_bindings,
     pgmq_list_topic_bindings_all, pgmq_pop, pgmq_read, pgmq_read_grouped, pgmq_read_grouped_head,
     pgmq_read_grouped_rr, pgmq_send, pgmq_send_batch, pgmq_send_batch_topic, pgmq_send_topic,
-    pgmq_set_vt, pgmq_unbind_topic,
+    pgmq_set_vt, pgmq_unbind_topic, pgmq_update_notify_insert,
 };
-use crate::types::{QueueName, VisibilityTimeoutOffset};
+use crate::types::{InsertNotificationThrottleInterval, QueueName, VisibilityTimeoutOffset};
 use diesel::dsl::select;
 
 #[diesel::dsl::auto_type(no_type_alias)]
@@ -174,4 +175,35 @@ pub fn send_batch_topic_query(
 ) -> _ {
     let delay: i32 = *delay;
     select(pgmq_send_batch_topic(routing_key, messages, headers, delay))
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn enable_notify_insert_query(
+    queue_name: QueueName<'_>,
+    throttle_interval: InsertNotificationThrottleInterval,
+) -> _ {
+    let queue_name: &str = *queue_name;
+    let throttle_interval: i32 = *throttle_interval;
+    select(pgmq_enable_notify_insert(queue_name, throttle_interval))
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn update_notify_insert_query(
+    queue_name: QueueName<'_>,
+    throttle_interval: InsertNotificationThrottleInterval,
+) -> _ {
+    let queue_name: &str = *queue_name;
+    let throttle_interval: i32 = *throttle_interval;
+    select(pgmq_update_notify_insert(queue_name, throttle_interval))
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn disable_notify_insert_query(queue_name: QueueName<'_>) -> _ {
+    let queue_name: &str = *queue_name;
+    select(pgmq_disable_notify_insert(queue_name))
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn list_notify_insert_throttles_query() -> _ {
+    select(pgmq_list_notify_insert_throttles())
 }

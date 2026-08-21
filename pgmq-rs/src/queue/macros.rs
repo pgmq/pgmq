@@ -384,7 +384,7 @@ macro_rules! impl_queue {
                 send_topic($transform_self!(self), routing_key, message, headers, delay).await
             }
 
-            async fn send_batch_topic<'q, T, H, TI, HI, D>(
+            async fn send_batch_topic<T, H, TI, HI, D>(
                 self,
                 routing_key: &str,
                 messages: TI,
@@ -409,6 +409,54 @@ macro_rules! impl_queue {
                     delay,
                 )
                 .await
+            }
+
+            async fn enable_notify_insert<'q, Q, QE, I>(
+                self,
+                queue_name: Q,
+                throttle_interval: I,
+            ) -> Result<(), crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+                I: Send + Into<crate::types::InsertNotificationThrottleInterval>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                let throttle_interval = throttle_interval.into();
+                enable_notify_insert($transform_self!(self), queue_name, throttle_interval).await
+            }
+
+            async fn update_notify_insert<'q, Q, QE, I>(
+                self,
+                queue_name: Q,
+                throttle_interval: I,
+            ) -> Result<(), crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+                I: Send + Into<crate::types::InsertNotificationThrottleInterval>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                let throttle_interval = throttle_interval.into();
+                update_notify_insert($transform_self!(self), queue_name, throttle_interval).await
+            }
+
+            async fn disable_notify_insert<'q, Q, QE>(
+                self,
+                queue_name: Q,
+            ) -> Result<(), crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                disable_notify_insert($transform_self!(self), queue_name).await
+            }
+
+            async fn list_notify_insert_throttles(
+                self,
+            ) -> Result<Vec<crate::types::ListNotifyInsertThrottlesRow>, crate::PgmqError> {
+                list_notify_insert_throttles($transform_self!(self)).await
             }
         }
     };
