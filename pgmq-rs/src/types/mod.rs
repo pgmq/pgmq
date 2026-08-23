@@ -54,6 +54,8 @@ pub const PGMQ_SCHEMA: &str = "pgmq";
 
 #[derive(Clone, Debug, Deserialize)]
 #[cfg_attr(feature = "sqlx", derive(sqlx::FromRow))]
+#[cfg_attr(feature = "diesel", derive(diesel::prelude::HasQuery))]
+#[cfg_attr(feature = "diesel", diesel(table_name = crate::queue::diesel::schema::meta, check_for_backend(diesel::pg::Pg)))]
 #[non_exhaustive]
 pub struct PGMQueueMeta {
     pub queue_name: String,

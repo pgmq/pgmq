@@ -7,6 +7,15 @@
 pub(crate) const CREATE: &str = "SELECT pgmq.create(queue_name=>$1::text)";
 
 // language=PostgreSQL
+pub(crate) const CREATE_UNLOGGED: &str = "SELECT pgmq.create_unlogged(queue_name=>$1::text)";
+
+// language=PostgreSQL
+pub(crate) const CREATE_PARTITIONED: &str = "SELECT pgmq.create_partitioned(queue_name=>$1::text, partition_interval=>$2::text, retention_interval=>$3::text)";
+
+// language=PostgreSQL
+pub(crate) const CONVERT_ARCHIVE_PARTITIONED: &str = "SELECT pgmq.convert_archive_partitioned(table_name=>$1::text, partition_interval=>$2::text, retention_interval=>$3::text)";
+
+// language=PostgreSQL
 pub(crate) const SEND: &str = "SELECT * FROM pgmq.send(queue_name=>$1::text, msg=>$2::jsonb, headers=>$3::jsonb, delay=>$4::int)";
 
 // language=PostgreSQL
@@ -79,3 +88,11 @@ pub(crate) const DISABLE_NOTIFY_INSERT: &str =
 
 // language=PostgreSQL
 pub(crate) const LIST_NOTIFY_INSERT_THROTTLES: &str = "SELECT queue_name, throttle_interval_ms, last_notified_at FROM pgmq.list_notify_insert_throttles()";
+
+// language=PostgreSQL
+pub(crate) const LIST_QUEUES: &str =
+    "SELECT queue_name, is_partitioned, is_unlogged, created_at from pgmq.list_queues()";
+
+// language=PostgreSQL
+pub(crate) const QUEUE_METADATA: &str =
+    "SELECT queue_name, is_partitioned, is_unlogged, created_at FROM pgmq.meta WHERE queue_name = $1::text";

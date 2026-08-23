@@ -88,6 +88,7 @@ mod initialization {
             .unwrap();
 
         install_pgmq(conn_details).await;
+        install_pg_partman(conn_details).await;
     }
 
     async fn install_pgmq(conn_details: &ConnDetails) {
@@ -104,6 +105,14 @@ mod initialization {
         let result = queue.init().await;
 
         result.expect("failed to init pgmq");
+    }
+
+    async fn install_pg_partman(conn_details: &ConnDetails) {
+        let mut conn = sqlx_conn(&conn_details.test_db_url).await;
+        sqlx::query("CREATE EXTENSION IF NOT EXISTS pg_partman")
+            .execute(&mut conn)
+            .await
+            .expect("failed to create pg_partman extension");
     }
 
     pub async fn after(conn_details: &ConnDetails) {
@@ -941,6 +950,17 @@ async fn send_batch_topic(conn_details: ConnDetails, queue: impl Queue) {
 }
 
 #[pgmq_test_macro::queue_test]
+async fn enable_notify_insert_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result: Result<_, _> = queue.enable_notify_insert("invalid-queue-name", 1000).await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
 async fn enable_notify_insert(conn_details: ConnDetails, queue: impl Queue) {
     queue.create(QUEUE).await.unwrap();
 
@@ -958,6 +978,17 @@ async fn enable_notify_insert(conn_details: ConnDetails, queue: impl Queue) {
         .unwrap();
 
     assert_eq!(1000, notify_insert_throttle.throttle_interval_ms);
+}
+
+#[pgmq_test_macro::queue_test]
+async fn update_notify_insert_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result: Result<_, _> = queue.update_notify_insert("invalid-queue-name", 1000).await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
 }
 
 #[pgmq_test_macro::queue_test]
@@ -980,6 +1011,17 @@ async fn update_notify_insert(conn_details: ConnDetails, queue: impl Queue) {
 }
 
 #[pgmq_test_macro::queue_test]
+async fn disable_notify_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result: Result<_, _> = queue.disable_notify_insert("invalid-queue-name").await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
 async fn disable_notify_insert(conn_details: ConnDetails, queue: impl Queue) {
     queue.create(QUEUE).await.unwrap();
 
@@ -998,4 +1040,214 @@ async fn disable_notify_insert(conn_details: ConnDetails, queue: impl Queue) {
         .find(|row| row.queue_name == QUEUE);
 
     assert!(notify_insert_throttle.is_none());
+}
+
+#[pgmq_test_macro::queue_test]
+async fn create_unlogged_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result: Result<_, _> = queue.create_unlogged("invalid-queue-name").await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn create_unlogged(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create_unlogged(QUEUE).await.unwrap();
+
+    let queues = queue.list_queues().await.unwrap();
+    let unlogged_queue = queues
+        .into_iter()
+        .find(|queue| queue.queue_name == QUEUE)
+        .unwrap();
+    assert!(unlogged_queue.is_unlogged);
+
+    let msg_id = queue
+        .send(QUEUE, TestMessage::new(), json!({}), 0)
+        .await
+        .unwrap();
+    let read_msg: Message<TestMessage> = queue
+        .read(QUEUE, 10, 1)
+        .await
+        .unwrap()
+        .into_iter()
+        .next()
+        .unwrap();
+    assert_eq!(msg_id, read_msg.msg_id);
+}
+
+#[pgmq_test_macro::queue_test]
+async fn create_partitioned_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result: Result<_, _> = queue
+        .create_partitioned("invalid-queue-name", "1000", "10000")
+        .await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn create_partitioned(conn_details: ConnDetails, queue: impl Queue) {
+    queue
+        .create_partitioned(QUEUE, "1000", "10000")
+        .await
+        .unwrap();
+
+    let queues = queue.list_queues().await.unwrap();
+    let partitioned_queue = queues
+        .into_iter()
+        .find(|queue| queue.queue_name == QUEUE)
+        .unwrap();
+    assert!(partitioned_queue.is_partitioned);
+
+    let msg_id = queue
+        .send(QUEUE, TestMessage::new(), json!({}), 0)
+        .await
+        .unwrap();
+    let read_msg: Message<TestMessage> = queue
+        .read(QUEUE, 10, 1)
+        .await
+        .unwrap()
+        .into_iter()
+        .next()
+        .unwrap();
+    assert_eq!(msg_id, read_msg.msg_id);
+}
+
+#[pgmq_test_macro::queue_test]
+async fn convert_arch_part_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result: Result<_, _> = queue
+        .convert_archive_partitioned("invalid-queue-name", "1000", "10000")
+        .await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn convert_archive_partitioned(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+
+    let messages = [TestMessage::new(), TestMessage::new(), TestMessage::new()];
+    let msg_ids = queue
+        .send_batch(QUEUE, &messages, EMPTY_HEADERS, 0)
+        .await
+        .unwrap();
+    queue.archive(QUEUE, &msg_ids).await.unwrap();
+
+    queue
+        .convert_archive_partitioned(QUEUE, "1000", "10000")
+        .await
+        .unwrap();
+}
+
+#[pgmq_test_macro::queue_test]
+async fn list_queues_none(conn_details: ConnDetails, queue: impl Queue) {
+    let queues = queue.list_queues().await.unwrap();
+    assert!(queues.is_empty());
+}
+
+#[pgmq_test_macro::queue_test]
+async fn list_queues(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+
+    let unlogged_name = format!("{QUEUE}_unlogged");
+    queue.create_unlogged(&unlogged_name).await.unwrap();
+
+    let partitioned_name = format!("{QUEUE}_partitioned");
+    queue
+        .create_partitioned(&partitioned_name, "1000", "10000")
+        .await
+        .unwrap();
+
+    let queues = queue.list_queues().await.unwrap();
+    assert_eq!(3, queues.len());
+
+    let normal_queue = queues
+        .iter()
+        .find(|queue| queue.queue_name == QUEUE)
+        .unwrap();
+    assert!(!normal_queue.is_unlogged, "Queue should not be unlogged");
+    assert!(
+        !normal_queue.is_partitioned,
+        "Queue should not be partitioned"
+    );
+
+    let unlogged_queue = queues
+        .iter()
+        .find(|queue| queue.queue_name == unlogged_name)
+        .unwrap();
+    assert!(unlogged_queue.is_unlogged, "Queue should be unlogged");
+    assert!(
+        !unlogged_queue.is_partitioned,
+        "Queue should not be partitioned"
+    );
+
+    let partitioned_queue = queues
+        .iter()
+        .find(|queue| queue.queue_name == partitioned_name)
+        .unwrap();
+    assert!(
+        !partitioned_queue.is_unlogged,
+        "Queue should not be unlogged"
+    );
+    assert!(
+        partitioned_queue.is_partitioned,
+        "Queue should be partitioned"
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn queue_metadata_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result: Result<_, _> = queue.queue_metadata("invalid-queue-name").await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn queue_metadata_normal(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+    let metadata = queue.queue_metadata(QUEUE).await.unwrap().unwrap();
+    assert_eq!(QUEUE, metadata.queue_name);
+    assert!(!metadata.is_unlogged, "Queue should not be unlogged");
+    assert!(!metadata.is_partitioned, "Queue should not be partitioned");
+}
+
+#[pgmq_test_macro::queue_test]
+async fn queue_metadata_does_not_exist(conn_details: ConnDetails, queue: impl Queue) {
+    let metadata = queue.queue_metadata(QUEUE).await.unwrap();
+    assert!(metadata.is_none(), "Queue should not exist");
+}
+
+#[pgmq_test_macro::queue_test]
+async fn queue_metadata_unlogged(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create_unlogged(QUEUE).await.unwrap();
+    let metadata = queue.queue_metadata(QUEUE).await.unwrap().unwrap();
+    assert_eq!(QUEUE, metadata.queue_name);
+    assert!(metadata.is_unlogged, "Queue should be unlogged");
+    assert!(!metadata.is_partitioned, "Queue should not be partitioned");
+}
+
+#[pgmq_test_macro::queue_test]
+async fn queue_metadata_partitioned(conn_details: ConnDetails, queue: impl Queue) {
+    queue
+        .create_partitioned(QUEUE, "1000", "10000")
+        .await
+        .unwrap();
+    let metadata = queue.queue_metadata(QUEUE).await.unwrap().unwrap();
+    assert_eq!(QUEUE, metadata.queue_name);
+    assert!(!metadata.is_unlogged, "Queue should not be unlogged");
+    assert!(metadata.is_partitioned, "Queue should be partitioned");
 }

@@ -1,13 +1,15 @@
 use crate::queue::macros::{identity_macro, impl_queue};
 use crate::queue::sql::{
-    ARCHIVE, BIND_TOPIC, CREATE, CREATE_FIFO_INDEX, CREATE_FIFO_INDEXES_ALL, DELETE,
-    DISABLE_NOTIFY_INSERT, ENABLE_NOTIFY_INSERT, LIST_NOTIFY_INSERT_THROTTLES, LIST_TOPIC_BINDINGS,
-    LIST_TOPIC_BINDINGS_ALL, POP, READ, READ_GROUPED, READ_GROUPED_HEAD, READ_GROUPED_RR, SEND,
-    SEND_BATCH, SEND_BATCH_TOPIC, SEND_TOPIC, SET_VT, UNBIND_TOPIC, UPDATE_NOTIFY_INSERT,
+    ARCHIVE, BIND_TOPIC, CONVERT_ARCHIVE_PARTITIONED, CREATE, CREATE_FIFO_INDEX,
+    CREATE_FIFO_INDEXES_ALL, CREATE_PARTITIONED, CREATE_UNLOGGED, DELETE, DISABLE_NOTIFY_INSERT,
+    ENABLE_NOTIFY_INSERT, LIST_NOTIFY_INSERT_THROTTLES, LIST_QUEUES, LIST_TOPIC_BINDINGS,
+    LIST_TOPIC_BINDINGS_ALL, POP, QUEUE_METADATA, READ, READ_GROUPED, READ_GROUPED_HEAD,
+    READ_GROUPED_RR, SEND, SEND_BATCH, SEND_BATCH_TOPIC, SEND_TOPIC, SET_VT, UNBIND_TOPIC,
+    UPDATE_NOTIFY_INSERT,
 };
 use crate::types::{
     InsertNotificationThrottleInterval, ListNotifyInsertThrottlesRow, ListTopicBindingsRow,
-    QueueName, SendBatchTopicRow, VisibilityTimeoutOffset,
+    PGMQueueMeta, QueueName, SendBatchTopicRow, VisibilityTimeoutOffset,
 };
 use crate::{Message, PgmqError};
 use sqlx::{Executor, Postgres};
@@ -36,6 +38,59 @@ where
 {
     sqlx::query(CREATE)
         .bind(*queue_name)
+        .execute(executor)
+        .await?;
+
+    Ok(())
+}
+
+pub(crate) async fn create_unlogged<'c, C>(
+    executor: C,
+    queue_name: QueueName<'_>,
+) -> Result<(), PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+{
+    sqlx::query(CREATE_UNLOGGED)
+        .bind(*queue_name)
+        .execute(executor)
+        .await?;
+
+    Ok(())
+}
+
+pub(crate) async fn create_partitioned<'c, C>(
+    executor: C,
+    queue_name: QueueName<'_>,
+    partition_interval: &str,
+    retention_interval: &str,
+) -> Result<(), PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+{
+    sqlx::query(CREATE_PARTITIONED)
+        .bind(*queue_name)
+        .bind(partition_interval)
+        .bind(retention_interval)
+        .execute(executor)
+        .await?;
+
+    Ok(())
+}
+
+pub(crate) async fn convert_archive_partitioned<'c, C>(
+    executor: C,
+    queue_name: QueueName<'_>,
+    partition_interval: &str,
+    retention_interval: &str,
+) -> Result<(), PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+{
+    sqlx::query(CONVERT_ARCHIVE_PARTITIONED)
+        .bind(*queue_name)
+        .bind(partition_interval)
+        .bind(retention_interval)
         .execute(executor)
         .await?;
 
@@ -446,4 +501,27 @@ where
         .fetch_all(executor)
         .await?;
     Ok(rows)
+}
+
+pub(crate) async fn list_queues<'c, C>(executor: C) -> Result<Vec<PGMQueueMeta>, PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+{
+    let rows = sqlx::query_as(LIST_QUEUES).fetch_all(executor).await?;
+    Ok(rows)
+}
+
+async fn queue_metadata<'c, C>(
+    executor: C,
+    queue_name: QueueName<'_>,
+) -> Result<Option<PGMQueueMeta>, PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+{
+    let metadata = sqlx::query_as(QUEUE_METADATA)
+        .bind(*queue_name)
+        .fetch_optional(executor)
+        .await?;
+
+    Ok(metadata)
 }

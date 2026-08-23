@@ -17,7 +17,7 @@ pub(crate) mod sql;
 pub mod sqlx;
 
 use crate::types::{
-    InsertNotificationThrottleInterval, ListNotifyInsertThrottlesRow, QueueName,
+    InsertNotificationThrottleInterval, ListNotifyInsertThrottlesRow, PGMQueueMeta, QueueName,
     VisibilityTimeoutOffset,
 };
 use crate::{Message, PgmqError};
@@ -46,6 +46,84 @@ pub trait Queue: crate::private::Sealed {
     /// # }
     /// ```
     async fn create<'q, Q, QE>(self, queue_name: Q) -> Result<(), PgmqError>
+    where
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: Into<crate::types::queue_name::QueueNameError>;
+
+    /// Create the SQL tables for the specified queue, using an "unlogged" table for the main
+    /// queue table (the queue's archive table will be a normal table).
+    ///
+    /// An unlogged table does not write to the WAL, which makes them faster but less durable in
+    /// the case of crashes. See the Postgres documentation for more details:
+    /// - <https://www.postgresql.org/docs/current/sql-createtable.html#SQL-CREATETABLE-UNLOGGED>
+    /// - <https://www.postgresql.org/docs/current/wal.html>
+    ///
+    /// Invokes the `pgmq.create_unlogged` SQL function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// queue.create_unlogged("my_queue").await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn create_unlogged<'q, Q, QE>(self, queue_name: Q) -> Result<(), PgmqError>
+    where
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: Into<crate::types::queue_name::QueueNameError>;
+
+    /// Create a partitioned queue table. The partitions are managed by
+    /// [`pg_partman`](https://github.com/pgpartman/pg_partman/) and therefore requires the
+    /// extension to be installed.
+    ///
+    /// The `partition_interval` and `retention_interval` parameters control when table partitions
+    /// are created and dropped. See the [`pg_partman` docs](https://pgxn.org/dist/pg_partman/doc/pg_partman.html)
+    /// for more details.
+    ///
+    /// Invokes the `pgmq.create_partitioned` SQL function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// queue.create_partitioned("my_queue", "10000", "100000").await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn create_partitioned<'q, Q, QE>(
+        self,
+        queue_name: Q,
+        partition_interval: &str,
+        retention_interval: &str,
+    ) -> Result<(), PgmqError>
+    where
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: Into<crate::types::queue_name::QueueNameError>;
+
+    /// Convert an existing non-partitioned archive table to a partitioned one. Requires the
+    /// [`pg_partman`](https://github.com/pgpartman/pg_partman/) extension to be installed. This is
+    /// useful for migrating queues to partitioned archives after they have been created.
+    ///
+    /// Invokes the `pgmq.convert_archive_partitioned` SQL function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// queue.convert_archive_partitioned("my_queue", "10000", "100000").await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn convert_archive_partitioned<'q, Q, QE>(
+        self,
+        queue_name: Q,
+        partition_interval: &str,
+        retention_interval: &str,
+    ) -> Result<(), PgmqError>
     where
         Q: Send + TryInto<QueueName<'q>, Error = QE>,
         QE: Into<crate::types::queue_name::QueueNameError>;
@@ -625,6 +703,8 @@ pub trait Queue: crate::private::Sealed {
     /// Send multiple messages using topic-based routing. Will send the messages to every queue
     /// that has a topic binding that matches the given `routing_key`.
     ///
+    /// Invokes the `pgmq.send_batch_topic` SQL function.
+    ///
     /// # Examples
     ///
     /// ```rust,no_run
@@ -676,6 +756,8 @@ pub trait Queue: crate::private::Sealed {
     /// may be missed, it's recommended to also use a polling mechanism as a fallback instead of
     /// relying entirely on notifications.
     ///
+    /// Invokes the `pgmq.enable_notify_insert` SQL function.
+    ///
     /// # Examples
     ///
     /// ```rust,no_run
@@ -706,6 +788,9 @@ pub trait Queue: crate::private::Sealed {
         I: Send + Into<InsertNotificationThrottleInterval>;
 
     /// Update the throttle interval for Postgres notifications sent for the specified queue.
+    ///
+    /// Invokes the `pgmq.update_notify_insert` SQL function.
+    ///
     /// # Examples
     ///
     /// ```rust,no_run
@@ -737,6 +822,8 @@ pub trait Queue: crate::private::Sealed {
 
     /// Disable sending insert notifications for the specified queue.
     ///
+    /// Invokes the `pgmq.disable_notify_insert` SQL function.
+    ///
     /// # Examples
     ///
     /// ```rust,no_run
@@ -753,6 +840,8 @@ pub trait Queue: crate::private::Sealed {
 
     /// List all queues with insert notifications enabled and their throttle intervals.
     ///
+    /// Invokes the `pgmq.list_notify_insert_throttles` SQL function.
+    ///
     /// # Examples
     ///
     /// ```rust,no_run
@@ -766,4 +855,40 @@ pub trait Queue: crate::private::Sealed {
     async fn list_notify_insert_throttles(
         self,
     ) -> Result<Vec<ListNotifyInsertThrottlesRow>, PgmqError>;
+
+    /// Returns the metadata for all the queues that currently exist.
+    ///
+    /// Invokes the `pgmq.list_queues` SQL function.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// let queue_meta = queue.list_notify_insert_throttles().await?;
+    /// println!("{queue_meta:?}");
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn list_queues(self) -> Result<Vec<PGMQueueMeta>, PgmqError>;
+
+    /// Returns the metadata for the provided queue, or `None` if the queue does not exist.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// let queue_meta = queue.queue_metadata("my_queue").await?;
+    /// println!("{queue_meta:?}");
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn queue_metadata<'q, Q, QE>(
+        self,
+        queue_name: Q,
+    ) -> Result<Option<PGMQueueMeta>, PgmqError>
+    where
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: Into<crate::types::queue_name::QueueNameError>;
 }

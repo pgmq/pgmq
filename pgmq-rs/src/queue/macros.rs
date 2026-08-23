@@ -89,6 +89,55 @@ macro_rules! impl_queue {
                 create($transform_self!(self), queue_name).await
             }
 
+            async fn create_unlogged<'q, Q, QE>(self, queue_name: Q) -> Result<(), crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                create_unlogged($transform_self!(self), queue_name).await
+            }
+
+            async fn create_partitioned<'q, Q, QE>(
+                self,
+                queue_name: Q,
+                partition_interval: &str,
+                retention_interval: &str,
+            ) -> Result<(), crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                create_partitioned(
+                    $transform_self!(self),
+                    queue_name,
+                    partition_interval,
+                    retention_interval,
+                )
+                .await
+            }
+
+            async fn convert_archive_partitioned<'q, Q, QE>(
+                self,
+                queue_name: Q,
+                partition_interval: &str,
+                retention_interval: &str,
+            ) -> Result<(), crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                convert_archive_partitioned(
+                    $transform_self!(self),
+                    queue_name,
+                    partition_interval,
+                    retention_interval,
+                )
+                .await
+            }
+
             async fn send<'q, T, H, Q, QE, D>(
                 self,
                 queue_name: Q,
@@ -457,6 +506,24 @@ macro_rules! impl_queue {
                 self,
             ) -> Result<Vec<crate::types::ListNotifyInsertThrottlesRow>, crate::PgmqError> {
                 list_notify_insert_throttles($transform_self!(self)).await
+            }
+
+            async fn list_queues(
+                self,
+            ) -> Result<Vec<crate::types::PGMQueueMeta>, crate::PgmqError> {
+                list_queues($transform_self!(self)).await
+            }
+
+            async fn queue_metadata<'q, Q, QE>(
+                self,
+                queue_name: Q,
+            ) -> Result<Option<crate::types::PGMQueueMeta>, crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                queue_metadata($transform_self!(self), queue_name).await
             }
         }
     };

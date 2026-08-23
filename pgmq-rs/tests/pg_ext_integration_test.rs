@@ -659,13 +659,13 @@ async fn test_pgmq_init() {
     // error mode on queue partitioned create but already exists
     let qname = format!("test_dup_{}", rand::rng().random_range(0..100));
     let created = queue
-        .create_partitioned(&qname)
+        .create_partitioned(&qname, "1000", "10000")
         .await
         .expect("failed attempting to create queue");
     assert!(created, "did not create queue");
     // create again
     let created = queue
-        .create_partitioned(&qname)
+        .create_partitioned(&qname, "1000", "10000")
         .await
         .expect("failed attempting to create the duplicate queue");
     assert!(!created, "failed to detect duplicate queue");

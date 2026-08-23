@@ -66,6 +66,19 @@ impl TryFrom<::tokio_postgres::Row> for crate::types::ListNotifyInsertThrottlesR
     }
 }
 
+impl TryFrom<::tokio_postgres::Row> for crate::types::PGMQueueMeta {
+    type Error = ::tokio_postgres::Error;
+
+    fn try_from(value: ::tokio_postgres::Row) -> Result<Self, Self::Error> {
+        Ok(Self {
+            queue_name: value.try_get("queue_name")?,
+            is_partitioned: value.try_get("is_partitioned")?,
+            is_unlogged: value.try_get("is_unlogged")?,
+            created_at: value.try_get("created_at")?,
+        })
+    }
+}
+
 type SqlParam<'a> = (&'a (dyn postgres_types::ToSql + Sync), postgres_types::Type);
 
 /// This macro defines all the functions required to implement [`crate::queue::Queue`] for both
@@ -94,6 +107,59 @@ macro_rules! rust_postgres_functions {
             let params: [crate::queue::rust_postgres::SqlParam; _] =
                 [(&*queue_name, postgres_types::Type::TEXT)];
             let result = executor.execute_typed(crate::queue::sql::CREATE, &params);
+            $transform_result!(result)?;
+            Ok(())
+        }
+
+        async fn create_unlogged<C>(
+            executor: $ref_type!(C),
+            queue_name: crate::types::QueueName<'_>,
+        ) -> Result<(), crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let params: [crate::queue::rust_postgres::SqlParam; _] =
+                [(&*queue_name, postgres_types::Type::TEXT)];
+            let result = executor.execute_typed(crate::queue::sql::CREATE_UNLOGGED, &params);
+            $transform_result!(result)?;
+            Ok(())
+        }
+
+        async fn create_partitioned<C>(
+            executor: $ref_type!(C),
+            queue_name: crate::types::QueueName<'_>,
+            partition_interval: &str,
+            retention_interval: &str,
+        ) -> Result<(), crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let params: [crate::queue::rust_postgres::SqlParam; _] = [
+                (&*queue_name, postgres_types::Type::TEXT),
+                (&partition_interval, postgres_types::Type::TEXT),
+                (&retention_interval, postgres_types::Type::TEXT),
+            ];
+            let result = executor.execute_typed(crate::queue::sql::CREATE_PARTITIONED, &params);
+            $transform_result!(result)?;
+            Ok(())
+        }
+
+        async fn convert_archive_partitioned<C>(
+            executor: $ref_type!(C),
+            queue_name: crate::types::QueueName<'_>,
+            partition_interval: &str,
+            retention_interval: &str,
+        ) -> Result<(), crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let params: [crate::queue::rust_postgres::SqlParam; _] = [
+                (&*queue_name, postgres_types::Type::TEXT),
+                (&partition_interval, postgres_types::Type::TEXT),
+                (&retention_interval, postgres_types::Type::TEXT),
+            ];
+            let result =
+                executor.execute_typed(crate::queue::sql::CONVERT_ARCHIVE_PARTITIONED, &params);
             $transform_result!(result)?;
             Ok(())
         }
@@ -181,9 +247,7 @@ macro_rules! rust_postgres_functions {
             ];
             let rows = executor.query_typed(crate::queue::sql::POP, &params);
             let rows = $transform_result!(rows)?;
-            rows.into_iter()
-                .map(|row| crate::Message::<T, H>::try_from(row))
-                .collect::<Result<Vec<crate::Message<T, H>>, crate::PgmqError>>()
+            crate::queue::rust_postgres::convert_rows(rows)
         }
 
         async fn archive<C>(
@@ -246,9 +310,7 @@ macro_rules! rust_postgres_functions {
             ];
             let rows = executor.query_typed(crate::queue::sql::SET_VT, &params);
             let rows = $transform_result!(rows)?;
-            rows.into_iter()
-                .map(|row| crate::Message::<T, H>::try_from(row))
-                .collect::<Result<Vec<crate::Message<T, H>>, crate::PgmqError>>()
+            crate::queue::rust_postgres::convert_rows(rows)
         }
 
         async fn create_fifo_index<C>(
@@ -356,9 +418,7 @@ macro_rules! rust_postgres_functions {
             ];
             let rows = executor.query_typed(query, &params);
             let rows = $transform_result!(rows)?;
-            rows.into_iter()
-                .map(|row| crate::Message::<T, H>::try_from(row))
-                .collect::<Result<Vec<crate::Message<T, H>>, crate::PgmqError>>()
+            crate::queue::rust_postgres::convert_rows(rows)
         }
 
         async fn bind_topic<C>(
@@ -406,11 +466,7 @@ macro_rules! rust_postgres_functions {
                 [(&*queue_name, postgres_types::Type::TEXT)];
             let rows = executor.query_typed(crate::queue::sql::LIST_TOPIC_BINDINGS, &params);
             let rows = $transform_result!(rows)?;
-            let rows = rows
-                .into_iter()
-                .map(|row| crate::types::ListTopicBindingsRow::try_from(row))
-                .collect::<Result<Vec<crate::types::ListTopicBindingsRow>, _>>()?;
-            Ok(rows)
+            crate::queue::rust_postgres::convert_rows(rows)
         }
 
         async fn list_topic_bindings_all<C>(
@@ -421,11 +477,7 @@ macro_rules! rust_postgres_functions {
         {
             let rows = executor.query_typed(crate::queue::sql::LIST_TOPIC_BINDINGS_ALL, &[]);
             let rows = $transform_result!(rows)?;
-            let rows = rows
-                .into_iter()
-                .map(|row| crate::types::ListTopicBindingsRow::try_from(row))
-                .collect::<Result<Vec<crate::types::ListTopicBindingsRow>, _>>()?;
-            Ok(rows)
+            crate::queue::rust_postgres::convert_rows(rows)
         }
 
         async fn send_topic<C>(
@@ -467,11 +519,7 @@ macro_rules! rust_postgres_functions {
             ];
             let rows = executor.query_typed(crate::queue::sql::SEND_BATCH_TOPIC, &params);
             let rows = $transform_result!(rows)?;
-            let rows = rows
-                .into_iter()
-                .map(|row| crate::types::SendBatchTopicRow::try_from(row))
-                .collect::<Result<Vec<crate::types::SendBatchTopicRow>, _>>()?;
-            Ok(rows)
+            crate::queue::rust_postgres::convert_rows(rows)
         }
 
         async fn enable_notify_insert<C>(
@@ -530,13 +578,52 @@ macro_rules! rust_postgres_functions {
         {
             let rows = executor.query_typed(crate::queue::sql::LIST_NOTIFY_INSERT_THROTTLES, &[]);
             let rows = $transform_result!(rows)?;
-            let rows = rows
-                .into_iter()
-                .map(|row| crate::types::ListNotifyInsertThrottlesRow::try_from(row))
-                .collect::<Result<Vec<crate::types::ListNotifyInsertThrottlesRow>, _>>()?;
+            crate::queue::rust_postgres::convert_rows(rows)
+        }
 
-            Ok(rows)
+        async fn list_queues<C>(
+            executor: $ref_type!(C),
+        ) -> Result<Vec<crate::types::PGMQueueMeta>, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let rows = executor.query_typed(crate::queue::sql::LIST_QUEUES, &[]);
+            let rows = $transform_result!(rows)?;
+            crate::queue::rust_postgres::convert_rows(rows)
+        }
+
+        async fn queue_metadata<C>(
+            executor: $ref_type!(C),
+            queue_name: crate::types::QueueName<'_>,
+        ) -> Result<Option<crate::types::PGMQueueMeta>, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let params: [crate::queue::rust_postgres::SqlParam; _] =
+                [(&*queue_name, postgres_types::Type::TEXT)];
+            let result = executor.query_typed_opt(crate::queue::sql::QUEUE_METADATA, &params);
+            let result = $transform_result!(result)?;
+            let result = match result {
+                Some(result) => Some(crate::types::PGMQueueMeta::try_from(result)?),
+                None => None,
+            };
+            Ok(result)
         }
     };
 }
 pub(crate) use rust_postgres_functions;
+
+/// Convert returned [`::tokio_postgres::Row`]s into the expected type (`T`).
+fn convert_rows<T, E>(
+    rows: impl IntoIterator<Item = ::tokio_postgres::Row>,
+) -> Result<Vec<T>, crate::PgmqError>
+where
+    T: TryFrom<::tokio_postgres::Row, Error = E>,
+    crate::PgmqError: From<E>,
+{
+    let rows = rows
+        .into_iter()
+        .map(|row| T::try_from(row))
+        .collect::<Result<Vec<T>, E>>()?;
+    Ok(rows)
+}
