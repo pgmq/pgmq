@@ -466,6 +466,19 @@ macro_rules! diesel_functions {
             let result = result.optional()?;
             Ok(result)
         }
+
+        async fn acquire_queue_lock<C>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+        ) -> Result<(), crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let result =
+                crate::queue::diesel::query::acquire_queue_lock_query(queue_name).execute(executor);
+            $transform_result!(result)?;
+            Ok(())
+        }
     };
 }
 

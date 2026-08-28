@@ -1,7 +1,7 @@
 use crate::errors::PgmqError;
 use crate::queue::sql::READ;
 use crate::queue::sqlx::util::handle_read_batch_result;
-use crate::queue::Queue;
+use crate::queue::{Queue, QueueTransaction};
 use crate::types::queue_name::check_queue_name;
 use crate::types::{
     ListNotifyInsertThrottlesRow, ListTopicBindingsRow, Message, PGMQueueMeta, QueueMetrics,
@@ -176,17 +176,13 @@ impl PGMQueueExt {
         queue_name: &str,
         txn: &mut sqlx::Transaction<'c, Postgres>,
     ) -> Result<(), PgmqError> {
-        check_queue_name(queue_name)?;
-        sqlx::query("SELECT pgmq.acquire_queue_lock(queue_name=>$1::text);")
-            .bind(queue_name)
-            .execute(&mut **txn)
-            .await?;
-        Ok(())
+        let queue_name: QueueName = queue_name.try_into()?;
+        txn.acquire_queue_lock(queue_name).await
     }
 
     /// Acquire a transaction-level advisory lock specific to the provided queue. Useful to prevent
     /// race conditions when performing queue/table-level operations, such as creating an index
-    /// for the queue (e.g., with [`Self::create_fifo_index`].
+    /// for the queue (e.g., with [`Self::create_fifo_index`]).
     ///
     /// Returns the [`sqlx::Transaction`] that should be used to perform the queue/table-level
     /// operations. Remember to call [`sqlx::Transaction::commit`] after performing the desired

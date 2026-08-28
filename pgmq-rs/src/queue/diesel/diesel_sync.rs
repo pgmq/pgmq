@@ -1,5 +1,5 @@
 use crate::queue::diesel::diesel_functions;
-use crate::queue::macros::{identity_macro, impl_queue};
+use crate::queue::macros::{identity_macro, impl_queue, impl_queue_transaction};
 
 diesel_functions!(
     diesel::connection::LoadConnection<Backend = diesel::pg::Pg>,
@@ -7,7 +7,10 @@ diesel_functions!(
     identity_macro
 );
 
-impl_queue!(&mut diesel::PgConnection, identity_macro);
+// `diesel`/`diesel-async` don't have a type specific to transactions. Instead, transactions
+// are performed in a callback provided to a `transaction` method, where the callback gets a
+// reference to the connection. So, we need to implement `QueueTransaction` for the connection type.
+impl_queue_transaction!(&mut diesel::PgConnection, identity_macro);
 
 #[cfg(feature = "diesel-sync-pool")]
 macro_rules! transform_self_acquire_connection {

@@ -96,3 +96,6 @@ pub(crate) const LIST_QUEUES: &str =
 // language=PostgreSQL
 pub(crate) const QUEUE_METADATA: &str =
     "SELECT queue_name, is_partitioned, is_unlogged, created_at FROM pgmq.meta WHERE queue_name = $1::text";
+
+// language=PostgreSQL
+pub(crate) const ACQUIRE_QUEUE_LOCK: &str = "SELECT pgmq.acquire_queue_lock(queue_name=>$1::text)";

@@ -609,6 +609,20 @@ macro_rules! rust_postgres_functions {
             };
             Ok(result)
         }
+
+        async fn acquire_queue_lock<C>(
+            executor: $ref_type!(C),
+            queue_name: crate::types::QueueName<'_>,
+        ) -> Result<(), crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let params: [crate::queue::rust_postgres::SqlParam; _] =
+                [(&*queue_name, postgres_types::Type::TEXT)];
+            let result = executor.execute_typed(crate::queue::sql::ACQUIRE_QUEUE_LOCK, &params);
+            $transform_result!(result)?;
+            Ok(())
+        }
     };
 }
 pub(crate) use rust_postgres_functions;

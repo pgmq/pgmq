@@ -15,12 +15,15 @@ pub mod rust_postgres;
 pub(crate) mod sql;
 #[cfg(feature = "sqlx")]
 pub mod sqlx;
+mod transaction;
 
 use crate::types::{
     InsertNotificationThrottleInterval, ListNotifyInsertThrottlesRow, PGMQueueMeta, QueueName,
     VisibilityTimeoutOffset,
 };
 use crate::{Message, PgmqError};
+
+pub use transaction::QueueTransaction;
 
 /// Interface that provides methods for invoking PGMQ SQL functions.
 ///
