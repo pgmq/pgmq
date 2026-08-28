@@ -259,8 +259,8 @@ impl PGMQueueExt {
         executor: E,
     ) -> Result<(), PgmqError> {
         /*
-        `pg_partman` create operations are currently unable to be idempotent, which means that
-        the `pgmq.create_partitioned` can not be called for a queue that already exists. So, we
+        `pg_partman` create operations are currently unable to be idempotent, which means
+        `pgmq.create_partitioned` can not be called for a queue that already exists. So, we
         need to check whether the queue exists first. To avoid race conditions, we acquire the
         queue lock (which initiates a transaction) and perform the "exists" check and
         the `create_partitioned` call within the transaction. When the transaction is committed or
