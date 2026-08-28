@@ -658,17 +658,15 @@ async fn test_pgmq_init() {
     install_pg_partman(&queue.connection).await;
     // error mode on queue partitioned create but already exists
     let qname = format!("test_dup_{}", rand::rng().random_range(0..100));
-    let created = queue
+    queue
         .create_partitioned(&qname, "1000", "10000")
         .await
         .expect("failed attempting to create queue");
-    assert!(created, "did not create queue");
-    // create again
-    let created = queue
+    // second time should not return an error
+    queue
         .create_partitioned(&qname, "1000", "10000")
         .await
         .expect("failed attempting to create the duplicate queue");
-    assert!(!created, "failed to detect duplicate queue");
 }
 
 /// test creating queue in transaction
@@ -740,18 +738,16 @@ async fn test_byop() {
 
     // first time must return true
     let test_queue = format!("test_byop_{}", rand::rng().random_range(0..100000));
-    let created = queue
+    queue
         .create(&test_queue)
         .await
         .expect("failed to create queue");
-    assert!(created, "failed to create queue_{}", test_queue);
 
-    // second time must return false
-    let created = queue
+    // second time should not return an error
+    queue
         .create(&test_queue)
         .await
         .expect("failed execute create queue");
-    assert!(!created, "failed to detect duplicate queue");
 }
 
 #[tokio::test]
@@ -773,11 +769,10 @@ async fn test_transactional() {
     let init = install_pgmq(&queue).await;
     assert!(init, "failed to create extension");
 
-    let created = queue
+    queue
         .create_with_cxn(&test_queue, &pool_0)
         .await
         .expect("failed to create queue");
-    assert!(created);
 
     let mut tx = pool_0.begin().await.expect("failed to start transaction");
 
@@ -824,15 +819,13 @@ async fn test_create_queue_race_condition() {
     let mut conn1 = queue.connection.acquire().await.unwrap();
     let mut conn2 = queue.connection.acquire().await.unwrap();
 
-    let (result1, result2) = tokio::try_join!(
-        queue.create_with_cxn(&queue_name, &mut conn1),
-        queue.create_with_cxn(&queue_name, &mut conn2)
+    // If there's a race condition in `pgmq.create`, one of these may return a
+    // "table already exists" error
+    tokio::try_join!(
+        queue.create_with_cxn(&queue_name, &mut *conn1),
+        queue.create_with_cxn(&queue_name, &mut *conn2)
     )
     .unwrap();
-
-    // If there's a race condition in `PGMQueueExt#create`, both results could be `true` (this
-    // may not always occur due to the non-deterministic nature of race conditions).
-    assert_ne!(result1, result2);
 }
 
 #[tokio::test]

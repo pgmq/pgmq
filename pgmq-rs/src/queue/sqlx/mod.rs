@@ -32,7 +32,7 @@ impl_queue!(
 impl_queue!(&mut sqlx::PgConnection, identity_macro);
 impl_queue!(&sqlx::PgPool, identity_macro);
 
-async fn create<'c, C>(executor: C, queue_name: QueueName<'_>) -> Result<(), PgmqError>
+pub(crate) async fn create<'c, C>(executor: C, queue_name: QueueName<'_>) -> Result<(), PgmqError>
 where
     C: Executor<'c, Database = Postgres>,
 {

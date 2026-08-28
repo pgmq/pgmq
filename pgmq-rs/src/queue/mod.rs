@@ -84,6 +84,10 @@ pub trait Queue: crate::private::Sealed {
     ///
     /// Invokes the `pgmq.create_partitioned` SQL function.
     ///
+    /// Note: The `pgmq.create_partitioned` SQL function can not be called twice for the same queue.
+    /// Use [`Self::queue_metadata`] to check if the queue exists already before calling this
+    /// method. See [`crate::pg_ext::PGMQueueExt::create_partitioned`] for an example implementation.
+    ///
     /// # Examples
     ///
     /// ```rust,no_run

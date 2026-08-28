@@ -245,6 +245,12 @@ async fn create_invalid_character(conn_details: ConnDetails, queue: impl Queue) 
 }
 
 #[pgmq_test_macro::queue_test]
+async fn create_duplicate(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+    queue.create(QUEUE).await.unwrap();
+}
+
+#[pgmq_test_macro::queue_test]
 async fn send_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
     let result = queue.send("invalid-queue-name", (), (), 0).await;
     assert_matches!(
@@ -1079,6 +1085,12 @@ async fn create_unlogged(conn_details: ConnDetails, queue: impl Queue) {
 }
 
 #[pgmq_test_macro::queue_test]
+async fn create_unlogged_duplicate(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create_unlogged(QUEUE).await.unwrap();
+    queue.create_unlogged(QUEUE).await.unwrap();
+}
+
+#[pgmq_test_macro::queue_test]
 async fn create_partitioned_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
     let result: Result<_, _> = queue
         .create_partitioned("invalid-queue-name", "1000", "10000")
@@ -1117,6 +1129,22 @@ async fn create_partitioned(conn_details: ConnDetails, queue: impl Queue) {
         .next()
         .unwrap();
     assert_eq!(msg_id, read_msg.msg_id);
+}
+
+#[pgmq_test_macro::queue_test]
+async fn create_partitioned_duplicate(conn_details: ConnDetails, queue: impl Queue) {
+    queue
+        .create_partitioned(QUEUE, "1000", "10000")
+        .await
+        .unwrap();
+    let result = queue.create_partitioned(QUEUE, "1000", "10000").await;
+    /*
+    At the time of writing this test, `pgmq.create_partitioned` can not be called twice for the
+    same queue. If this test fails, then that means the issue has been fixed. In that case, we can
+    update this test to simply `unwrap` the second `create_partitioned` call, and can also update
+    `PGMQueueExt#create_partitioned` to not check if the queue already exists.
+    */
+    assert!(result.is_err());
 }
 
 #[pgmq_test_macro::queue_test]
