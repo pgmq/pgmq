@@ -5,14 +5,13 @@ use crate::queue::Queue;
 use crate::types::queue_name::check_queue_name;
 use crate::types::{
     ListNotifyInsertThrottlesRow, ListTopicBindingsRow, Message, PGMQueueMeta, QueueMetrics,
-    SendBatchTopicRow, QUEUE_PREFIX,
+    SendBatchTopicRow,
 };
 use crate::types::{QueueName, VisibilityTimeoutOffset};
 use crate::util::{
     connect, queue_name_to_insert_notification_channel_name, serialize_list,
     serialize_optional_list,
 };
-use log::info;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Pool, Postgres, Row};
 use std::ops::Deref;
@@ -226,34 +225,15 @@ impl PGMQueueExt {
         &self,
         queue_name: &str,
         executor: E,
-    ) -> Result<bool, PgmqError>
+    ) -> Result<(), PgmqError>
     where
-        E: sqlx::Acquire<'c, Database = Postgres>,
+        E: sqlx::Executor<'c, Database = Postgres>,
     {
-        let queue_name: QueueName = queue_name.try_into()?;
-        let mut txn = self
-            .acquire_queue_lock_with_cxn(*queue_name, executor)
-            .await?;
-
-        let exists = sqlx::query_scalar::<_, bool>(
-            "SELECT EXISTS(SELECT 1 FROM pgmq.meta WHERE queue_name = $1::text);",
-        )
-        .bind(*queue_name)
-        .fetch_one(&mut *txn)
-        .await?;
-
-        if exists {
-            return Ok(false);
-        }
-
-        txn.create(queue_name).await?;
-
-        txn.commit().await?;
-
-        Ok(true)
+        let queue_name = queue_name.try_into()?;
+        crate::queue::sqlx::create(executor, queue_name).await
     }
-    /// Errors when there is any database error and Ok(false) when the queue already exists.
-    pub async fn create(&self, queue_name: &str) -> Result<bool, PgmqError> {
+
+    pub async fn create(&self, queue_name: &str) -> Result<(), PgmqError> {
         self.create_with_cxn(queue_name, &self.connection).await
     }
 
@@ -261,104 +241,99 @@ impl PGMQueueExt {
         &self,
         queue_name: &str,
         executor: E,
-    ) -> Result<bool, PgmqError> {
-        check_queue_name(queue_name)?;
-        sqlx::query("SELECT pgmq.create_unlogged(queue_name=>$1::text);")
-            .bind(queue_name)
-            .execute(executor)
-            .await?;
-        Ok(true)
+    ) -> Result<(), PgmqError> {
+        let queue_name = queue_name.try_into()?;
+        crate::queue::sqlx::create_unlogged(executor, queue_name).await
     }
 
-    /// Errors when there is any database error and Ok(false) when the queue already exists.
-    pub async fn create_unlogged(&self, queue_name: &str) -> Result<bool, PgmqError> {
+    pub async fn create_unlogged(&self, queue_name: &str) -> Result<(), PgmqError> {
         self.create_unlogged_with_cxn(queue_name, &self.connection)
-            .await?;
-        Ok(true)
-    }
-
-    pub async fn create_partitioned_with_cxn<
-        'c,
-        E: sqlx::Executor<'c, Database = Postgres> + std::marker::Copy,
-    >(
-        &self,
-        queue_name: &str,
-        executor: E,
-    ) -> Result<bool, PgmqError> {
-        check_queue_name(queue_name)?;
-        let queue_table = format!("pgmq.{QUEUE_PREFIX}_{queue_name}");
-        // we need to check whether the queue exists first
-        // pg_partman create operations are currently unable to be idempotent
-        let exists =
-            sqlx::query_scalar("SELECT EXISTS(SELECT * from part_config where parent_table = $1);")
-                .bind(queue_table)
-                .fetch_one(executor)
-                .await?;
-        if exists {
-            info!("queue: {queue_name} already exists",);
-            Ok(false)
-        } else {
-            sqlx::query("SELECT pgmq.create_partitioned(queue_name=>$1::text);")
-                .bind(queue_name)
-                .execute(executor)
-                .await?;
-            Ok(true)
-        }
-    }
-
-    /// Create a new partitioned queue.
-    /// Errors when there is any database error and Ok(false) when the queue already exists.
-    pub async fn create_partitioned(&self, queue_name: &str) -> Result<bool, PgmqError> {
-        self.create_partitioned_with_cxn(queue_name, &self.connection)
             .await
     }
 
-    pub async fn convert_archive_partitioned_with_cxn<
-        'c,
-        E: sqlx::Executor<'c, Database = Postgres> + std::marker::Copy,
-    >(
+    pub async fn create_partitioned_with_cxn<'c, E: sqlx::Acquire<'c, Database = Postgres>>(
         &self,
         queue_name: &str,
-        partition_interval: Option<&str>,
-        retention_interval: Option<&str>,
+        partition_interval: &str,
+        retention_interval: &str,
         executor: E,
     ) -> Result<(), PgmqError> {
-        check_queue_name(queue_name)?;
-        let mut query: sqlx::QueryBuilder<Postgres> =
-            sqlx::QueryBuilder::new("SELECT pgmq.convert_archive_partitioned(");
+        /*
+        `pg_partman` create operations are currently unable to be idempotent, which means
+        `pgmq.create_partitioned` can not be called for a queue that already exists. So, we
+        need to check whether the queue exists first. To avoid race conditions, we acquire the
+        queue lock (which initiates a transaction) and perform the "exists" check and
+        the `create_partitioned` call within the transaction. When the transaction is committed or
+        goes out of scope, the queue lock is released.
+        */
 
-        {
-            let mut separated = query.separated(", ");
-            separated
-                .push("table_name=>")
-                .push_bind_unseparated(queue_name);
+        let queue_name: QueueName = queue_name.try_into()?;
+        let mut txn = self
+            .acquire_queue_lock_with_cxn(*queue_name, executor)
+            .await?;
 
-            if let Some(partition_interval) = partition_interval {
-                separated
-                    .push("partition_interval=>")
-                    .push_bind_unseparated(partition_interval);
-            }
-
-            if let Some(retention_interval) = retention_interval {
-                separated
-                    .push("retention_interval=>")
-                    .push_bind_unseparated(retention_interval);
-            }
+        let exists = txn.queue_metadata(queue_name).await?.is_some();
+        if exists {
+            return Ok(());
         }
 
-        query.push(")").build().execute(executor).await?;
+        crate::queue::sqlx::create_partitioned(
+            &mut *txn,
+            queue_name,
+            partition_interval,
+            retention_interval,
+        )
+        .await?;
+
+        txn.commit().await?;
 
         Ok(())
     }
 
+    /// Create a new partitioned queue.
+    pub async fn create_partitioned(
+        &self,
+        queue_name: &str,
+        partition_interval: &str,
+        retention_interval: &str,
+    ) -> Result<(), PgmqError> {
+        self.create_partitioned_with_cxn(
+            queue_name,
+            partition_interval,
+            retention_interval,
+            &self.connection,
+        )
+        .await
+    }
+
+    pub async fn convert_archive_partitioned_with_cxn<
+        'c,
+        E: sqlx::Executor<'c, Database = Postgres>,
+    >(
+        &self,
+        queue_name: &str,
+        partition_interval: &str,
+        retention_interval: &str,
+        executor: E,
+    ) -> Result<(), PgmqError> {
+        let queue_name = queue_name.try_into()?;
+        crate::queue::sqlx::convert_archive_partitioned(
+            executor,
+            queue_name,
+            partition_interval,
+            retention_interval,
+        )
+        .await
+    }
+
     pub async fn convert_archive_partitioned(
         &self,
-        table_name: &str,
-        partition_interval: Option<&str>,
-        retention_interval: Option<&str>,
+        queue_name: &str,
+        partition_interval: &str,
+        retention_interval: &str,
     ) -> Result<(), PgmqError> {
         self.convert_archive_partitioned_with_cxn(
-            table_name,
+            queue_name,
             partition_interval,
             retention_interval,
             &self.connection,

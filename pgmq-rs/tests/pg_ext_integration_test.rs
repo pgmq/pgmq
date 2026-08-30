@@ -658,17 +658,15 @@ async fn test_pgmq_init() {
     install_pg_partman(&queue.connection).await;
     // error mode on queue partitioned create but already exists
     let qname = format!("test_dup_{}", rand::rng().random_range(0..100));
-    let created = queue
-        .create_partitioned(&qname)
+    queue
+        .create_partitioned(&qname, "1000", "10000")
         .await
         .expect("failed attempting to create queue");
-    assert!(created, "did not create queue");
-    // create again
-    let created = queue
-        .create_partitioned(&qname)
+    // second time should not return an error
+    queue
+        .create_partitioned(&qname, "1000", "10000")
         .await
         .expect("failed attempting to create the duplicate queue");
-    assert!(!created, "failed to detect duplicate queue");
 }
 
 /// test creating queue in transaction
@@ -740,18 +738,16 @@ async fn test_byop() {
 
     // first time must return true
     let test_queue = format!("test_byop_{}", rand::rng().random_range(0..100000));
-    let created = queue
+    queue
         .create(&test_queue)
         .await
         .expect("failed to create queue");
-    assert!(created, "failed to create queue_{}", test_queue);
 
-    // second time must return false
-    let created = queue
+    // second time should not return an error
+    queue
         .create(&test_queue)
         .await
         .expect("failed execute create queue");
-    assert!(!created, "failed to detect duplicate queue");
 }
 
 #[tokio::test]
@@ -773,11 +769,10 @@ async fn test_transactional() {
     let init = install_pgmq(&queue).await;
     assert!(init, "failed to create extension");
 
-    let created = queue
+    queue
         .create_with_cxn(&test_queue, &pool_0)
         .await
         .expect("failed to create queue");
-    assert!(created);
 
     let mut tx = pool_0.begin().await.expect("failed to start transaction");
 
@@ -824,15 +819,13 @@ async fn test_create_queue_race_condition() {
     let mut conn1 = queue.connection.acquire().await.unwrap();
     let mut conn2 = queue.connection.acquire().await.unwrap();
 
-    let (result1, result2) = tokio::try_join!(
-        queue.create_with_cxn(&queue_name, &mut conn1),
-        queue.create_with_cxn(&queue_name, &mut conn2)
+    // If there's a race condition in `pgmq.create`, one of these may return a
+    // "table already exists" error
+    tokio::try_join!(
+        queue.create_with_cxn(&queue_name, &mut *conn1),
+        queue.create_with_cxn(&queue_name, &mut *conn2)
     )
     .unwrap();
-
-    // If there's a race condition in `PGMQueueExt#create`, both results could be `true` (this
-    // may not always occur due to the non-deterministic nature of race conditions).
-    assert_ne!(result1, result2);
 }
 
 #[tokio::test]
@@ -1564,78 +1557,6 @@ async fn test_metrics_all() {
 
 #[tokio::test]
 #[cfg(not(feature = "install-sql"))]
-async fn test_convert_archive_partitioned() {
-    let test_queue = format!(
-        "test_convert_archive_partitioned_{}",
-        rand::rng().random_range(0..100000)
-    );
-    let queue = init_queue_ext(&test_queue).await;
-    install_pg_partman(&queue.connection).await;
-
-    let messages = [
-        MyMessage::default(),
-        MyMessage::default(),
-        MyMessage::default(),
-    ];
-    let msg_ids = queue.send_batch(&test_queue, &messages).await.unwrap();
-    queue.archive_batch(&test_queue, &msg_ids).await.unwrap();
-
-    queue
-        .convert_archive_partitioned(&test_queue, None, None)
-        .await
-        .unwrap();
-}
-
-#[tokio::test]
-#[cfg(not(feature = "install-sql"))]
-async fn test_convert_archive_partitioned_with_partition_interval() {
-    let test_queue = format!(
-        "test_c_a_p_partition_interval_{}",
-        rand::rng().random_range(0..100000)
-    );
-    let queue = init_queue_ext(&test_queue).await;
-    install_pg_partman(&queue.connection).await;
-
-    let messages = [
-        MyMessage::default(),
-        MyMessage::default(),
-        MyMessage::default(),
-    ];
-    let msg_ids = queue.send_batch(&test_queue, &messages).await.unwrap();
-    queue.archive_batch(&test_queue, &msg_ids).await.unwrap();
-
-    queue
-        .convert_archive_partitioned(&test_queue, Some("1000"), None)
-        .await
-        .unwrap();
-}
-
-#[tokio::test]
-#[cfg(not(feature = "install-sql"))]
-async fn test_convert_archive_partitioned_with_retention_interval() {
-    let test_queue = format!(
-        "test_c_a_p_retention_interval_{}",
-        rand::rng().random_range(0..100000)
-    );
-    let queue = init_queue_ext(&test_queue).await;
-    install_pg_partman(&queue.connection).await;
-
-    let messages = [
-        MyMessage::default(),
-        MyMessage::default(),
-        MyMessage::default(),
-    ];
-    let msg_ids = queue.send_batch(&test_queue, &messages).await.unwrap();
-    queue.archive_batch(&test_queue, &msg_ids).await.unwrap();
-
-    queue
-        .convert_archive_partitioned(&test_queue, None, Some("1000"))
-        .await
-        .unwrap();
-}
-
-#[tokio::test]
-#[cfg(not(feature = "install-sql"))]
 async fn test_convert_archive_partitioned_with_both_optional_params() {
     let test_queue = format!("test_c_a_p_both_{}", rand::rng().random_range(0..100000));
     let queue = init_queue_ext(&test_queue).await;
@@ -1650,7 +1571,7 @@ async fn test_convert_archive_partitioned_with_both_optional_params() {
     queue.archive_batch(&test_queue, &msg_ids).await.unwrap();
 
     queue
-        .convert_archive_partitioned(&test_queue, Some("100"), Some("1000"))
+        .convert_archive_partitioned(&test_queue, "100", "1000")
         .await
         .unwrap();
 }

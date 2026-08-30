@@ -3,6 +3,7 @@ pub mod diesel_async;
 #[cfg(feature = "diesel-sync")]
 pub mod diesel_sync;
 mod query;
+pub mod schema;
 pub mod sql;
 
 /// This macro defines all the functions required to implement [`crate::queue::Queue`] for both
@@ -30,8 +31,58 @@ macro_rules! diesel_functions {
         where
             C: $executor_trait,
         {
+            let result = crate::queue::diesel::query::create_query(queue_name).execute(executor);
+            $transform_result!(result)?;
+            Ok(())
+        }
+
+        async fn create_unlogged<C>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+        ) -> Result<(), crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
             let result =
-                crate::queue::diesel::query::create_queue_query(queue_name).execute(executor);
+                crate::queue::diesel::query::create_unlogged_query(queue_name).execute(executor);
+            $transform_result!(result)?;
+            Ok(())
+        }
+
+        async fn create_partitioned<C>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+            partition_interval: &str,
+            retention_interval: &str,
+        ) -> Result<(), crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let result = crate::queue::diesel::query::create_partitioned_query(
+                queue_name,
+                partition_interval,
+                retention_interval,
+            )
+            .execute(executor);
+            $transform_result!(result)?;
+            Ok(())
+        }
+
+        async fn convert_archive_partitioned<C>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+            partition_interval: &str,
+            retention_interval: &str,
+        ) -> Result<(), crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let result = crate::queue::diesel::query::convert_archive_partitioned_query(
+                queue_name,
+                partition_interval,
+                retention_interval,
+            )
+            .execute(executor);
             $transform_result!(result)?;
             Ok(())
         }
@@ -385,6 +436,37 @@ macro_rules! diesel_functions {
             let rows = $transform_result!(rows)?;
             Ok(rows)
         }
+
+        async fn list_queues<C>(
+            executor: &mut C,
+        ) -> Result<Vec<crate::types::PGMQueueMeta>, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let rows = crate::queue::diesel::query::list_queues_query().get_results(executor);
+            let rows = $transform_result!(rows)?;
+            Ok(rows)
+        }
+
+        async fn queue_metadata<C>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+        ) -> Result<Option<crate::types::PGMQueueMeta>, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            use diesel::prelude::SelectableHelper;
+            use diesel::OptionalExtension;
+            use diesel::QueryDsl;
+
+            let result = crate::queue::diesel::query::queue_metadata_query(queue_name)
+                .select(crate::types::PGMQueueMeta::as_select())
+                .get_result(executor);
+            let result = $transform_result!(result);
+            let result = result.optional()?;
+            Ok(result)
+        }
     };
 }
+
 pub(crate) use diesel_functions;

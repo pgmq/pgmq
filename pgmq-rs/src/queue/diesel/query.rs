@@ -1,19 +1,55 @@
 //! Extracted Diesel SQL query functions. Can be used by both diesel and diesel-async.
 use crate::queue::diesel::sql::{
-    pgmq_archive, pgmq_bind_topic, pgmq_create, pgmq_create_fifo_index,
-    pgmq_create_fifo_indexes_all, pgmq_delete, pgmq_disable_notify_insert,
-    pgmq_enable_notify_insert, pgmq_list_notify_insert_throttles, pgmq_list_topic_bindings,
+    pgmq_archive, pgmq_bind_topic, pgmq_convert_archive_partitioned, pgmq_create,
+    pgmq_create_fifo_index, pgmq_create_fifo_indexes_all, pgmq_create_partitioned,
+    pgmq_create_unlogged, pgmq_delete, pgmq_disable_notify_insert, pgmq_enable_notify_insert,
+    pgmq_list_notify_insert_throttles, pgmq_list_queues, pgmq_list_topic_bindings,
     pgmq_list_topic_bindings_all, pgmq_pop, pgmq_read, pgmq_read_grouped, pgmq_read_grouped_head,
     pgmq_read_grouped_rr, pgmq_send, pgmq_send_batch, pgmq_send_batch_topic, pgmq_send_topic,
     pgmq_set_vt, pgmq_unbind_topic, pgmq_update_notify_insert,
 };
 use crate::types::{InsertNotificationThrottleInterval, QueueName, VisibilityTimeoutOffset};
 use diesel::dsl::select;
+use diesel::{ExpressionMethods, QueryDsl};
 
 #[diesel::dsl::auto_type(no_type_alias)]
-pub fn create_queue_query(queue_name: QueueName<'_>) -> _ {
+pub fn create_query(queue_name: QueueName<'_>) -> _ {
     let queue_name: &str = *queue_name;
     select(pgmq_create(queue_name))
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn create_unlogged_query(queue_name: QueueName<'_>) -> _ {
+    let queue_name: &str = *queue_name;
+    select(pgmq_create_unlogged(queue_name))
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn create_partitioned_query<'q, 'p, 'r>(
+    queue_name: QueueName<'q>,
+    partition_interval: &'p str,
+    retention_interval: &'r str,
+) -> _ {
+    let queue_name: &'q str = *queue_name;
+    select(pgmq_create_partitioned(
+        queue_name,
+        partition_interval,
+        retention_interval,
+    ))
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn convert_archive_partitioned_query<'q, 'p, 'r>(
+    queue_name: QueueName<'q>,
+    partition_interval: &'p str,
+    retention_interval: &'r str,
+) -> _ {
+    let queue_name: &'q str = *queue_name;
+    select(pgmq_convert_archive_partitioned(
+        queue_name,
+        partition_interval,
+        retention_interval,
+    ))
 }
 
 #[diesel::dsl::auto_type(no_type_alias)]
@@ -206,4 +242,16 @@ pub fn disable_notify_insert_query(queue_name: QueueName<'_>) -> _ {
 #[diesel::dsl::auto_type(no_type_alias)]
 pub fn list_notify_insert_throttles_query() -> _ {
     select(pgmq_list_notify_insert_throttles())
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn list_queues_query() -> _ {
+    select(pgmq_list_queues())
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn queue_metadata_query(queue_name: QueueName<'_>) -> _ {
+    let queue_name: &str = *queue_name;
+    crate::queue::diesel::schema::meta::table
+        .filter(crate::queue::diesel::schema::meta::queue_name.eq(queue_name))
 }
