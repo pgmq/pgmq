@@ -1557,78 +1557,6 @@ async fn test_metrics_all() {
 
 #[tokio::test]
 #[cfg(not(feature = "install-sql"))]
-async fn test_convert_archive_partitioned() {
-    let test_queue = format!(
-        "test_convert_archive_partitioned_{}",
-        rand::rng().random_range(0..100000)
-    );
-    let queue = init_queue_ext(&test_queue).await;
-    install_pg_partman(&queue.connection).await;
-
-    let messages = [
-        MyMessage::default(),
-        MyMessage::default(),
-        MyMessage::default(),
-    ];
-    let msg_ids = queue.send_batch(&test_queue, &messages).await.unwrap();
-    queue.archive_batch(&test_queue, &msg_ids).await.unwrap();
-
-    queue
-        .convert_archive_partitioned(&test_queue, None, None)
-        .await
-        .unwrap();
-}
-
-#[tokio::test]
-#[cfg(not(feature = "install-sql"))]
-async fn test_convert_archive_partitioned_with_partition_interval() {
-    let test_queue = format!(
-        "test_c_a_p_partition_interval_{}",
-        rand::rng().random_range(0..100000)
-    );
-    let queue = init_queue_ext(&test_queue).await;
-    install_pg_partman(&queue.connection).await;
-
-    let messages = [
-        MyMessage::default(),
-        MyMessage::default(),
-        MyMessage::default(),
-    ];
-    let msg_ids = queue.send_batch(&test_queue, &messages).await.unwrap();
-    queue.archive_batch(&test_queue, &msg_ids).await.unwrap();
-
-    queue
-        .convert_archive_partitioned(&test_queue, Some("1000"), None)
-        .await
-        .unwrap();
-}
-
-#[tokio::test]
-#[cfg(not(feature = "install-sql"))]
-async fn test_convert_archive_partitioned_with_retention_interval() {
-    let test_queue = format!(
-        "test_c_a_p_retention_interval_{}",
-        rand::rng().random_range(0..100000)
-    );
-    let queue = init_queue_ext(&test_queue).await;
-    install_pg_partman(&queue.connection).await;
-
-    let messages = [
-        MyMessage::default(),
-        MyMessage::default(),
-        MyMessage::default(),
-    ];
-    let msg_ids = queue.send_batch(&test_queue, &messages).await.unwrap();
-    queue.archive_batch(&test_queue, &msg_ids).await.unwrap();
-
-    queue
-        .convert_archive_partitioned(&test_queue, None, Some("1000"))
-        .await
-        .unwrap();
-}
-
-#[tokio::test]
-#[cfg(not(feature = "install-sql"))]
 async fn test_convert_archive_partitioned_with_both_optional_params() {
     let test_queue = format!("test_c_a_p_both_{}", rand::rng().random_range(0..100000));
     let queue = init_queue_ext(&test_queue).await;
@@ -1643,7 +1571,7 @@ async fn test_convert_archive_partitioned_with_both_optional_params() {
     queue.archive_batch(&test_queue, &msg_ids).await.unwrap();
 
     queue
-        .convert_archive_partitioned(&test_queue, Some("100"), Some("1000"))
+        .convert_archive_partitioned(&test_queue, "100", "1000")
         .await
         .unwrap();
 }
