@@ -312,46 +312,28 @@ impl PGMQueueExt {
     >(
         &self,
         queue_name: &str,
-        partition_interval: Option<&str>,
-        retention_interval: Option<&str>,
+        partition_interval: &str,
+        retention_interval: &str,
         executor: E,
     ) -> Result<(), PgmqError> {
-        check_queue_name(queue_name)?;
-        let mut query: sqlx::QueryBuilder<Postgres> =
-            sqlx::QueryBuilder::new("SELECT pgmq.convert_archive_partitioned(");
-
-        {
-            let mut separated = query.separated(", ");
-            separated
-                .push("table_name=>")
-                .push_bind_unseparated(queue_name);
-
-            if let Some(partition_interval) = partition_interval {
-                separated
-                    .push("partition_interval=>")
-                    .push_bind_unseparated(partition_interval);
-            }
-
-            if let Some(retention_interval) = retention_interval {
-                separated
-                    .push("retention_interval=>")
-                    .push_bind_unseparated(retention_interval);
-            }
-        }
-
-        query.push(")").build().execute(executor).await?;
-
-        Ok(())
+        let queue_name = queue_name.try_into()?;
+        crate::queue::sqlx::convert_archive_partitioned(
+            executor,
+            queue_name,
+            partition_interval,
+            retention_interval,
+        )
+        .await
     }
 
     pub async fn convert_archive_partitioned(
         &self,
-        table_name: &str,
-        partition_interval: Option<&str>,
-        retention_interval: Option<&str>,
+        queue_name: &str,
+        partition_interval: &str,
+        retention_interval: &str,
     ) -> Result<(), PgmqError> {
         self.convert_archive_partitioned_with_cxn(
-            table_name,
+            queue_name,
             partition_interval,
             retention_interval,
             &self.connection,
