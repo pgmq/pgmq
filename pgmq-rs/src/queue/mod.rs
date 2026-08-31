@@ -898,4 +898,36 @@ pub trait Queue: crate::private::Sealed {
     where
         Q: Send + TryInto<QueueName<'q>, Error = QE>,
         QE: Into<crate::types::queue_name::QueueNameError>;
+
+    /// Delete all messages in the provided queue.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// queue.purge_queue("my_queue").await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn purge_queue<'q, Q, QE>(self, queue_name: Q) -> Result<i64, PgmqError>
+    where
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: Into<crate::types::queue_name::QueueNameError>;
+
+    /// Drop the tables for the provided queue.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// queue.drop_queue("my_queue").await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn drop_queue<'q, Q, QE>(self, queue_name: Q) -> Result<(), PgmqError>
+    where
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: Into<crate::types::queue_name::QueueNameError>;
 }

@@ -479,6 +479,32 @@ macro_rules! diesel_functions {
             $transform_result!(result)?;
             Ok(())
         }
+
+        async fn purge_queue<C>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+        ) -> Result<i64, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let message_id =
+                crate::queue::diesel::query::purge_queue_query(queue_name).get_result(executor);
+            let message_id = $transform_result!(message_id)?;
+            Ok(message_id)
+        }
+
+        async fn drop_queue<C>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+        ) -> Result<(), crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let result =
+                crate::queue::diesel::query::drop_queue_query(queue_name).execute(executor);
+            $transform_result!(result)?;
+            Ok(())
+        }
     };
 }
 

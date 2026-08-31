@@ -13,7 +13,7 @@ use crate::util::{
     serialize_optional_list,
 };
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, Pool, Postgres, Row};
+use sqlx::{FromRow, Pool, Postgres};
 use std::ops::Deref;
 
 const DEFAULT_POLL_TIMEOUT_S: i32 = 5;
@@ -342,13 +342,8 @@ impl PGMQueueExt {
         queue_name: &str,
         executor: E,
     ) -> Result<(), PgmqError> {
-        check_queue_name(queue_name)?;
-        sqlx::query("SELECT pgmq.drop_queue(queue_name=>$1::text);")
-            .bind(queue_name)
-            .execute(executor)
-            .await?;
-
-        Ok(())
+        let queue_name = queue_name.try_into()?;
+        crate::queue::sqlx::drop_queue(executor, queue_name).await
     }
 
     /// Drop an existing queue table.
@@ -362,12 +357,8 @@ impl PGMQueueExt {
         queue_name: &str,
         executor: E,
     ) -> Result<i64, PgmqError> {
-        check_queue_name(queue_name)?;
-        let purged = sqlx::query("SELECT * from pgmq.purge_queue(queue_name=>$1::text);")
-            .bind(queue_name)
-            .fetch_one(executor)
-            .await?;
-        Ok(purged.try_get("purge_queue")?)
+        let queue_name = queue_name.try_into()?;
+        crate::queue::sqlx::purge_queue(executor, queue_name).await
     }
 
     /// Drop an existing queue table.
