@@ -1337,6 +1337,59 @@ async fn drop_queue_does_not_exist(conn_details: ConnDetails, queue: impl Queue)
     queue.drop_queue(QUEUE).await.unwrap();
 }
 
+#[pgmq_test_macro::queue_test]
+async fn test_metrics(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+
+    let messages = [TestMessage::new(), TestMessage::new(), TestMessage::new()];
+    /*
+    `pgmq.send` and `pgmq.metrics` use different methods for fetching the current timestamp,
+    `clock_timestamp` vs `now`, which get the current timestamp and the time at which the current
+    transaction started, respectively. This causes the `QueueMetrics#queue_visible_length` field
+    to be `0` when this test runs inside a transaction. So, as a workaround, we set the `vt` to be
+    in the past, which allows the `vt` comparison to return the same number of items whether this
+    test runs inside a transaction or not.
+     */
+    queue
+        .send_batch(QUEUE, &messages, EMPTY_HEADERS, -10)
+        .await
+        .unwrap();
+
+    let _: Vec<Message<TestMessage>> = queue.read(QUEUE, 100, 1).await.unwrap();
+
+    let metrics = queue.metrics(QUEUE).await.unwrap();
+    assert_eq!(QUEUE, metrics.queue_name);
+    assert_eq!((messages.len() - 1) as i64, metrics.queue_visible_length);
+    assert_eq!(messages.len() as i64, metrics.queue_length);
+    assert_eq!(messages.len() as i64, metrics.total_messages);
+}
+
+#[pgmq_test_macro::queue_test]
+async fn test_metrics_all(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+
+    let messages = [TestMessage::new(), TestMessage::new(), TestMessage::new()];
+    // See the comment in `test_metrics` for why we set the `vt` to be in the past.
+    queue
+        .send_batch(QUEUE, &messages, EMPTY_HEADERS, -10)
+        .await
+        .unwrap();
+
+    let _: Vec<Message<TestMessage>> = queue.read(QUEUE, 100, 1).await.unwrap();
+
+    let metrics = queue
+        .metrics_all()
+        .await
+        .unwrap()
+        .into_iter()
+        .find(|metrics| metrics.queue_name == QUEUE)
+        .unwrap();
+    assert_eq!(QUEUE, metrics.queue_name);
+    assert_eq!((messages.len() - 1) as i64, metrics.queue_visible_length);
+    assert_eq!(messages.len() as i64, metrics.queue_length);
+    assert_eq!(messages.len() as i64, metrics.total_messages);
+}
+
 #[pgmq_test_macro::queue_transaction_test]
 async fn acquire_queue_lock_invalid_queue_name(
     conn_details: ConnDetails,

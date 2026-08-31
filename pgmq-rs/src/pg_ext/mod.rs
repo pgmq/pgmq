@@ -1381,12 +1381,8 @@ impl PGMQueueExt {
         queue_name: &str,
         executor: E,
     ) -> Result<QueueMetrics, PgmqError> {
-        check_queue_name(queue_name)?;
-        let metrics: QueueMetrics = sqlx::query_as("SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time, queue_visible_length FROM pgmq.metrics(queue_name=>$1::text)")
-            .bind(queue_name)
-            .fetch_one(executor)
-            .await?;
-        Ok(metrics)
+        let queue_name = queue_name.try_into()?;
+        crate::queue::sqlx::metrics(executor, queue_name).await
     }
 
     pub async fn metrics(&self, queue_name: &str) -> Result<QueueMetrics, PgmqError> {
@@ -1397,10 +1393,7 @@ impl PGMQueueExt {
         &self,
         executor: E,
     ) -> Result<Vec<QueueMetrics>, PgmqError> {
-        let metrics: Vec<QueueMetrics> = sqlx::query_as("SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time, queue_visible_length FROM pgmq.metrics_all()")
-            .fetch_all(executor)
-            .await?;
-        Ok(metrics)
+        crate::queue::sqlx::metrics_all(executor).await
     }
 
     pub async fn metrics_all(&self) -> Result<Vec<QueueMetrics>, PgmqError> {

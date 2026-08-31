@@ -105,3 +105,9 @@ pub(crate) const PURGE_QUEUE: &str = "SELECT * from pgmq.purge_queue(queue_name=
 
 // language=PostgreSQL
 pub(crate) const DROP_QUEUE: &str = "SELECT pgmq.drop_queue(queue_name=>$1::text)";
+
+// language=PostgreSQL
+pub(crate) const METRICS: &str = "SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time, queue_visible_length FROM pgmq.metrics(queue_name=>$1::text)";
+
+// language=PostgreSQL
+pub(crate) const METRICS_ALL: &str = "SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time, queue_visible_length FROM pgmq.metrics_all()";
