@@ -10,7 +10,7 @@
 #![cfg(feature = "queue-experimental")]
 
 use initialization::ConnDetails;
-use pgmq::queue::Queue;
+use pgmq::queue::{Queue, QueueTransaction};
 use pgmq::types::queue_name::QueueNameError;
 use pgmq::types::EMPTY_HEADERS;
 use pgmq::{Message, PgmqError};
@@ -1278,4 +1278,36 @@ async fn queue_metadata_partitioned(conn_details: ConnDetails, queue: impl Queue
     assert_eq!(QUEUE, metadata.queue_name);
     assert!(!metadata.is_unlogged, "Queue should not be unlogged");
     assert!(metadata.is_partitioned, "Queue should be partitioned");
+}
+
+#[pgmq_test_macro::queue_transaction_test]
+async fn acquire_queue_lock_invalid_queue_name(
+    conn_details: ConnDetails,
+    queue: impl QueueTransaction,
+) {
+    let result: Result<_, _> = queue.acquire_queue_lock("invalid-queue-name").await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_transaction_test]
+async fn acquire_queue_lock(conn_details: ConnDetails, queue: impl QueueTransaction) {
+    use sqlx::Connection;
+
+    queue.acquire_queue_lock(QUEUE).await.unwrap();
+
+    let mut other_conn = initialization::sqlx_conn(&(conn_details.test_db_url.clone())).await;
+    let mut other_txn = other_conn.begin().await.unwrap();
+
+    let result =
+        tokio::time::timeout(Duration::from_secs(5), other_txn.acquire_queue_lock(QUEUE)).await;
+
+    assert!(
+        result.is_err(),
+        "Attempting to acquire the lock while it's held by a different transaction should timeout."
+    );
 }

@@ -1,7 +1,7 @@
 //! Extracted Diesel SQL query functions. Can be used by both diesel and diesel-async.
 use crate::queue::diesel::sql::{
-    pgmq_archive, pgmq_bind_topic, pgmq_convert_archive_partitioned, pgmq_create,
-    pgmq_create_fifo_index, pgmq_create_fifo_indexes_all, pgmq_create_partitioned,
+    pgmq_acquire_queue_lock, pgmq_archive, pgmq_bind_topic, pgmq_convert_archive_partitioned,
+    pgmq_create, pgmq_create_fifo_index, pgmq_create_fifo_indexes_all, pgmq_create_partitioned,
     pgmq_create_unlogged, pgmq_delete, pgmq_disable_notify_insert, pgmq_enable_notify_insert,
     pgmq_list_notify_insert_throttles, pgmq_list_queues, pgmq_list_topic_bindings,
     pgmq_list_topic_bindings_all, pgmq_pop, pgmq_read, pgmq_read_grouped, pgmq_read_grouped_head,
@@ -254,4 +254,10 @@ pub fn queue_metadata_query(queue_name: QueueName<'_>) -> _ {
     let queue_name: &str = *queue_name;
     crate::queue::diesel::schema::meta::table
         .filter(crate::queue::diesel::schema::meta::queue_name.eq(queue_name))
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn acquire_queue_lock_query(queue_name: QueueName<'_>) -> _ {
+    let queue_name: &str = *queue_name;
+    select(pgmq_acquire_queue_lock(queue_name))
 }

@@ -530,3 +530,36 @@ macro_rules! impl_queue {
 }
 // Re-export the macro for use within this crate
 pub(crate) use impl_queue;
+
+/// Helper macro to implement the [`crate::queue::transaction::QueueTransaction`] trait for a type.
+/// This trait is similar to [`impl_queue`]; however, because
+/// [`crate::queue::transaction::QueueTransaction`] requires the type to implement
+/// [`crate::queue::Queue`], this macro also invokes [`impl_queue`] for the provided type, so
+/// only one of [`impl_queue`] and [`impl_queue_transaction`] should be invoked for a given type.
+macro_rules! impl_queue_transaction {
+    (
+        /// The type to implement the `Queue` trait for.
+        $for_type:ty,
+        /// Expression used to transform `self` into an implementation-specific executor type.
+        $transform_self:tt
+    ) => {
+        crate::queue::macros::impl_queue!($for_type, $transform_self);
+
+        #[async_trait::async_trait]
+        impl crate::queue::transaction::QueueTransaction for $for_type {
+            async fn acquire_queue_lock<'q, Q, QE>(
+                self,
+                queue_name: Q,
+            ) -> Result<(), crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                acquire_queue_lock($transform_self!(self), queue_name).await
+            }
+        }
+    };
+}
+// Re-export the macro for use within this crate
+pub(crate) use impl_queue_transaction;

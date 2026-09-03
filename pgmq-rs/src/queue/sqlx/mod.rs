@@ -1,11 +1,11 @@
-use crate::queue::macros::{identity_macro, impl_queue};
+use crate::queue::macros::{identity_macro, impl_queue, impl_queue_transaction};
 use crate::queue::sql::{
-    ARCHIVE, BIND_TOPIC, CONVERT_ARCHIVE_PARTITIONED, CREATE, CREATE_FIFO_INDEX,
-    CREATE_FIFO_INDEXES_ALL, CREATE_PARTITIONED, CREATE_UNLOGGED, DELETE, DISABLE_NOTIFY_INSERT,
-    ENABLE_NOTIFY_INSERT, LIST_NOTIFY_INSERT_THROTTLES, LIST_QUEUES, LIST_TOPIC_BINDINGS,
-    LIST_TOPIC_BINDINGS_ALL, POP, QUEUE_METADATA, READ, READ_GROUPED, READ_GROUPED_HEAD,
-    READ_GROUPED_RR, SEND, SEND_BATCH, SEND_BATCH_TOPIC, SEND_TOPIC, SET_VT, UNBIND_TOPIC,
-    UPDATE_NOTIFY_INSERT,
+    ACQUIRE_QUEUE_LOCK, ARCHIVE, BIND_TOPIC, CONVERT_ARCHIVE_PARTITIONED, CREATE,
+    CREATE_FIFO_INDEX, CREATE_FIFO_INDEXES_ALL, CREATE_PARTITIONED, CREATE_UNLOGGED, DELETE,
+    DISABLE_NOTIFY_INSERT, ENABLE_NOTIFY_INSERT, LIST_NOTIFY_INSERT_THROTTLES, LIST_QUEUES,
+    LIST_TOPIC_BINDINGS, LIST_TOPIC_BINDINGS_ALL, POP, QUEUE_METADATA, READ, READ_GROUPED,
+    READ_GROUPED_HEAD, READ_GROUPED_RR, SEND, SEND_BATCH, SEND_BATCH_TOPIC, SEND_TOPIC, SET_VT,
+    UNBIND_TOPIC, UPDATE_NOTIFY_INSERT,
 };
 use crate::types::{
     InsertNotificationThrottleInterval, ListNotifyInsertThrottlesRow, ListTopicBindingsRow,
@@ -25,7 +25,7 @@ macro_rules! transform_input_dereference_transaction {
     };
 }
 
-impl_queue!(
+impl_queue_transaction!(
     &mut sqlx::Transaction<'_, Postgres>,
     transform_input_dereference_transaction
 );
@@ -524,4 +524,18 @@ where
         .await?;
 
     Ok(metadata)
+}
+
+pub(crate) async fn acquire_queue_lock<'c, C>(
+    executor: C,
+    queue_name: QueueName<'_>,
+) -> Result<(), PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+{
+    sqlx::query(ACQUIRE_QUEUE_LOCK)
+        .bind(*queue_name)
+        .execute(executor)
+        .await?;
+    Ok(())
 }

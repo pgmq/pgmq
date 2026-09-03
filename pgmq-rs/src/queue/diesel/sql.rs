@@ -260,4 +260,7 @@ extern "SQL" {
 
     #[sql_name = "pgmq.list_queues"]
     fn pgmq_list_queues() -> PgPGMQueueMeta;
+
+    #[sql_name = "pgmq.acquire_queue_lock"]
+    fn pgmq_acquire_queue_lock(queue_name: Text);
 }
