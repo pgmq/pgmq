@@ -99,3 +99,9 @@ pub(crate) const QUEUE_METADATA: &str =
 
 // language=PostgreSQL
 pub(crate) const ACQUIRE_QUEUE_LOCK: &str = "SELECT pgmq.acquire_queue_lock(queue_name=>$1::text)";
+
+// language=PostgreSQL
+pub(crate) const PURGE_QUEUE: &str = "SELECT * from pgmq.purge_queue(queue_name=>$1::text)";
+
+// language=PostgreSQL
+pub(crate) const DROP_QUEUE: &str = "SELECT pgmq.drop_queue(queue_name=>$1::text)";

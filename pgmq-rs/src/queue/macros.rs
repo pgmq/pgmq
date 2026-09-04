@@ -525,6 +525,24 @@ macro_rules! impl_queue {
                 let queue_name = queue_name.try_into().map_err(|err| err.into())?;
                 queue_metadata($transform_self!(self), queue_name).await
             }
+
+            async fn purge_queue<'q, Q, QE>(self, queue_name: Q) -> Result<i64, crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                purge_queue($transform_self!(self), queue_name).await
+            }
+
+            async fn drop_queue<'q, Q, QE>(self, queue_name: Q) -> Result<(), crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                drop_queue($transform_self!(self), queue_name).await
+            }
         }
     };
 }

@@ -1280,6 +1280,63 @@ async fn queue_metadata_partitioned(conn_details: ConnDetails, queue: impl Queue
     assert!(metadata.is_partitioned, "Queue should be partitioned");
 }
 
+#[pgmq_test_macro::queue_test]
+async fn purge_queue_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result: Result<_, _> = queue.purge_queue("invalid-queue-name").await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn purge_queue(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+
+    queue.send(QUEUE, (), (), 0).await.unwrap();
+    let num_deleted = queue.purge_queue(QUEUE).await.unwrap();
+    assert_eq!(num_deleted, 1);
+
+    let msgs: Vec<Message<()>> = queue.read(QUEUE, 0, 1).await.unwrap();
+    assert!(msgs.is_empty());
+}
+
+#[pgmq_test_macro::queue_test]
+async fn purge_queue_empty(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+
+    let num_deleted = queue.purge_queue(QUEUE).await.unwrap();
+    assert_eq!(num_deleted, 0);
+}
+
+#[pgmq_test_macro::queue_test]
+async fn drop_queue_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result: Result<_, _> = queue.drop_queue("invalid-queue-name").await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn drop_queue(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+
+    queue.drop_queue(QUEUE).await.unwrap();
+
+    let queue_metadata = queue.queue_metadata(QUEUE).await.unwrap();
+    assert!(queue_metadata.is_none());
+}
+
+#[pgmq_test_macro::queue_test]
+async fn drop_queue_does_not_exist(conn_details: ConnDetails, queue: impl Queue) {
+    queue.drop_queue(QUEUE).await.unwrap();
+}
+
 #[pgmq_test_macro::queue_transaction_test]
 async fn acquire_queue_lock_invalid_queue_name(
     conn_details: ConnDetails,

@@ -263,4 +263,10 @@ extern "SQL" {
 
     #[sql_name = "pgmq.acquire_queue_lock"]
     fn pgmq_acquire_queue_lock(queue_name: Text);
+
+    #[sql_name = "pgmq.purge_queue"]
+    fn pgmq_purge_queue(queue_name: Text) -> BigInt;
+
+    #[sql_name = "pgmq.drop_queue"]
+    fn pgmq_drop_queue(queue_name: Text);
 }
