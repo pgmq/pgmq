@@ -10,14 +10,15 @@ use std::ops::Deref;
 /// correct [`Unit`].
 ///
 /// Provided values are mapped to an [`i32`] value because the PGMQ SQL functions expect integer
-/// values for their duration parameters, which corresponds to [`i32`] in Rust. Note how edge cases
-/// are handled:
+/// values for their duration parameters, which corresponds to [`i32`] in Rust.
 ///
-/// 1. Negative values do not make sense for any PGMQ use case, so the min value allowed for a
-///    [`Duration`] is `0` ([`Duration::MIN`]).
-/// 2. If converting to [`i32`] (e.g., from an [`i64`]) would result in an overflow, the value is
-///    capped at [`i32::MAX`] ([`Duration::MAX`]). The maximum [`i32`] value should be plenty
-///    large for virtually any PGMQ use case (68 years for seconds, 24 days for milliseconds).
+/// Note how overflows: If converting to [`i32`] (e.g., from an [`i64`]) would result in an overflow,
+/// the value is capped at [`i32::MAX`] ([`Duration::MAX`]) or [`i32::MIN`] ([`Duration::MIN`]). The
+/// maximum [`i32`] value should be plenty large for virtually any PGMQ use case (68 years for
+/// seconds, 24 days for milliseconds).
+///
+/// Negative values are allowed; however, negative values are not particularly useful for any
+/// PGMQ use case.
 ///
 /// Because the value contained in the [`Duration`] has already been converted to the correct units,
 /// it can be directly used in SQL queries by dereferencing the [`Duration`] (via the [`Deref`]
@@ -35,8 +36,8 @@ use std::ops::Deref;
 /// ## Convert from a negative `i32`
 /// ```
 /// # use pgmq::types::duration::{Duration, Milliseconds, Seconds};
-/// assert_eq!(0, *Duration::<Seconds>::from(-10i32));
-/// assert_eq!(0, *Duration::<Milliseconds>::from(-10i32));
+/// assert_eq!(-10, *Duration::<Seconds>::from(-10i32));
+/// assert_eq!(-10, *Duration::<Milliseconds>::from(-10i32));
 /// ```
 ///
 /// ## Convert from `u32`
@@ -70,7 +71,7 @@ use std::ops::Deref;
 /// ## Convert from `i64` -- capped min
 /// ```
 /// # use pgmq::types::duration::{Duration, Milliseconds, Seconds};
-/// assert_eq!(0i32, *Duration::<Seconds>::from(i64::MIN));
+/// assert_eq!(Duration::MIN, Duration::<Seconds>::from(i64::MIN));
 /// assert_eq!(Duration::MIN, Duration::<Milliseconds>::from(i64::MIN));
 /// ```
 ///
@@ -91,7 +92,7 @@ use std::ops::Deref;
 /// ## Convert from [`chrono::Duration`] -- capped min
 /// ```
 /// # use pgmq::types::duration::{Duration, Milliseconds, Seconds};
-/// assert_eq!(0i32, *Duration::<Seconds>::from(chrono::Duration::MIN));
+/// assert_eq!(Duration::MIN, Duration::<Seconds>::from(chrono::Duration::MIN));
 /// assert_eq!(Duration::MIN, Duration::<Milliseconds>::from(chrono::Duration::MIN));
 /// ```
 ///
@@ -132,7 +133,7 @@ impl Unit for Seconds {}
 
 impl<U: Unit> Duration<U> {
     /// The minimum allowed [`Duration`] value.
-    pub const MIN: Self = Self::new(0);
+    pub const MIN: Self = Self::new(i32::MIN);
 
     /// The maximum allowed [`Duration`] value.
     pub const MAX: Self = Self::new(i32::MAX);
@@ -185,39 +186,39 @@ impl<U: Unit> Deref for Duration<U> {
 
 impl<U: Unit> From<i32> for Duration<U> {
     fn from(value: i32) -> Self {
-        Self::new(std::cmp::max(value, 0))
+        Self::new(value)
     }
 }
 
 impl<U: Unit> From<u32> for Duration<U> {
     fn from(value: u32) -> Self {
-        Self::new(i32::try_from(value).unwrap_or(i32::MAX))
+        Self::new(i32::try_from(value).unwrap_or(*Self::MAX))
     }
 }
 
 impl<U: Unit> From<i64> for Duration<U> {
     fn from(value: i64) -> Self {
-        let value = i32::try_from(std::cmp::max(value, 0)).unwrap_or(i32::MAX);
+        let value = i32::try_from(std::cmp::max(value, *Self::MIN as i64)).unwrap_or(*Self::MAX);
         Self::new(value)
     }
 }
 
 impl<U: Unit> From<u64> for Duration<U> {
     fn from(value: u64) -> Self {
-        Self::new(i32::try_from(value).unwrap_or(i32::MAX))
+        Self::new(i32::try_from(value).unwrap_or(*Self::MAX))
     }
 }
 
 impl<U: Unit> From<i128> for Duration<U> {
     fn from(value: i128) -> Self {
-        let value = i32::try_from(std::cmp::max(value, 0)).unwrap_or(i32::MAX);
+        let value = i32::try_from(std::cmp::max(value, *Self::MIN as i128)).unwrap_or(*Self::MAX);
         Self::new(value)
     }
 }
 
 impl<U: Unit> From<u128> for Duration<U> {
     fn from(value: u128) -> Self {
-        Self::new(i32::try_from(value).unwrap_or(i32::MAX))
+        Self::new(i32::try_from(value).unwrap_or(*Self::MAX))
     }
 }
 

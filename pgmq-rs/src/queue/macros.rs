@@ -543,6 +543,24 @@ macro_rules! impl_queue {
                 let queue_name = queue_name.try_into().map_err(|err| err.into())?;
                 drop_queue($transform_self!(self), queue_name).await
             }
+
+            async fn metrics<'q, Q, QE>(
+                self,
+                queue_name: Q,
+            ) -> Result<crate::types::QueueMetrics, crate::PgmqError>
+            where
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                metrics($transform_self!(self), queue_name).await
+            }
+
+            async fn metrics_all(
+                self,
+            ) -> Result<Vec<crate::types::QueueMetrics>, crate::PgmqError> {
+                metrics_all($transform_self!(self)).await
+            }
         }
     };
 }

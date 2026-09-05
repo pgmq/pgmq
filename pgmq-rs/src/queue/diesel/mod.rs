@@ -505,6 +505,30 @@ macro_rules! diesel_functions {
             $transform_result!(result)?;
             Ok(())
         }
+
+        async fn metrics<C>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+        ) -> Result<crate::types::QueueMetrics, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let result =
+                crate::queue::diesel::query::metrics_query(queue_name).get_result(executor);
+            let result = $transform_result!(result)?;
+            Ok(result)
+        }
+
+        async fn metrics_all<C>(
+            executor: &mut C,
+        ) -> Result<Vec<crate::types::QueueMetrics>, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let rows = crate::queue::diesel::query::metrics_all_query().get_results(executor);
+            let rows = $transform_result!(rows)?;
+            Ok(rows)
+        }
     };
 }
 

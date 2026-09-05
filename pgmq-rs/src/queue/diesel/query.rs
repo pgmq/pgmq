@@ -4,10 +4,10 @@ use crate::queue::diesel::sql::{
     pgmq_create, pgmq_create_fifo_index, pgmq_create_fifo_indexes_all, pgmq_create_partitioned,
     pgmq_create_unlogged, pgmq_delete, pgmq_disable_notify_insert, pgmq_drop_queue,
     pgmq_enable_notify_insert, pgmq_list_notify_insert_throttles, pgmq_list_queues,
-    pgmq_list_topic_bindings, pgmq_list_topic_bindings_all, pgmq_pop, pgmq_purge_queue, pgmq_read,
-    pgmq_read_grouped, pgmq_read_grouped_head, pgmq_read_grouped_rr, pgmq_send, pgmq_send_batch,
-    pgmq_send_batch_topic, pgmq_send_topic, pgmq_set_vt, pgmq_unbind_topic,
-    pgmq_update_notify_insert,
+    pgmq_list_topic_bindings, pgmq_list_topic_bindings_all, pgmq_metrics, pgmq_metrics_all,
+    pgmq_pop, pgmq_purge_queue, pgmq_read, pgmq_read_grouped, pgmq_read_grouped_head,
+    pgmq_read_grouped_rr, pgmq_send, pgmq_send_batch, pgmq_send_batch_topic, pgmq_send_topic,
+    pgmq_set_vt, pgmq_unbind_topic, pgmq_update_notify_insert,
 };
 use crate::types::{InsertNotificationThrottleInterval, QueueName, VisibilityTimeoutOffset};
 use diesel::dsl::select;
@@ -273,4 +273,15 @@ pub fn purge_queue_query(queue_name: QueueName<'_>) -> _ {
 pub fn drop_queue_query(queue_name: QueueName<'_>) -> _ {
     let queue_name: &str = *queue_name;
     select(pgmq_drop_queue(queue_name))
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn metrics_query(queue_name: QueueName<'_>) -> _ {
+    let queue_name: &str = *queue_name;
+    select(pgmq_metrics(queue_name))
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn metrics_all_query() -> _ {
+    select(pgmq_metrics_all())
 }

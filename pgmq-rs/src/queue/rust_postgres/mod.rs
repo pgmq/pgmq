@@ -79,6 +79,22 @@ impl TryFrom<::tokio_postgres::Row> for crate::types::PGMQueueMeta {
     }
 }
 
+impl TryFrom<::tokio_postgres::Row> for crate::types::QueueMetrics {
+    type Error = ::tokio_postgres::Error;
+
+    fn try_from(value: ::tokio_postgres::Row) -> Result<Self, Self::Error> {
+        Ok(Self {
+            queue_name: value.try_get("queue_name")?,
+            queue_length: value.try_get("queue_length")?,
+            newest_msg_age_sec: value.try_get("newest_msg_age_sec")?,
+            oldest_msg_age_sec: value.try_get("oldest_msg_age_sec")?,
+            total_messages: value.try_get("total_messages")?,
+            scrape_time: value.try_get("scrape_time")?,
+            queue_visible_length: value.try_get("queue_visible_length")?,
+        })
+    }
+}
+
 type SqlParam<'a> = (&'a (dyn postgres_types::ToSql + Sync), postgres_types::Type);
 
 /// This macro defines all the functions required to implement [`crate::queue::Queue`] for both
@@ -650,6 +666,31 @@ macro_rules! rust_postgres_functions {
             let result = executor.execute_typed(crate::queue::sql::DROP_QUEUE, &params);
             $transform_result!(result)?;
             Ok(())
+        }
+
+        async fn metrics<C>(
+            executor: $ref_type!(C),
+            queue_name: crate::types::QueueName<'_>,
+        ) -> Result<crate::types::QueueMetrics, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let params: [crate::queue::rust_postgres::SqlParam; _] =
+                [(&*queue_name, postgres_types::Type::TEXT)];
+            let result = executor.query_typed_one(crate::queue::sql::METRICS, &params);
+            let result = $transform_result!(result)?;
+            Ok(crate::types::QueueMetrics::try_from(result)?)
+        }
+
+        async fn metrics_all<C>(
+            executor: $ref_type!(C),
+        ) -> Result<Vec<crate::types::QueueMetrics>, crate::PgmqError>
+        where
+            C: $executor_trait,
+        {
+            let rows = executor.query_typed(crate::queue::sql::METRICS_ALL, &[]);
+            let rows = $transform_result!(rows)?;
+            crate::queue::rust_postgres::convert_rows(rows)
         }
     };
 }

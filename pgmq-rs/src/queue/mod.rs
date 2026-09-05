@@ -18,8 +18,8 @@ pub mod sqlx;
 mod transaction;
 
 use crate::types::{
-    InsertNotificationThrottleInterval, ListNotifyInsertThrottlesRow, PGMQueueMeta, QueueName,
-    VisibilityTimeoutOffset,
+    InsertNotificationThrottleInterval, ListNotifyInsertThrottlesRow, PGMQueueMeta, QueueMetrics,
+    QueueName, VisibilityTimeoutOffset,
 };
 use crate::{Message, PgmqError};
 
@@ -930,4 +930,35 @@ pub trait Queue: crate::private::Sealed {
     where
         Q: Send + TryInto<QueueName<'q>, Error = QE>,
         QE: Into<crate::types::queue_name::QueueNameError>;
+
+    /// Get metrics for the provided queue.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// let metrics = queue.metrics("my_queue").await?;
+    /// println!("{metrics:?}");
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn metrics<'q, Q, QE>(self, queue_name: Q) -> Result<QueueMetrics, PgmqError>
+    where
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: Into<crate::types::queue_name::QueueNameError>;
+
+    /// Get metrics for all queues.
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// let metrics = queue.metrics_all().await?;
+    /// println!("{metrics:?}");
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn metrics_all(self) -> Result<Vec<QueueMetrics>, PgmqError>;
 }

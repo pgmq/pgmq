@@ -160,6 +160,47 @@ impl FromSqlRow<PgPGMQueueMeta, Pg> for crate::types::PGMQueueMeta {
     }
 }
 
+type PgQueueMetrics = diesel::sql_types::Record<(
+    // queue_name
+    Text,
+    // queue_length
+    BigInt,
+    // newest_msg_age_sec
+    Nullable<Integer>,
+    // oldest_msg_age_sec
+    Nullable<Integer>,
+    // total_messages
+    BigInt,
+    // scrape_time
+    Timestamptz,
+    // queue_visible_length
+    BigInt,
+)>;
+
+impl FromSql<PgQueueMetrics, Pg> for crate::types::QueueMetrics {
+    fn from_sql(bytes: PgValue) -> diesel::deserialize::Result<Self> {
+        let (
+            queue_name,
+            queue_length,
+            newest_msg_age_sec,
+            oldest_msg_age_sec,
+            total_messages,
+            scrape_time,
+            queue_visible_length,
+        ) = FromSql::<PgQueueMetrics, Pg>::from_sql(bytes)?;
+
+        Ok(Self {
+            queue_name,
+            queue_length,
+            newest_msg_age_sec,
+            oldest_msg_age_sec,
+            total_messages,
+            scrape_time,
+            queue_visible_length,
+        })
+    }
+}
+
 #[declare_sql_function]
 extern "SQL" {
     #[sql_name = "pgmq.create"]
@@ -269,4 +310,10 @@ extern "SQL" {
 
     #[sql_name = "pgmq.drop_queue"]
     fn pgmq_drop_queue(queue_name: Text);
+
+    #[sql_name = "pgmq.metrics"]
+    fn pgmq_metrics(queue_name: Text) -> PgQueueMetrics;
+
+    #[sql_name = "pgmq.metrics_all"]
+    fn pgmq_metrics_all() -> PgQueueMetrics;
 }
