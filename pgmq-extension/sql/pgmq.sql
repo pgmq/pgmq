@@ -1001,7 +1001,7 @@ BEGIN
         SET vt = $1
         WHERE msg_id = $2
         RETURNING msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers;
-        $QUERY$, 
+        $QUERY$,
         qtable
     );
     RETURN QUERY EXECUTE sql USING vt, msg_id;
@@ -1149,7 +1149,7 @@ BEGIN
     -- complete table identifier must be <= 63
     -- https://www.postgresql.org/docs/17/sql-syntax-lexical.html#SQL-SYNTAX-IDENTIFIERS
     -- e.g. template_pgmq_q_my_queue is an identifier for my_queue when partitioned
-    -- template_pgmq_q_ (16) + <a max length queue name> (47) = 63 
+    -- template_pgmq_q_ (16) + <a max length queue name> (47) = 63
     RAISE EXCEPTION 'queue name is too long, maximum length is 47 characters';
   END IF;
 END;
@@ -1987,12 +1987,22 @@ BEGIN
     -- Filter matching patterns in SQL for better performance (uses index)
     -- Any failure will rollback the entire transaction
     FOR b IN
-        SELECT DISTINCT tb.queue_name
+        SELECT DISTINCT ON (tb.queue_name)
+            tb.queue_name,
+            tb.pattern
         FROM pgmq.topic_bindings tb
         WHERE routing_key ~ tb.compiled_regex
         ORDER BY tb.queue_name -- Deterministic ordering, deduplicated by queue_name
         LOOP
-            PERFORM pgmq.send(b.queue_name, msg, headers, delay);
+            PERFORM pgmq.send(
+                b.queue_name,
+                msg,
+                coalesce(headers, '{}'::jsonb) || jsonb_build_object(
+                    'x-pgmq-pattern', b.pattern,
+                    'x-pgmq-routing-key', routing_key
+                ),
+                delay
+            );
             matched_count := matched_count + 1;
         END LOOP;
 
@@ -2070,7 +2080,8 @@ CREATE OR REPLACE FUNCTION pgmq.send_batch_topic(
 AS
 $$
 DECLARE
-    b RECORD;
+    b             RECORD;
+    merged_headers jsonb[];
 BEGIN
     PERFORM pgmq.validate_routing_key(routing_key);
 
@@ -2080,15 +2091,28 @@ BEGIN
     -- Filter matching patterns in SQL for better performance (uses index)
     -- Any failure will rollback the entire transaction
     FOR b IN
-        SELECT DISTINCT tb.queue_name
+        SELECT DISTINCT ON (tb.queue_name)
+            tb.queue_name,
+            tb.pattern
         FROM pgmq.topic_bindings tb
         WHERE routing_key ~ tb.compiled_regex
         ORDER BY tb.queue_name -- Deterministic ordering, deduplicated by queue_name
         LOOP
+            -- Merge topic headers into each message's headers
+            SELECT array_agg(
+                       (COALESCE(headers[g], '{}'::jsonb) || jsonb_build_object(
+                           'x-pgmq-pattern', b.pattern,
+                           'x-pgmq-routing-key', routing_key
+                       ))
+                       ORDER BY g
+                   )
+            INTO merged_headers
+            FROM generate_series(1, array_length(msgs, 1)) AS g;
+
             -- Use private _send_batch to avoid redundant validation
             RETURN QUERY
             SELECT b.queue_name, batch_result.msg_id
-            FROM pgmq._send_batch(b.queue_name, msgs, headers, delay) AS batch_result(msg_id);
+            FROM pgmq._send_batch(b.queue_name, msgs, merged_headers, delay) AS batch_result(msg_id);
         END LOOP;
 
     RETURN;
