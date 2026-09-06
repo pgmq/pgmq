@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -27,7 +27,7 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1715,31 +1715,31 @@ RETURNS SETOF bigint
 <p><strong>Returns:</strong> The ID of the message that was added to the queue.</p>
 <p>Examples:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Send a message</span>
-<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;hello&quot;: &quot;world&quot;}&#39;</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"hello": "world"}'</span><span class="p">);</span>
 <span class="w"> </span><span class="n">send</span>
 <span class="c1">------</span>
 <span class="w">    </span><span class="mi">1</span>
 
 <span class="c1">-- Send a message with headers</span>
-<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;hello&quot;: &quot;world&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;trace_id&quot;: &quot;abc123&quot;}&#39;</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"hello": "world"}'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"trace_id": "abc123"}'</span><span class="p">);</span>
 <span class="w"> </span><span class="n">send</span>
 <span class="c1">------</span>
 <span class="w">    </span><span class="mi">2</span>
 
 <span class="c1">-- Message with a delay of 5 seconds</span>
-<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;hello&quot;: &quot;world&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"hello": "world"}'</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
 <span class="w"> </span><span class="n">send</span>
 <span class="c1">------</span>
 <span class="w">    </span><span class="mi">3</span>
 
 <span class="c1">-- Message readable from tomorrow</span>
-<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;hello&quot;: &quot;world&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="k">CURRENT_TIMESTAMP</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">INTERVAL</span><span class="w"> </span><span class="s1">&#39;1 day&#39;</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"hello": "world"}'</span><span class="p">,</span><span class="w"> </span><span class="k">CURRENT_TIMESTAMP</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">INTERVAL</span><span class="w"> </span><span class="s1">'1 day'</span><span class="p">);</span>
 <span class="w"> </span><span class="n">send</span>
 <span class="c1">------</span>
 <span class="w">    </span><span class="mi">4</span>
 
 <span class="c1">-- Message with headers and delay</span>
-<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;hello&quot;: &quot;world&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;priority&quot;: &quot;high&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"hello": "world"}'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"priority": "high"}'</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">);</span>
 <span class="w"> </span><span class="n">send</span>
 <span class="c1">------</span>
 <span class="w">    </span><span class="mi">5</span>
@@ -1800,10 +1800,10 @@ RETURNS SETOF bigint
 <p><strong>Validation:</strong> When <code>headers</code> is provided (not NULL), its array length must exactly match the length of <code>msgs</code>. This includes empty arrays - an empty headers array (e.g., <code>ARRAY[]::jsonb[]</code>) will fail validation if <code>msgs</code> is not empty. To send messages without headers, either omit the <code>headers</code> parameter or pass NULL.</p>
 <p>Examples:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Send multiple messages</span>
-<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span>
+<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span>
 <span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span>
-<span class="w">        </span><span class="s1">&#39;{&quot;hello&quot;: &quot;world_0&quot;}&#39;</span><span class="p">,</span>
-<span class="w">        </span><span class="s1">&#39;{&quot;hello&quot;: &quot;world_1&quot;}&#39;</span>
+<span class="w">        </span><span class="s1">'{"hello": "world_0"}'</span><span class="p">,</span>
+<span class="w">        </span><span class="s1">'{"hello": "world_1"}'</span>
 <span class="w">    </span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[]</span>
 <span class="p">);</span>
 <span class="w"> </span><span class="n">send_batch</span>
@@ -1812,9 +1812,9 @@ RETURNS SETOF bigint
 <span class="w">          </span><span class="mi">2</span>
 
 <span class="c1">-- Send with headers for each message</span>
-<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span>
-<span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">&#39;{&quot;hello&quot;: &quot;world_0&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;hello&quot;: &quot;world_1&quot;}&#39;</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span>
-<span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">&#39;{&quot;trace_id&quot;: &quot;abc&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;trace_id&quot;: &quot;def&quot;}&#39;</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[]</span>
+<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span>
+<span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">'{"hello": "world_0"}'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"hello": "world_1"}'</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span>
+<span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">'{"trace_id": "abc"}'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"trace_id": "def"}'</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[]</span>
 <span class="p">);</span>
 <span class="w"> </span><span class="n">send_batch</span>
 <span class="c1">------------</span>
@@ -1822,10 +1822,10 @@ RETURNS SETOF bigint
 <span class="w">          </span><span class="mi">4</span>
 
 <span class="c1">-- Messages with a delay of 5 seconds</span>
-<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span>
+<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span>
 <span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span>
-<span class="w">        </span><span class="s1">&#39;{&quot;hello&quot;: &quot;world_0&quot;}&#39;</span><span class="p">,</span>
-<span class="w">        </span><span class="s1">&#39;{&quot;hello&quot;: &quot;world_1&quot;}&#39;</span>
+<span class="w">        </span><span class="s1">'{"hello": "world_0"}'</span><span class="p">,</span>
+<span class="w">        </span><span class="s1">'{"hello": "world_1"}'</span>
 <span class="w">    </span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span>
 <span class="w">    </span><span class="mi">5</span>
 <span class="p">);</span>
@@ -1835,12 +1835,12 @@ RETURNS SETOF bigint
 <span class="w">          </span><span class="mi">6</span>
 
 <span class="c1">-- Messages readable from tomorrow</span>
-<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span>
+<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span>
 <span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span>
-<span class="w">        </span><span class="s1">&#39;{&quot;hello&quot;: &quot;world_0&quot;}&#39;</span><span class="p">,</span>
-<span class="w">        </span><span class="s1">&#39;{&quot;hello&quot;: &quot;world_1&quot;}&#39;</span>
+<span class="w">        </span><span class="s1">'{"hello": "world_0"}'</span><span class="p">,</span>
+<span class="w">        </span><span class="s1">'{"hello": "world_1"}'</span>
 <span class="w">    </span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span>
-<span class="w">    </span><span class="k">CURRENT_TIMESTAMP</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">INTERVAL</span><span class="w"> </span><span class="s1">&#39;1 day&#39;</span>
+<span class="w">    </span><span class="k">CURRENT_TIMESTAMP</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">INTERVAL</span><span class="w"> </span><span class="s1">'1 day'</span>
 <span class="p">);</span>
 <span class="w"> </span><span class="n">send_batch</span>
 <span class="c1">------------</span>
@@ -1896,23 +1896,23 @@ RETURNS integer
 <p><strong>Returns:</strong> The number of queues the message was sent to.</p>
 <p>Examples:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Create queues and bind patterns</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;logs_all&#39;</span><span class="p">);</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;logs_errors&#39;</span><span class="p">);</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;logs.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;logs_all&#39;</span><span class="p">);</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;logs.*.error&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;logs_errors&#39;</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'logs_all'</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'logs_errors'</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'logs.#'</span><span class="p">,</span><span class="w"> </span><span class="s1">'logs_all'</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'logs.*.error'</span><span class="p">,</span><span class="w"> </span><span class="s1">'logs_errors'</span><span class="p">);</span>
 
 <span class="c1">-- Send to matching queues</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;logs.api.error&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;message&quot;: &quot;API failed&quot;}&#39;</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">'logs.api.error'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"message": "API failed"}'</span><span class="p">);</span>
 <span class="w"> </span><span class="n">send_topic</span>
 <span class="c1">------------</span>
 <span class="w">          </span><span class="mi">2</span>
 <span class="c1">-- Message sent to 2 queues: logs_all and logs_errors</span>
 
 <span class="c1">-- With headers</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;logs.db.error&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;message&quot;: &quot;DB error&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;severity&quot;: &quot;high&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">'logs.db.error'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"message": "DB error"}'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"severity": "high"}'</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
 
 <span class="c1">-- With delay</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;logs.api.info&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;message&quot;: &quot;Request received&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">'logs.api.info'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"message": "Request received"}'</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
 </code></pre></div>
 
 <hr />
@@ -1971,10 +1971,10 @@ RETURNS TABLE(queue_name text, msg_id bigint)
 <p>Examples:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Send batch of messages to matching queues</span>
 <span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch_topic</span><span class="p">(</span>
-<span class="w">    </span><span class="s1">&#39;orders.created&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">'orders.created'</span><span class="p">,</span>
 <span class="w">    </span><span class="nb">array</span><span class="p">[</span>
-<span class="w">        </span><span class="s1">&#39;{&quot;order_id&quot;: 1, &quot;amount&quot;: 100}&#39;</span><span class="p">,</span>
-<span class="w">        </span><span class="s1">&#39;{&quot;order_id&quot;: 2, &quot;amount&quot;: 200}&#39;</span>
+<span class="w">        </span><span class="s1">'{"order_id": 1, "amount": 100}'</span><span class="p">,</span>
+<span class="w">        </span><span class="s1">'{"order_id": 2, "amount": 200}'</span>
 <span class="w">    </span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[]</span>
 <span class="p">);</span>
 <span class="w">      </span><span class="n">queue_name</span><span class="w">       </span><span class="o">|</span><span class="w"> </span><span class="n">msg_id</span>
@@ -1987,23 +1987,23 @@ RETURNS TABLE(queue_name text, msg_id bigint)
 
 <span class="c1">-- With headers</span>
 <span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch_topic</span><span class="p">(</span>
-<span class="w">    </span><span class="s1">&#39;notifications.email&#39;</span><span class="p">,</span>
-<span class="w">    </span><span class="nb">array</span><span class="p">[</span><span class="s1">&#39;{&quot;to&quot;: &quot;user1@example.com&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;to&quot;: &quot;user2@example.com&quot;}&#39;</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span>
-<span class="w">    </span><span class="nb">array</span><span class="p">[</span><span class="s1">&#39;{&quot;priority&quot;: &quot;high&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;priority&quot;: &quot;normal&quot;}&#39;</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[]</span>
+<span class="w">    </span><span class="s1">'notifications.email'</span><span class="p">,</span>
+<span class="w">    </span><span class="nb">array</span><span class="p">[</span><span class="s1">'{"to": "user1@example.com"}'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"to": "user2@example.com"}'</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span>
+<span class="w">    </span><span class="nb">array</span><span class="p">[</span><span class="s1">'{"priority": "high"}'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"priority": "normal"}'</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[]</span>
 <span class="p">);</span>
 
 <span class="c1">-- With delay (messages visible in 60 seconds)</span>
 <span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch_topic</span><span class="p">(</span>
-<span class="w">    </span><span class="s1">&#39;alerts.critical&#39;</span><span class="p">,</span>
-<span class="w">    </span><span class="nb">array</span><span class="p">[</span><span class="s1">&#39;{&quot;alert&quot;: &quot;system down&quot;}&#39;</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span>
+<span class="w">    </span><span class="s1">'alerts.critical'</span><span class="p">,</span>
+<span class="w">    </span><span class="nb">array</span><span class="p">[</span><span class="s1">'{"alert": "system down"}'</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span>
 <span class="w">    </span><span class="mi">60</span>
 <span class="p">);</span>
 
 <span class="c1">-- With timestamp delay (visible in 1 hour)</span>
 <span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch_topic</span><span class="p">(</span>
-<span class="w">    </span><span class="s1">&#39;scheduled.tasks&#39;</span><span class="p">,</span>
-<span class="w">    </span><span class="nb">array</span><span class="p">[</span><span class="s1">&#39;{&quot;task&quot;: &quot;backup&quot;}&#39;</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span>
-<span class="w">    </span><span class="k">CURRENT_TIMESTAMP</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">INTERVAL</span><span class="w"> </span><span class="s1">&#39;1 hour&#39;</span>
+<span class="w">    </span><span class="s1">'scheduled.tasks'</span><span class="p">,</span>
+<span class="w">    </span><span class="nb">array</span><span class="p">[</span><span class="s1">'{"task": "backup"}'</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span>
+<span class="w">    </span><span class="k">CURRENT_TIMESTAMP</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">INTERVAL</span><span class="w"> </span><span class="s1">'1 hour'</span>
 <span class="p">);</span>
 </code></pre></div>
 
@@ -2043,14 +2043,14 @@ RETURNS void
 - <code>#</code> matches zero or more segments (e.g., <code>logs.#</code> matches <code>logs.error</code> and <code>logs.api.error</code>)</p>
 <p>Examples:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Create queue</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;error_logs&#39;</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'error_logs'</span><span class="p">);</span>
 
 <span class="c1">-- Bind patterns</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;logs.*.error&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;error_logs&#39;</span><span class="p">);</span><span class="w">  </span><span class="c1">-- Errors from any service</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;alerts.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;error_logs&#39;</span><span class="p">);</span><span class="w">      </span><span class="c1">-- All alerts</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'logs.*.error'</span><span class="p">,</span><span class="w"> </span><span class="s1">'error_logs'</span><span class="p">);</span><span class="w">  </span><span class="c1">-- Errors from any service</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'alerts.#'</span><span class="p">,</span><span class="w"> </span><span class="s1">'error_logs'</span><span class="p">);</span><span class="w">      </span><span class="c1">-- All alerts</span>
 
 <span class="c1">-- Binding is idempotent</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;logs.*.error&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;error_logs&#39;</span><span class="p">);</span><span class="w">  </span><span class="c1">-- No error, no duplicate</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'logs.*.error'</span><span class="p">,</span><span class="w"> </span><span class="s1">'error_logs'</span><span class="p">);</span><span class="w">  </span><span class="c1">-- No error, no duplicate</span>
 </code></pre></div>
 
 <hr />
@@ -2087,13 +2087,13 @@ RETURNS boolean
 <p><strong>Returns:</strong> <code>true</code> if a binding was removed, <code>false</code> if no binding existed.</p>
 <p>Examples:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Remove binding</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">unbind_topic</span><span class="p">(</span><span class="s1">&#39;logs.*.error&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;error_logs&#39;</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">unbind_topic</span><span class="p">(</span><span class="s1">'logs.*.error'</span><span class="p">,</span><span class="w"> </span><span class="s1">'error_logs'</span><span class="p">);</span>
 <span class="w"> </span><span class="n">unbind_topic</span>
 <span class="c1">--------------</span>
 <span class="w"> </span><span class="n">t</span>
 
 <span class="c1">-- No binding to remove</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">unbind_topic</span><span class="p">(</span><span class="s1">&#39;nonexistent.pattern&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;error_logs&#39;</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">unbind_topic</span><span class="p">(</span><span class="s1">'nonexistent.pattern'</span><span class="p">,</span><span class="w"> </span><span class="s1">'error_logs'</span><span class="p">);</span>
 <span class="w"> </span><span class="n">unbind_topic</span>
 <span class="c1">--------------</span>
 <span class="w"> </span><span class="n">f</span>
@@ -2128,7 +2128,7 @@ RETURNS TABLE(pattern text, queue_name text, compiled_regex text)
 <p><strong>Returns:</strong> Table showing all patterns that match the routing key and which queues they route to.</p>
 <p>Examples:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Test routing</span>
-<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">test_routing</span><span class="p">(</span><span class="s1">&#39;logs.api.error&#39;</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">test_routing</span><span class="p">(</span><span class="s1">'logs.api.error'</span><span class="p">);</span>
 <span class="w">    </span><span class="n">pattern</span><span class="w">     </span><span class="o">|</span><span class="w">  </span><span class="n">queue_name</span><span class="w">  </span><span class="o">|</span><span class="w"> </span><span class="n">compiled_regex</span>
 <span class="c1">----------------+--------------+---------------------------</span>
 <span class="w"> </span><span class="n">logs</span><span class="p">.</span><span class="o">#</span><span class="w">         </span><span class="o">|</span><span class="w"> </span><span class="n">logs_all</span><span class="w">     </span><span class="o">|</span><span class="w"> </span><span class="o">^</span><span class="n">logs</span><span class="err">\</span><span class="p">..</span><span class="o">*</span><span class="err">$</span>
@@ -2185,24 +2185,24 @@ RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
 </table>
 <p>Examples:</p>
 <p>Read messages from a queue</p>
-<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">read</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">read</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">);</span>
 </code></pre></div>
 
 <div class="codehilite"><pre><span></span><code> msg_id | read_ct |          enqueued_at          |         last_read_at          |              vt               |       message        | headers 
 --------+---------+-------------------------------+-------------------------------+-------------------------------+----------------------+---------
-      1 |       1 | 2026-01-23 20:07:48.083773-06 | 2026-01-23 20:08:04.085665-06 | 2026-01-23 20:08:14.085665-06 | {&quot;hello&quot;: &quot;world_0&quot;} | 
-      2 |       1 | 2026-01-23 20:07:48.083773-06 | 2026-01-23 20:08:04.08568-06  | 2026-01-23 20:08:14.08568-06  | {&quot;hello&quot;: &quot;world_1&quot;} | 
+      1 |       1 | 2026-01-23 20:07:48.083773-06 | 2026-01-23 20:08:04.085665-06 | 2026-01-23 20:08:14.085665-06 | {"hello": "world_0"} | 
+      2 |       1 | 2026-01-23 20:07:48.083773-06 | 2026-01-23 20:08:04.08568-06  | 2026-01-23 20:08:14.08568-06  | {"hello": "world_1"} | 
 (2 rows)
 </code></pre></div>
 
 <p>Read a message from a queue with message filtering</p>
-<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">read</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;hello&quot;: &quot;world_1&quot;}&#39;</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">read</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"hello": "world_1"}'</span><span class="p">);</span>
 </code></pre></div>
 
 <div class="codehilite"><pre><span></span><code> msg_id | read_ct |          enqueued_at          |         last_read_at          |              vt               |       message        |       headers       
 --------+---------+-------------------------------+-------------------------------+-------------------------------+----------------------+---------------------
-      2 |       2 | 2026-01-23 20:07:48.083773-06 | 2026-01-23 20:08:30.829749-06 | 2026-01-23 20:08:40.829749-06 | {&quot;hello&quot;: &quot;world_1&quot;} | 
-      4 |       1 | 2026-01-23 20:07:50.824379-06 | 2026-01-23 20:08:30.829765-06 | 2026-01-23 20:08:40.829765-06 | {&quot;hello&quot;: &quot;world_1&quot;} | {&quot;trace_id&quot;: &quot;def&quot;}
+      2 |       2 | 2026-01-23 20:07:48.083773-06 | 2026-01-23 20:08:30.829749-06 | 2026-01-23 20:08:40.829749-06 | {"hello": "world_1"} | 
+      4 |       1 | 2026-01-23 20:07:50.824379-06 | 2026-01-23 20:08:30.829765-06 | 2026-01-23 20:08:40.829765-06 | {"hello": "world_1"} | {"trace_id": "def"}
 (2 rows)
 </code></pre></div>
 
@@ -2273,7 +2273,7 @@ RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
 
 <div class="codehilite"><pre><span></span><code> msg_id | read_ct |          enqueued_at          |         last_read_at          |              vt               |       message        | headers 
 --------+---------+-------------------------------+-------------------------------+-------------------------------+----------------------+---------
-      1 |       2 | 2026-01-23 20:07:48.083773-06 | 2026-01-23 20:09:09.588292-06 | 2026-01-23 20:09:10.588292-06 | {&quot;hello&quot;: &quot;world_0&quot;} | 
+      1 |       2 | 2026-01-23 20:07:48.083773-06 | 2026-01-23 20:09:09.588292-06 | 2026-01-23 20:09:10.588292-06 | {"hello": "world_0"} | 
 (1 row)
 </code></pre></div>
 
@@ -2327,21 +2327,21 @@ RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
 <p>Examples:</p>
 <p>Send messages with FIFO grouping:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Send messages to the same FIFO group</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;order&quot;: 1}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;user123&quot;}&#39;</span><span class="p">);</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;order&quot;: 2}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;user123&quot;}&#39;</span><span class="p">);</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;order&quot;: 3}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;user123&quot;}&#39;</span><span class="p">);</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;order&quot;: 1}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;user456&quot;}&#39;</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="o">=&gt;</span><span class="s1">'{"order": 1}'</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">'{"x-pgmq-group": "user123"}'</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="o">=&gt;</span><span class="s1">'{"order": 2}'</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">'{"x-pgmq-group": "user123"}'</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="o">=&gt;</span><span class="s1">'{"order": 3}'</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">'{"x-pgmq-group": "user123"}'</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="o">=&gt;</span><span class="s1">'{"order": 1}'</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">'{"x-pgmq-group": "user456"}'</span><span class="p">);</span>
 
 <span class="c1">-- Read with FIFO grouped ordering - tries to fill batch from earliest group</span>
-<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
 </code></pre></div>
 
 <div class="codehilite"><pre><span></span><code> msg_id | read_ct |          enqueued_at          |         last_read_at          |              vt               |   message    |           headers           
 --------+---------+-------------------------------+-------------------------------+-------------------------------+--------------+-----------------------------
-      1 |       2 | 2026-01-23 20:10:17.015888-06 | 2026-01-23 20:13:22.965962-06 | 2026-01-23 20:13:32.965962-06 | {&quot;order&quot;: 1} | {&quot;x-pgmq-group&quot;: &quot;user123&quot;}
-      2 |       2 | 2026-01-23 20:11:15.841062-06 | 2026-01-23 20:13:22.965977-06 | 2026-01-23 20:13:32.965977-06 | {&quot;order&quot;: 2} | {&quot;x-pgmq-group&quot;: &quot;user123&quot;}
-      3 |       2 | 2026-01-23 20:11:18.718345-06 | 2026-01-23 20:13:22.96598-06  | 2026-01-23 20:13:32.96598-06  | {&quot;order&quot;: 3} | {&quot;x-pgmq-group&quot;: &quot;user123&quot;}
-      4 |       2 | 2026-01-23 20:11:21.338077-06 | 2026-01-23 20:13:22.965982-06 | 2026-01-23 20:13:32.965982-06 | {&quot;order&quot;: 1} | {&quot;x-pgmq-group&quot;: &quot;user456&quot;}
+      1 |       2 | 2026-01-23 20:10:17.015888-06 | 2026-01-23 20:13:22.965962-06 | 2026-01-23 20:13:32.965962-06 | {"order": 1} | {"x-pgmq-group": "user123"}
+      2 |       2 | 2026-01-23 20:11:15.841062-06 | 2026-01-23 20:13:22.965977-06 | 2026-01-23 20:13:32.965977-06 | {"order": 2} | {"x-pgmq-group": "user123"}
+      3 |       2 | 2026-01-23 20:11:18.718345-06 | 2026-01-23 20:13:22.96598-06  | 2026-01-23 20:13:32.96598-06  | {"order": 3} | {"x-pgmq-group": "user123"}
+      4 |       2 | 2026-01-23 20:11:21.338077-06 | 2026-01-23 20:13:22.965982-06 | 2026-01-23 20:13:32.965982-06 | {"order": 1} | {"x-pgmq-group": "user456"}
 </code></pre></div>
 
 <hr />
@@ -2399,12 +2399,12 @@ RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
 </tbody>
 </table>
 <p>Example:</p>
-<div class="codehilite"><pre><span></span><code><span class="w"> </span><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_with_poll</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="w"> </span><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_with_poll</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">);</span>
 </code></pre></div>
 
 <div class="codehilite"><pre><span></span><code> msg_id | read_ct |          enqueued_at          |         last_read_at          |              vt               |   message    |           headers           
 --------+---------+-------------------------------+-------------------------------+-------------------------------+--------------+-----------------------------
-      1 |       5 | 2026-01-23 20:10:17.015888-06 | 2026-01-23 20:15:43.446826-06 | 2026-01-23 20:15:53.446826-06 | {&quot;order&quot;: 1} | {&quot;x-pgmq-group&quot;: &quot;user123&quot;}
+      1 |       5 | 2026-01-23 20:10:17.015888-06 | 2026-01-23 20:15:43.446826-06 | 2026-01-23 20:15:53.446826-06 | {"order": 1} | {"x-pgmq-group": "user123"}
 (1 row)
 </code></pre></div>
 
@@ -2457,19 +2457,19 @@ RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
 <p>Examples:</p>
 <p>Send messages with FIFO grouping:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Send messages to the same FIFO group</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;order&quot;: 1}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;user123&quot;}&#39;</span><span class="p">);</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;order&quot;: 2}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;user123&quot;}&#39;</span><span class="p">);</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;order&quot;: 1}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;user456&quot;}&#39;</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="o">=&gt;</span><span class="s1">'{"order": 1}'</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">'{"x-pgmq-group": "user123"}'</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="o">=&gt;</span><span class="s1">'{"order": 2}'</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">'{"x-pgmq-group": "user123"}'</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="n">msg</span><span class="o">=&gt;</span><span class="s1">'{"order": 1}'</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">'{"x-pgmq-group": "user456"}'</span><span class="p">);</span>
 
 <span class="c1">-- Read with FIFO RR ordering - interleaves by group layers</span>
-<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_rr</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_rr</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
 </code></pre></div>
 
 <div class="codehilite"><pre><span></span><code> msg_id | read_ct |          enqueued_at          |         last_read_at          |              vt               |   message    |           headers           
 --------+---------+-------------------------------+-------------------------------+-------------------------------+--------------+-----------------------------
-      1 |       1 | 2026-01-23 20:17:53.298176-06 | 2026-01-23 20:18:01.152451-06 | 2026-01-23 20:18:11.152451-06 | {&quot;order&quot;: 1} | {&quot;x-pgmq-group&quot;: &quot;user123&quot;}
-      3 |       1 | 2026-01-23 20:17:53.302222-06 | 2026-01-23 20:18:01.152471-06 | 2026-01-23 20:18:11.152471-06 | {&quot;order&quot;: 1} | {&quot;x-pgmq-group&quot;: &quot;user456&quot;}
-      2 |       1 | 2026-01-23 20:17:53.300656-06 | 2026-01-23 20:18:01.152468-06 | 2026-01-23 20:18:11.152468-06 | {&quot;order&quot;: 2} | {&quot;x-pgmq-group&quot;: &quot;user123&quot;}
+      1 |       1 | 2026-01-23 20:17:53.298176-06 | 2026-01-23 20:18:01.152451-06 | 2026-01-23 20:18:11.152451-06 | {"order": 1} | {"x-pgmq-group": "user123"}
+      3 |       1 | 2026-01-23 20:17:53.302222-06 | 2026-01-23 20:18:01.152471-06 | 2026-01-23 20:18:11.152471-06 | {"order": 1} | {"x-pgmq-group": "user456"}
+      2 |       1 | 2026-01-23 20:17:53.300656-06 | 2026-01-23 20:18:01.152468-06 | 2026-01-23 20:18:11.152468-06 | {"order": 2} | {"x-pgmq-group": "user123"}
 (3 rows)
 </code></pre></div>
 
@@ -2528,12 +2528,12 @@ RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
 </tbody>
 </table>
 <p>Example:</p>
-<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_rr_with_poll</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_rr_with_poll</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">);</span>
 </code></pre></div>
 
 <div class="codehilite"><pre><span></span><code> msg_id | read_ct |          enqueued_at          |         last_read_at          |              vt               |   message    |           headers
 --------+---------+-------------------------------+-------------------------------+-------------------------------+--------------+-----------------------------
-      1 |       2 | 2026-01-23 20:17:53.298176-06 | 2026-01-23 20:18:35.678351-06 | 2026-01-23 20:18:45.678351-06 | {&quot;order&quot;: 1} | {&quot;x-pgmq-group&quot;: &quot;user123&quot;}
+      1 |       2 | 2026-01-23 20:17:53.298176-06 | 2026-01-23 20:18:35.678351-06 | 2026-01-23 20:18:45.678351-06 | {"order": 1} | {"x-pgmq-group": "user123"}
 </code></pre></div>
 
 <hr />
@@ -2578,13 +2578,13 @@ RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
 </tbody>
 </table>
 <p>Example:</p>
-<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_head</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_head</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">);</span>
 </code></pre></div>
 
 <div class="codehilite"><pre><span></span><code> msg_id | read_ct |          enqueued_at          |         last_read_at          |              vt               |   message    |           headers
 --------+---------+-------------------------------+-------------------------------+-------------------------------+--------------+-----------------------------
-      1 |       1 | 2026-01-23 20:17:53.298176-06 | 2026-01-23 20:18:35.678351-06 | 2026-01-23 20:19:05.678351-06 | {&quot;order&quot;: 1} | {&quot;x-pgmq-group&quot;: &quot;user123&quot;}
-      4 |       1 | 2026-01-23 20:17:54.298176-06 | 2026-01-23 20:18:35.678351-06 | 2026-01-23 20:19:05.678351-06 | {&quot;order&quot;: 1} | {&quot;x-pgmq-group&quot;: &quot;user456&quot;}
+      1 |       1 | 2026-01-23 20:17:53.298176-06 | 2026-01-23 20:18:35.678351-06 | 2026-01-23 20:19:05.678351-06 | {"order": 1} | {"x-pgmq-group": "user123"}
+      4 |       1 | 2026-01-23 20:17:54.298176-06 | 2026-01-23 20:18:35.678351-06 | 2026-01-23 20:19:05.678351-06 | {"order": 1} | {"x-pgmq-group": "user456"}
 </code></pre></div>
 
 <hr />
@@ -2642,13 +2642,13 @@ RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
 </tbody>
 </table>
 <p>Example:</p>
-<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_head_with_poll</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_head_with_poll</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">,</span><span class="w"> </span><span class="mi">100</span><span class="p">);</span>
 </code></pre></div>
 
 <div class="codehilite"><pre><span></span><code> msg_id | read_ct |          enqueued_at          |         last_read_at          |              vt               |   message    |           headers
 --------+---------+-------------------------------+-------------------------------+-------------------------------+--------------+-----------------------------
-      1 |       1 | 2026-01-23 20:17:53.298176-06 | 2026-01-23 20:18:35.678351-06 | 2026-01-23 20:19:05.678351-06 | {&quot;order&quot;: 1} | {&quot;x-pgmq-group&quot;: &quot;user123&quot;}
-      4 |       1 | 2026-01-23 20:17:54.298176-06 | 2026-01-23 20:18:35.678351-06 | 2026-01-23 20:19:05.678351-06 | {&quot;order&quot;: 1} | {&quot;x-pgmq-group&quot;: &quot;user456&quot;}
+      1 |       1 | 2026-01-23 20:17:53.298176-06 | 2026-01-23 20:18:35.678351-06 | 2026-01-23 20:19:05.678351-06 | {"order": 1} | {"x-pgmq-group": "user123"}
+      4 |       1 | 2026-01-23 20:17:54.298176-06 | 2026-01-23 20:18:35.678351-06 | 2026-01-23 20:19:05.678351-06 | {"order": 1} | {"x-pgmq-group": "user456"}
 </code></pre></div>
 
 <hr />
@@ -2685,12 +2685,12 @@ RETURNS SETOF <a href="../types/#message_record">pgmq.message_record</a>
 </tbody>
 </table>
 <p>Example:</p>
-<div class="codehilite"><pre><span></span><code><span class="n">pgmq</span><span class="o">=#</span><span class="w"> </span><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="n">pgmq</span><span class="o">=#</span><span class="w"> </span><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">);</span>
 </code></pre></div>
 
 <div class="codehilite"><pre><span></span><code> msg_id | read_ct |          enqueued_at          |         last_read_at          |              vt               |   message    |           headers           
 --------+---------+-------------------------------+-------------------------------+-------------------------------+--------------+-----------------------------
-      1 |       2 | 2026-01-23 20:17:53.298176-06 | 2026-01-23 20:18:35.678351-06 | 2026-01-23 20:18:45.678351-06 | {&quot;order&quot;: 1} | {&quot;x-pgmq-group&quot;: &quot;user123&quot;}
+      1 |       2 | 2026-01-23 20:17:53.298176-06 | 2026-01-23 20:18:35.678351-06 | 2026-01-23 20:18:45.678351-06 | {"order": 1} | {"x-pgmq-group": "user123"}
 </code></pre></div>
 
 <hr />
@@ -2724,7 +2724,7 @@ RETURNS boolean
 </tbody>
 </table>
 <p>Example:</p>
-<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">delete</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">delete</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
 <span class="w"> </span><span class="k">delete</span>
 <span class="c1">--------</span>
 <span class="w"> </span><span class="n">t</span>
@@ -2761,7 +2761,7 @@ RETURNS SETOF bigint
 </table>
 <p>Examples:</p>
 <p>Delete two messages that exist.</p>
-<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">delete</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">]);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">delete</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="mi">2</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">]);</span>
 <span class="w"> </span><span class="k">delete</span>
 <span class="c1">--------</span>
 <span class="w">      </span><span class="mi">2</span>
@@ -2769,7 +2769,7 @@ RETURNS SETOF bigint
 </code></pre></div>
 
 <p>Delete two messages, one that exists and one that does not. Message <code>999</code> does not exist.</p>
-<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">delete</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="mi">6</span><span class="p">,</span><span class="w"> </span><span class="mi">999</span><span class="p">]);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">delete</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="mi">6</span><span class="p">,</span><span class="w"> </span><span class="mi">999</span><span class="p">]);</span>
 <span class="w"> </span><span class="k">delete</span>
 <span class="c1">--------</span>
 <span class="w">      </span><span class="mi">6</span>
@@ -2801,7 +2801,7 @@ RETURNS bigint
 </table>
 <p>Example:</p>
 <p>Purge the queue when it contains 8 messages;</p>
-<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">purge_queue</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">purge_queue</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">);</span>
 <span class="w"> </span><span class="n">purge_queue</span>
 <span class="c1">-------------</span>
 <span class="w">           </span><span class="mi">8</span>
@@ -2840,7 +2840,7 @@ RETURNS boolean
 Boolean value indicating success or failure of the operation.</p>
 <p><strong>Note:</strong> Archived messages are stored in the archive table with an additional <code>archived_at</code> timestamp field indicating when the message was archived.</p>
 <p>Example; remove message with ID 1 from queue <code>my_queue</code> and archive it:</p>
-<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">archive</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">archive</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">);</span>
 <span class="w"> </span><span class="n">archive</span>
 <span class="c1">---------</span>
 <span class="w">       </span><span class="n">t</span>
@@ -2878,7 +2878,7 @@ RETURNS SETOF bigint
 </table>
 <p>Examples:</p>
 <p>Delete messages with ID 1 and 2 from queue <code>my_queue</code> and move to the archive.</p>
-<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">archive</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">]);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">archive</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">]);</span>
 <span class="w"> </span><span class="n">archive</span>
 <span class="c1">---------</span>
 <span class="w">       </span><span class="mi">1</span>
@@ -2886,7 +2886,7 @@ RETURNS SETOF bigint
 </code></pre></div>
 
 <p>Delete messages 4, which exists and 999, which does not exist.</p>
-<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">archive</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">999</span><span class="p">]);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">archive</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">999</span><span class="p">]);</span>
 <span class="w"> </span><span class="n">archive</span>
 <span class="c1">---------</span>
 <span class="w">       </span><span class="mi">4</span>
@@ -2918,7 +2918,7 @@ RETURNS VOID
 </tbody>
 </table>
 <p>Example:</p>
-<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">);</span>
 <span class="w"> </span><span class="k">create</span>
 <span class="c1">--------</span>
 </code></pre></div>
@@ -2948,7 +2948,7 @@ RETURNS void
 </tbody>
 </table>
 <p>Example:</p>
-<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">create_non_partitioned</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">create_non_partitioned</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">);</span>
 <span class="w"> </span><span class="n">create_non_partitioned</span>
 <span class="c1">------------------------</span>
 </code></pre></div>
@@ -2958,8 +2958,9 @@ RETURNS void
 <p>Create a partitioned queue. Requires the <code>pg_partman</code> extension to be installed.</p>
 <div class="codehilite"><pre><span></span><code>pgmq.create_partitioned (
     queue_name text,
-    partition_interval text DEFAULT &#39;10000&#39;::text,
-    retention_interval text DEFAULT &#39;100000&#39;::text
+    partition_interval text DEFAULT '10000'::text,
+    retention_interval text DEFAULT '100000'::text,
+    premake integer DEFAULT 4
 )
 RETURNS void
 </code></pre></div>
@@ -2989,14 +2990,19 @@ RETURNS void
 <td style="text-align: left;">text</td>
 <td style="text-align: left;">How long/how many messages to retain before deleting old partitions. Same format as partition_interval. Defaults to '100000'.</td>
 </tr>
+<tr>
+<td style="text-align: left;">premake</td>
+<td style="text-align: left;">integer</td>
+<td style="text-align: left;">Number of partitions pg_partman keeps created ahead of the current one. Defaults to 4. See <a href="../../../partitioned-queues/#runway-and-overrun">Runway and overrun</a>.</td>
+</tr>
 </tbody>
 </table>
 <p>Example:</p>
 <p>Create a queue with 100,000 messages per partition, and will retain 10,000,000 messages on old partitions. Partitions greater than this will be deleted.</p>
 <div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">create_partitioned</span><span class="p">(</span>
-<span class="w">    </span><span class="s1">&#39;my_partitioned_queue&#39;</span><span class="p">,</span>
-<span class="w">    </span><span class="s1">&#39;100000&#39;</span><span class="p">,</span>
-<span class="w">    </span><span class="s1">&#39;10000000&#39;</span>
+<span class="w">    </span><span class="s1">'my_partitioned_queue'</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">'100000'</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">'10000000'</span>
 <span class="p">);</span>
 <span class="w"> </span><span class="n">create_partitioned</span>
 <span class="c1">--------------------</span>
@@ -3028,7 +3034,7 @@ RETURNS void
 </tbody>
 </table>
 <p>Example:</p>
-<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">create_unlogged</span><span class="p">(</span><span class="s1">&#39;my_unlogged&#39;</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">create_unlogged</span><span class="p">(</span><span class="s1">'my_unlogged'</span><span class="p">);</span>
 <span class="w"> </span><span class="n">create_unlogged</span>
 <span class="c1">-----------------</span>
 </code></pre></div>
@@ -3038,8 +3044,8 @@ RETURNS void
 <p>Convert an existing non-partitioned archive table to a partitioned one. Requires the <code>pg_partman</code> extension to be installed. This is useful for migrating queues to partitioned archives after they have been created.</p>
 <div class="codehilite"><pre><span></span><code>pgmq.convert_archive_partitioned(
     table_name text,
-    partition_interval text DEFAULT &#39;10000&#39;::text,
-    retention_interval text DEFAULT &#39;100000&#39;::text,
+    partition_interval text DEFAULT '10000'::text,
+    retention_interval text DEFAULT '100000'::text,
     leading_partition integer DEFAULT 10
 )
 RETURNS void
@@ -3079,7 +3085,7 @@ RETURNS void
 </table>
 <p><strong>Note:</strong> This function renames the existing archive table to <code>&lt;table_name&gt;_old</code> and creates a new partitioned table. You may need to migrate data from the old table to the new one.</p>
 <p>Example:</p>
-<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">convert_archive_partitioned</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;10000&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;100000&#39;</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">convert_archive_partitioned</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="s1">'10000'</span><span class="p">,</span><span class="w"> </span><span class="s1">'100000'</span><span class="p">);</span>
 <span class="w"> </span><span class="n">convert_archive_partitioned</span>
 <span class="c1">-----------------------------</span>
 </code></pre></div>
@@ -3111,7 +3117,7 @@ RETURNS void
 </tbody>
 </table>
 <p>Example:</p>
-<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">detach_archive</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">detach_archive</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">);</span>
 <span class="w"> </span><span class="n">detach_archive</span>
 <span class="c1">----------------</span>
 </code></pre></div>
@@ -3142,7 +3148,7 @@ RETURNS boolean
 </table>
 <p><strong>Note:</strong> There is a deprecated 2-parameter version <code>drop_queue(queue_name, partitioned)</code> that will be removed in PGMQ v2.0. Use the single-parameter version instead, which automatically detects whether the queue is partitioned.</p>
 <p>Example:</p>
-<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">drop_queue</span><span class="p">(</span><span class="s1">&#39;my_unlogged&#39;</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">drop_queue</span><span class="p">(</span><span class="s1">'my_unlogged'</span><span class="p">);</span>
 <span class="w"> </span><span class="n">drop_queue</span>
 <span class="c1">------------</span>
 <span class="w"> </span><span class="n">t</span>
@@ -3191,12 +3197,12 @@ RETURNS SETOF pgmq.message_record
 </table>
 <p>Example:</p>
 <p>Set the visibility timeout of message 1 to 30 seconds from now.</p>
-<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">set_vt</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">set_vt</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">);</span>
 </code></pre></div>
 
 <div class="codehilite"><pre><span></span><code> msg_id | read_ct |          enqueued_at          |         last_read_at          |              vt               |   message    |           headers           
 --------+---------+-------------------------------+-------------------------------+-------------------------------+--------------+-----------------------------
-      1 |       1 | 2026-01-23 20:17:53.300656-06 | 2026-01-23 20:18:01.152468-06 | 2026-01-23 20:24:49.398759-06 | {&quot;order&quot;: 2} | {&quot;x-pgmq-group&quot;: &quot;user123&quot;}
+      1 |       1 | 2026-01-23 20:17:53.300656-06 | 2026-01-23 20:18:01.152468-06 | 2026-01-23 20:24:49.398759-06 | {"order": 2} | {"x-pgmq-group": "user123"}
 </code></pre></div>
 
 <hr />
@@ -3242,13 +3248,13 @@ RETURNS SETOF pgmq.message_record
 </table>
 <p>Example:</p>
 <p>Set the visibility timeout of messages 1 and 2 to 60 seconds from now.</p>
-<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">set_vt</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">],</span><span class="w"> </span><span class="mi">60</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">set_vt</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="mi">1</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">],</span><span class="w"> </span><span class="mi">60</span><span class="p">);</span>
 </code></pre></div>
 
 <div class="codehilite"><pre><span></span><code> msg_id | read_ct |          enqueued_at          |         last_read_at          |              vt               |   message    |           headers           
 --------+---------+-------------------------------+-------------------------------+-------------------------------+--------------+-----------------------------
-      1 |       1 | 2026-01-23 20:17:53.302222-06 | 2026-01-23 20:18:01.152471-06 | 2026-01-23 20:25:53.789922-06 | {&quot;order&quot;: 1} | {&quot;x-pgmq-group&quot;: &quot;user456&quot;}
-      2 |       1 | 2026-01-23 20:17:53.300656-06 | 2026-01-23 20:18:01.152468-06 | 2026-01-23 20:25:53.789922-06 | {&quot;order&quot;: 2} | {&quot;x-pgmq-group&quot;: &quot;user123&quot;}
+      1 |       1 | 2026-01-23 20:17:53.302222-06 | 2026-01-23 20:18:01.152471-06 | 2026-01-23 20:25:53.789922-06 | {"order": 1} | {"x-pgmq-group": "user456"}
+      2 |       1 | 2026-01-23 20:17:53.300656-06 | 2026-01-23 20:18:01.152468-06 | 2026-01-23 20:25:53.789922-06 | {"order": 2} | {"x-pgmq-group": "user123"}
 </code></pre></div>
 
 <hr />
@@ -3336,10 +3342,15 @@ RETURNS pgmq.metrics_result
 <td style="text-align: left;">bigint</td>
 <td style="text-align: left;">Number of messages currently visible (vt &lt;= now)</td>
 </tr>
+<tr>
+<td style="text-align: left;">default_partition_length</td>
+<td style="text-align: left;">bigint | null</td>
+<td style="text-align: left;">Estimated messages in the default partitions of the queue and its archive, which means partition maintenance is failing for this queue. Null for queues that are not partitioned</td>
+</tr>
 </tbody>
 </table>
 <p>Example:</p>
-<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">metrics</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">metrics</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">);</span>
 <span class="w"> </span><span class="n">queue_name</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">queue_length</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">newest_msg_age_sec</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">oldest_msg_age_sec</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="n">total_messages</span><span class="w"> </span><span class="o">|</span><span class="w">          </span><span class="n">scrape_time</span>
 <span class="c1">------------+--------------+--------------------+--------------------+----------------+-------------------------------</span>
 <span class="w"> </span><span class="n">my_queue</span><span class="w">   </span><span class="o">|</span><span class="w">           </span><span class="mi">16</span><span class="w"> </span><span class="o">|</span><span class="w">               </span><span class="mi">2445</span><span class="w"> </span><span class="o">|</span><span class="w">               </span><span class="mi">2447</span><span class="w"> </span><span class="o">|</span><span class="w">             </span><span class="mi">35</span><span class="w"> </span><span class="o">|</span><span class="w"> </span><span class="mi">2023</span><span class="o">-</span><span class="mi">10</span><span class="o">-</span><span class="mi">28</span><span class="w"> </span><span class="mi">20</span><span class="p">:</span><span class="mi">23</span><span class="p">:</span><span class="mi">08</span><span class="p">.</span><span class="mi">406259</span><span class="o">-</span><span class="mi">05</span>
@@ -3397,6 +3408,11 @@ RETURNS SETOF pgmq.metrics_result
 <td style="text-align: left;">bigint</td>
 <td style="text-align: left;">Number of messages currently visible (vt &lt;= now)</td>
 </tr>
+<tr>
+<td style="text-align: left;">default_partition_length</td>
+<td style="text-align: left;">bigint | null</td>
+<td style="text-align: left;">Estimated messages in the default partitions of the queue and its archive, which means partition maintenance is failing for this queue. Null for queues that are not partitioned</td>
+</tr>
 </tbody>
 </table>
 <div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">metrics_all</span><span class="p">();</span>
@@ -3450,31 +3466,31 @@ RETURNS void
 </ul>
 <p>Examples:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Enable notifications with default 250ms throttling</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">enable_notify_insert</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">enable_notify_insert</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">);</span>
 <span class="w"> </span><span class="n">enable_notify_insert</span>
 <span class="c1">----------------------</span>
 
 <span class="c1">-- Enable notifications with custom 500ms throttling</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">enable_notify_insert</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">500</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">enable_notify_insert</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">500</span><span class="p">);</span>
 <span class="w"> </span><span class="n">enable_notify_insert</span>
 <span class="c1">----------------------</span>
 
 <span class="c1">-- Enable notifications with no throttling (0ms)</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">enable_notify_insert</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">enable_notify_insert</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
 <span class="w"> </span><span class="n">enable_notify_insert</span>
 <span class="c1">----------------------</span>
 
 <span class="c1">-- In another session, listen for notifications:</span>
-<span class="c1">-- LISTEN &quot;pgmq.q_my_queue.INSERT&quot;;</span>
+<span class="c1">-- LISTEN "pgmq.q_my_queue.INSERT";</span>
 </code></pre></div>
 
 <p><strong>Changing throttling after enabling notifications:</strong></p>
 <p>Use <code>update_notify_insert()</code> to modify the throttling interval for an existing queue:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Change throttling to 1000ms (1 second)</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">update_notify_insert</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">1000</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">update_notify_insert</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">1000</span><span class="p">);</span>
 
 <span class="c1">-- Disable throttling (set to 0ms)</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">update_notify_insert</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">update_notify_insert</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
 </code></pre></div>
 
 <p>See <a href="#update_notify_insert"><code>update_notify_insert</code></a> for more details.</p>
@@ -3503,7 +3519,7 @@ RETURNS void
 </tbody>
 </table>
 <p>Example:</p>
-<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">disable_notify_insert</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">disable_notify_insert</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">);</span>
 <span class="w"> </span><span class="n">disable_notify_insert</span>
 <span class="c1">-----------------------</span>
 </code></pre></div>
@@ -3546,7 +3562,7 @@ RETURNS void
 </ul>
 <p>Example:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Change throttling to 1 second</span>
-<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">update_notify_insert</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">1000</span><span class="p">);</span>
+<span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">update_notify_insert</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">1000</span><span class="p">);</span>
 <span class="w"> </span><span class="n">update_notify_insert</span>
 <span class="c1">----------------------</span>
 </code></pre></div>
@@ -3628,7 +3644,7 @@ RETURNS void
 </tbody>
 </table>
 <p>Example:</p>
-<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">create_fifo_index</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">select</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">create_fifo_index</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">);</span>
 <span class="w"> </span><span class="n">create_fifo_index</span>
 <span class="c1">-------------------</span>
 </code></pre></div>
@@ -3697,7 +3713,7 @@ RETURNS void
       <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": [], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

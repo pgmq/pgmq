@@ -17,7 +17,7 @@
       
       
       <link rel="icon" href="assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -25,7 +25,7 @@
       
     
     
-      <link rel="stylesheet" href="assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1090,6 +1090,7 @@ psql<span class="w"> </span>-f<span class="w"> </span>pgmq-extension/sql/pgmq.sq
 <p>Community</p>
 <ul>
 <li><a href="https://github.com/brianpursley/Npgmq">.NET</a></li>
+<li><a href="https://github.com/lite-tx/pgmq-cpp">C++</a></li>
 <li><a href="https://github.com/Ofceab-Studio/dart_pgmq">Dart</a></li>
 <li><a href="https://github.com/v0idpwn/off_broadway_pgmq">Elixir + Broadway</a></li>
 <li><a href="https://github.com/v0idpwn/pgmq-elixir">Elixir</a></li>
@@ -1114,7 +1115,7 @@ psql<span class="w"> </span>-f<span class="w"> </span>pgmq-extension/sql/pgmq.sq
 psql<span class="w"> </span>postgres://postgres:postgres@0.0.0.0:5432/postgres
 </code></pre></div>
 
-<div class="codehilite"><pre><span></span><code><span class="c1">-- create the extension in the &quot;pgmq&quot; schema</span>
+<div class="codehilite"><pre><span></span><code><span class="c1">-- create the extension in the "pgmq" schema</span>
 <span class="k">CREATE</span><span class="w"> </span><span class="n">EXTENSION</span><span class="w"> </span><span class="n">pgmq</span><span class="p">;</span>
 </code></pre></div>
 
@@ -1122,7 +1123,7 @@ psql<span class="w"> </span>postgres://postgres:postgres@0.0.0.0:5432/postgres
 <p>Every queue is its own table in the <code>pgmq</code> schema. The table name is the queue name prefixed with <code>q_</code>.
 For example, <code>pgmq.q_my_queue</code> is the table for the queue <code>my_queue</code>.</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- creates the queue</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">);</span>
 </code></pre></div>
 
 <div class="codehilite"><pre><span></span><code> create
@@ -1134,8 +1135,8 @@ For example, <code>pgmq.q_my_queue</code> is the table for the queue <code>my_qu
 <h3 id="send-two-messages">Send two messages<a class="headerlink" href="#send-two-messages" title="Permanent link">&para;</a></h3>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- messages are sent as JSON</span>
 <span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span>
-<span class="w">  </span><span class="n">queue_name</span><span class="w">  </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span>
-<span class="w">  </span><span class="n">msg</span><span class="w">         </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">&#39;{&quot;foo&quot;: &quot;bar1&quot;}&#39;</span>
+<span class="w">  </span><span class="n">queue_name</span><span class="w">  </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">'my_queue'</span><span class="p">,</span>
+<span class="w">  </span><span class="n">msg</span><span class="w">         </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">'{"foo": "bar1"}'</span>
 <span class="p">);</span>
 </code></pre></div>
 
@@ -1149,8 +1150,8 @@ For example, <code>pgmq.q_my_queue</code> is the table for the queue <code>my_qu
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Optionally provide a delay</span>
 <span class="c1">-- this message will be on the queue but unable to be consumed for 5 seconds</span>
 <span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">from</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span>
-<span class="w">  </span><span class="n">queue_name</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span>
-<span class="w">  </span><span class="n">msg</span><span class="w">        </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">&#39;{&quot;foo&quot;: &quot;bar2&quot;}&#39;</span><span class="p">,</span>
+<span class="w">  </span><span class="n">queue_name</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">'my_queue'</span><span class="p">,</span>
+<span class="w">  </span><span class="n">msg</span><span class="w">        </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">'{"foo": "bar2"}'</span><span class="p">,</span>
 <span class="w">  </span><span class="n">delay</span><span class="w">      </span><span class="o">=&gt;</span><span class="w"> </span><span class="mi">5</span>
 <span class="p">);</span>
 </code></pre></div>
@@ -1166,7 +1167,7 @@ For example, <code>pgmq.q_my_queue</code> is the table for the queue <code>my_qu
 If the messages are not deleted or archived within 30 seconds, they will become visible again
 and can be read by another consumer.</p>
 <div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">read</span><span class="p">(</span>
-<span class="w">  </span><span class="n">queue_name</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span>
+<span class="w">  </span><span class="n">queue_name</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">'my_queue'</span><span class="p">,</span>
 <span class="w">  </span><span class="n">vt</span><span class="w">         </span><span class="o">=&gt;</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span>
 <span class="w">  </span><span class="n">qty</span><span class="w">        </span><span class="o">=&gt;</span><span class="w"> </span><span class="mi">2</span>
 <span class="p">);</span>
@@ -1174,13 +1175,13 @@ and can be read by another consumer.</p>
 
 <div class="codehilite"><pre><span></span><code> msg_id | read_ct |          enqueued_at          |         last_read_at          |              vt               |     message     | headers 
 --------+---------+-------------------------------+-------------------------------+-------------------------------+-----------------+---------
-      1 |       1 | 2026-01-23 20:27:21.7741-06   | 2026-01-23 20:27:31.605236-06 | 2026-01-23 20:28:01.605236-06 | {&quot;foo&quot;: &quot;bar1&quot;} | 
-      2 |       1 | 2026-01-23 20:27:26.505063-06 | 2026-01-23 20:27:31.605252-06 | 2026-01-23 20:28:01.605252-06 | {&quot;foo&quot;: &quot;bar2&quot;} | 
+      1 |       1 | 2026-01-23 20:27:21.7741-06   | 2026-01-23 20:27:31.605236-06 | 2026-01-23 20:28:01.605236-06 | {"foo": "bar1"} | 
+      2 |       1 | 2026-01-23 20:27:26.505063-06 | 2026-01-23 20:27:31.605252-06 | 2026-01-23 20:28:01.605252-06 | {"foo": "bar2"} | 
 </code></pre></div>
 
 <p>If the queue is empty, or if all messages are currently invisible, no rows will be returned.</p>
 <div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">read</span><span class="p">(</span>
-<span class="w">  </span><span class="n">queue_name</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span>
+<span class="w">  </span><span class="n">queue_name</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">'my_queue'</span><span class="p">,</span>
 <span class="w">  </span><span class="n">vt</span><span class="w">         </span><span class="o">=&gt;</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span>
 <span class="w">  </span><span class="n">qty</span><span class="w">        </span><span class="o">=&gt;</span><span class="w"> </span><span class="mi">1</span>
 <span class="p">);</span>
@@ -1192,19 +1193,19 @@ and can be read by another consumer.</p>
 
 <h3 id="pop-a-message">Pop a message<a class="headerlink" href="#pop-a-message" title="Permanent link">&para;</a></h3>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Read a message and immediately delete it from the queue. Returns an empty record if the queue is empty or all messages are invisible.</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">pop</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">);</span>
 </code></pre></div>
 
 <div class="codehilite"><pre><span></span><code> msg_id | read_ct |         enqueued_at         |         last_read_at          |              vt               |     message     | headers 
 --------+---------+-----------------------------+-------------------------------+-------------------------------+-----------------+---------
-      1 |       1 | 2026-01-23 20:27:21.7741-06 | 2026-01-23 20:27:31.605236-06 | 2026-01-23 20:28:01.605236-06 | {&quot;foo&quot;: &quot;bar1&quot;} | 
+      1 |       1 | 2026-01-23 20:27:21.7741-06 | 2026-01-23 20:27:31.605236-06 | 2026-01-23 20:28:01.605236-06 | {"foo": "bar1"} | 
 </code></pre></div>
 
 <h3 id="archive-a-message">Archive a message<a class="headerlink" href="#archive-a-message" title="Permanent link">&para;</a></h3>
 <p>Archiving a message removes it from the queue and inserts it to the archive table.</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Archive message with msg_id=2.</span>
 <span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">archive</span><span class="p">(</span>
-<span class="w">  </span><span class="n">queue_name</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span>
+<span class="w">  </span><span class="n">queue_name</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">'my_queue'</span><span class="p">,</span>
 <span class="w">  </span><span class="n">msg_id</span><span class="w">     </span><span class="o">=&gt;</span><span class="w"> </span><span class="mi">2</span>
 <span class="p">);</span>
 </code></pre></div>
@@ -1218,8 +1219,8 @@ and can be read by another consumer.</p>
 <p>Or archive several messages in one operation using <code>msg_ids</code> (plural) parameter:</p>
 <p>First, send a batch of messages</p>
 <div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch</span><span class="p">(</span>
-<span class="w">  </span><span class="n">queue_name</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span>
-<span class="w">  </span><span class="n">msgs</span><span class="w">       </span><span class="o">=&gt;</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">&#39;{&quot;foo&quot;: &quot;bar3&quot;}&#39;</span><span class="p">,</span><span class="s1">&#39;{&quot;foo&quot;: &quot;bar4&quot;}&#39;</span><span class="p">,</span><span class="s1">&#39;{&quot;foo&quot;: &quot;bar5&quot;}&#39;</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[]</span>
+<span class="w">  </span><span class="n">queue_name</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">'my_queue'</span><span class="p">,</span>
+<span class="w">  </span><span class="n">msgs</span><span class="w">       </span><span class="o">=&gt;</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">'{"foo": "bar3"}'</span><span class="p">,</span><span class="s1">'{"foo": "bar4"}'</span><span class="p">,</span><span class="s1">'{"foo": "bar5"}'</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[]</span>
 <span class="p">);</span>
 </code></pre></div>
 
@@ -1233,7 +1234,7 @@ and can be read by another consumer.</p>
 
 <p>Then archive them by using the msg_ids (plural) parameter.</p>
 <div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">archive</span><span class="p">(</span>
-<span class="w">  </span><span class="n">queue_name</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span>
+<span class="w">  </span><span class="n">queue_name</span><span class="w"> </span><span class="o">=&gt;</span><span class="w"> </span><span class="s1">'my_queue'</span><span class="p">,</span>
 <span class="w">  </span><span class="n">msg_ids</span><span class="w">    </span><span class="o">=&gt;</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="mi">3</span><span class="p">,</span><span class="w"> </span><span class="mi">4</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">]</span>
 <span class="p">);</span>
 </code></pre></div>
@@ -1253,15 +1254,15 @@ and can be read by another consumer.</p>
 
 <div class="codehilite"><pre><span></span><code> msg_id | read_ct |          enqueued_at          |         last_read_at          |          archived_at          |              vt               |     message     | headers 
 --------+---------+-------------------------------+-------------------------------+-------------------------------+-------------------------------+-----------------+---------
-      2 |       1 | 2026-01-23 20:32:35.291971-06 | 2026-01-23 20:32:42.938473-06 | 2026-01-23 20:33:20.297454-06 | 2026-01-23 20:33:12.938473-06 | {&quot;foo&quot;: &quot;bar2&quot;} | 
-      3 |       0 | 2026-01-23 20:33:25.414914-06 |                               | 2026-01-23 20:33:30.318465-06 | 2026-01-23 20:33:25.415035-06 | {&quot;foo&quot;: &quot;bar3&quot;} | 
-      4 |       0 | 2026-01-23 20:33:25.414914-06 |                               | 2026-01-23 20:33:30.318465-06 | 2026-01-23 20:33:25.415035-06 | {&quot;foo&quot;: &quot;bar4&quot;} | 
-      5 |       0 | 2026-01-23 20:33:25.414914-06 |                               | 2026-01-23 20:33:30.318465-06 | 2026-01-23 20:33:25.415035-06 | {&quot;foo&quot;: &quot;bar5&quot;} | 
+      2 |       1 | 2026-01-23 20:32:35.291971-06 | 2026-01-23 20:32:42.938473-06 | 2026-01-23 20:33:20.297454-06 | 2026-01-23 20:33:12.938473-06 | {"foo": "bar2"} | 
+      3 |       0 | 2026-01-23 20:33:25.414914-06 |                               | 2026-01-23 20:33:30.318465-06 | 2026-01-23 20:33:25.415035-06 | {"foo": "bar3"} | 
+      4 |       0 | 2026-01-23 20:33:25.414914-06 |                               | 2026-01-23 20:33:30.318465-06 | 2026-01-23 20:33:25.415035-06 | {"foo": "bar4"} | 
+      5 |       0 | 2026-01-23 20:33:25.414914-06 |                               | 2026-01-23 20:33:30.318465-06 | 2026-01-23 20:33:25.415035-06 | {"foo": "bar5"} | 
 </code></pre></div>
 
 <h3 id="delete-a-message">Delete a message<a class="headerlink" href="#delete-a-message" title="Permanent link">&para;</a></h3>
 <p>Send another message, so that we can delete it.</p>
-<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;foo&quot;: &quot;bar6&quot;}&#39;</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"foo": "bar6"}'</span><span class="p">);</span>
 </code></pre></div>
 
 <div class="codehilite"><pre><span></span><code> send
@@ -1271,7 +1272,7 @@ and can be read by another consumer.</p>
 </code></pre></div>
 
 <p>Delete the message with id <code>6</code> from the queue named <code>my_queue</code>.</p>
-<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">delete</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">6</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">delete</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">6</span><span class="p">);</span>
 </code></pre></div>
 
 <div class="codehilite"><pre><span></span><code> delete
@@ -1282,7 +1283,7 @@ and can be read by another consumer.</p>
 
 <h3 id="drop-a-queue">Drop a queue<a class="headerlink" href="#drop-a-queue" title="Permanent link">&para;</a></h3>
 <p>Delete the queue <code>my_queue</code>.</p>
-<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">drop_queue</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">drop_queue</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">);</span>
 </code></pre></div>
 
 <div class="codehilite"><pre><span></span><code> drop_queue
@@ -1302,6 +1303,7 @@ and can be read by another consumer.</p>
 <li><a href="https://sprinters.sh">Sprinters</a> [<a href="https://github.com/sprinters-sh">@sprinters-sh</a>]</li>
 <li><a href="https://pgflow.dev">pgflow</a> [<a href="https://github.com/pgflow-dev/pgflow">@pgflow-dev/pgflow</a>]</li>
 <li><a href="https://github.com/agoodway/pgflow">pgflow for Elixir</a> [<a href="https://github.com/agoodway/pgflow">@agoodway/pgflow</a>]</li>
+<li><a href="https://ffmpeglab.com">FFmpegLab Server</a> [<a href="https://github.com/ffmpeglab/server">@ffmpeglab/server</a>]</li>
 </ol>
 <h2 id="contributors">✨ Contributors<a class="headerlink" href="#contributors" title="Permanent link">&para;</a></h2>
 <p>Thanks goes to these incredible people:</p>
@@ -1360,7 +1362,7 @@ and can be read by another consumer.</p>
       <script id="__config" type="application/json">{"annotate": null, "base": ".", "features": [], "search": "assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

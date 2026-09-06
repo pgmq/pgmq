@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -27,7 +27,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -549,6 +549,45 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#runway-and-overrun" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runway and overrun
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Runway and overrun">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#monitoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Monitoring
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recovery
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -643,6 +682,45 @@
   
 </li>
       
+        <li class="md-nav__item">
+  <a href="#runway-and-overrun" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Runway and overrun
+      
+    </span>
+  </a>
+  
+    <nav class="md-nav" aria-label="Runway and overrun">
+      <ul class="md-nav__list">
+        
+          <li class="md-nav__item">
+  <a href="#monitoring" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Monitoring
+      
+    </span>
+  </a>
+  
+</li>
+        
+          <li class="md-nav__item">
+  <a href="#recovery" class="md-nav__link">
+    <span class="md-ellipsis">
+      
+        Recovery
+      
+    </span>
+  </a>
+  
+</li>
+        
+      </ul>
+    </nav>
+  
+</li>
+      
     </ul>
   
 </nav>
@@ -665,22 +743,39 @@
 <h2 id="overview">Overview<a class="headerlink" href="#overview" title="Permanent link">&para;</a></h2>
 <p><code>pgmq</code> queue tables can be created as a partitioned table by using <code>pgmq.create_partitioned()</code>. <a href="https://github.com/pgpartman/pg_partman/">pg_partman</a>
 handles all maintenance of queue tables. This includes creating new partitions and dropping old partitions.</p>
-<p>Partitions behavior is configured at the time queues are created, via <code>pgmq.create_partitioned()</code>. This function has three parameters:</p>
+<p>Partitions behavior is configured at the time queues are created, via <code>pgmq.create_partitioned()</code>. This function has four parameters:</p>
 <h2 id="parameters">Parameters<a class="headerlink" href="#parameters" title="Permanent link">&para;</a></h2>
 <p><code>queue_name: text</code>: The name of the queue. Queues are Postgres tables prepended with <code>q_</code>. For example, <code>q_my_queue</code>. The archive is instead prefixed by <code>a_</code>, for example <code>a_my_queue</code>.</p>
 <p><code>partition_interval: text</code> - The interval at which partitions are created. This can be either any valid Postgres <code>Duration</code> supported by pg_partman, or an integer value. When it is a duration, queues are partitioned by the time at which messages are sent to the table (<code>enqueued_at</code>). A value of <code>'daily'</code> would create a new partition each day. When it is an integer value, queues are partitioned by the <code>msg_id</code>. A value of <code>'100'</code> will create a new partition every 100 messages. The value must agree with <code>retention_interval</code> (time based or numeric). The default value is <code>'10000'</code>. For archive table, when interval is an integer value, then it will be partitioned by <code>msg_id</code>. In case of duration it will be partitioned on <code>archived_at</code> unlike queue table.</p>
 <p><code>retention_interval: text</code> - The interval for retaining partitions. This can be either any valid Postgres <code>Duration</code> supported by pg_partman, or an integer value. When it is a duration, partitions containing data greater than the duration will be dropped. When it is an integer value, any messages that have a <code>msg_id</code> less than <code>max(msg_id) - retention_interval</code> will be dropped. For example, if the max <code>msg_id</code> is 100 and the <code>retention_interval</code> is 60, any partitions with <code>msg_id</code> values less than 40 will be dropped. The value must agree with <code>partition_interval</code> (time based or numeric). The default is <code>'100000'</code>. Note: <code>retention_interval</code> does not apply to messages that have been deleted via <code>pgmq.delete()</code> or archived with <code>pgmq.archive()</code>. <code>pgmq.delete()</code> removes messages forever and <code>pgmq.archive()</code> moves messages to the corresponding archive table forever (for example, <code>a_my_queue</code>).</p>
+<p><code>premake: integer</code> - How many partitions <code>pg_partman</code> keeps created ahead of the one currently receiving messages. The default is <code>4</code>, which is <code>pg_partman</code>'s own default. Together with <code>partition_interval</code> this sets how many messages (or how much time) a queue can absorb between two maintenance runs; see <a href="#runway-and-overrun">Runway and overrun</a> below.</p>
 <h2 id="partition-maintenance">Partition Maintenance<a class="headerlink" href="#partition-maintenance" title="Permanent link">&para;</a></h2>
 <p>In order for automatic partition maintenance to take place, several settings must be added to the <code>postgresql.conf</code> file, which is typically located in the postgres <code>DATADIR</code>.
 <code>pg_partman_bgw.interval</code>
 in <code>postgresql.conf</code>. Below are the default configuration values set in pgmq docker images.</p>
 <p>Add the following to <code>postgresql.conf</code>. Note, changing <code>shared_preload_libraries</code> requires a restart of Postgres.</p>
-<p><code>pg_partman_bgw.interval</code> sets the interval at which <code>pg_partman</code> conducts maintenance. This creates new partitions and dropping of partitions falling out of the <code>retention_interval</code>. By default, <code>pg_partman</code> will keep 4 partitions "ahead" of the currently active partition.</p>
-<div class="codehilite"><pre><span></span><code>shared_preload_libraries = &#39;pg_partman_bgw&#39; # requires restart of Postgres
+<p><code>pg_partman_bgw.interval</code> sets the interval at which <code>pg_partman</code> conducts maintenance. This creates new partitions and dropping of partitions falling out of the <code>retention_interval</code>. By default, <code>pg_partman</code> will keep 4 partitions "ahead" of the currently active partition; <code>pgmq.create_partitioned()</code> exposes this as <code>premake</code>.</p>
+<div class="codehilite"><pre><span></span><code>shared_preload_libraries = 'pg_partman_bgw' # requires restart of Postgres
 pg_partman_bgw.interval = 60
-pg_partman_bgw.role = &#39;postgres&#39;
-pg_partman_bgw.dbname = &#39;postgres&#39;
+pg_partman_bgw.role = 'postgres'
+pg_partman_bgw.dbname = 'postgres'
 </code></pre></div>
+
+<h2 id="runway-and-overrun">Runway and overrun<a class="headerlink" href="#runway-and-overrun" title="Permanent link">&para;</a></h2>
+<p>Maintenance creates partitions ahead of the current one, so between two maintenance runs a queue has a fixed runway: roughly <code>partition_interval × premake</code> messages for <code>msg_id</code>-partitioned queues, or that much time for <code>enqueued_at</code>-partitioned ones. With the defaults (<code>partition_interval = '10000'</code>, <code>premake = 4</code>, <code>pg_partman_bgw.interval = 60</code>) that is about 40,000 messages per minute. A sustained rate above that, or a single burst larger than the runway, crosses it.</p>
+<p>Crossing it does not fail. <code>pgmq.send()</code> keeps succeeding, because <code>pg_partman</code> creates a default partition and the messages that have no partition of their own land there. Reads keep working too. What breaks is maintenance: <code>pg_partman</code> cannot create a partition for a range whose rows are already sitting in the default partition, so <code>run_maintenance</code> starts failing for that queue, no further partitions are created ahead, and retention stops dropping anything.</p>
+<p>Size the runway for the traffic you expect. <code>premake</code> is the cheap knob: an unused partition costs almost nothing, and ten intervals of runway are not unreasonable for a busy queue.</p>
+<h3 id="monitoring">Monitoring<a class="headerlink" href="#monitoring" title="Permanent link">&para;</a></h3>
+<p><code>pgmq.metrics()</code> reports <code>default_partition_length</code>, the messages sitting in the default partitions of a partitioned queue and of its archive (<code>null</code> for queues that are not partitioned). Zero is the only healthy value. A non-zero value means maintenance for that queue is already failing, not that some messages are merely misfiled, so alert on it directly. The value is the planner's estimate rather than a count, so a large spill does not make every scrape slow; it catches up when autovacuum or <code>ANALYZE</code> next visits the default partition.</p>
+<h3 id="recovery">Recovery<a class="headerlink" href="#recovery" title="Permanent link">&para;</a></h3>
+<p>Move the messages out of the default partition into the partitions they belong to, then let maintenance catch up. <code>pg_partman</code> provides the procedure for this; run it outside a transaction block, because it commits as it goes. The <code>ANALYZE</code> at the end refreshes the statistics <code>default_partition_length</code> is read from, so the metric returns to zero right away rather than at the next autovacuum:</p>
+<div class="codehilite"><pre><span></span><code><span class="k">CALL</span><span class="w"> </span><span class="n">partman</span><span class="p">.</span><span class="n">partition_data_proc</span><span class="p">(</span><span class="s1">'pgmq.q_my_queue'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">partman</span><span class="p">.</span><span class="n">run_maintenance</span><span class="p">(</span><span class="s1">'pgmq.q_my_queue'</span><span class="p">);</span>
+<span class="k">ANALYZE</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">q_my_queue_default</span><span class="p">;</span>
+</code></pre></div>
+
+<p>The archive table <code>pgmq.a_my_queue</code> is partitioned the same way; if it has spilled too, run the same three statements against it.</p>
+<p><code>msg_id</code> on partitioned queues is declared <code>GENERATED BY DEFAULT AS IDENTITY</code> (rather than <code>ALWAYS</code>) precisely so that this move can reinsert messages with their existing ids. The trade-off is that PostgreSQL no longer rejects an explicit <code>msg_id</code> in an <code>INSERT</code>. <code>pgmq</code> never supplies one, but if something writes to a queue table directly and provides an id ahead of the sequence, a later <code>pgmq.send()</code> will collide with it. Go through the <code>pgmq</code> API.</p>
 
 
 
@@ -733,7 +828,7 @@ pg_partman_bgw.dbname = &#39;postgres&#39;
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": [], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../../../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -27,7 +27,7 @@
       
     
     
-      <link rel="stylesheet" href="../../../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../../../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../../../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -716,7 +716,7 @@
 <p>Example:</p>
 <div class="codehilite"><pre><span></span><code> msg_id | read_ct |          enqueued_at          |          last_read_at         |              vt              |      message       |   headers    
 --------+---------+-------------------------------+-------------------------------+------------------------------+--------------------+--------------
-      1 |       1 | 2026-01-23 19:59:43.333107-06 | 2026-01-23 20:00:02.587469-06 | 2026-01-23 20:00:13.60826-06 | {&quot;hello&quot;: &quot;world&quot;} | {&quot;foo&quot;: 123} 
+      1 |       1 | 2026-01-23 19:59:43.333107-06 | 2026-01-23 20:00:02.587469-06 | 2026-01-23 20:00:13.60826-06 | {"hello": "world"} | {"foo": 123} 
 </code></pre></div>
 
 <h2 id="queue_record">queue_record<a class="headerlink" href="#queue_record" title="Permanent link">&para;</a></h2>
@@ -804,6 +804,11 @@
 <td style="text-align: left;">bigint</td>
 <td style="text-align: left;">Number of messages currently visible (vt &lt;= now)</td>
 </tr>
+<tr>
+<td style="text-align: left;">default_partition_length</td>
+<td style="text-align: left;">bigint</td>
+<td style="text-align: left;">Estimated messages in the default partitions of the queue and its archive; non-zero means partition maintenance is failing for this queue. Null for queues that are not partitioned</td>
+</tr>
 </tbody>
 </table>
 <p>Example:</p>
@@ -863,7 +868,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "../../..", "features": [], "search": "../../../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../../../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../../../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

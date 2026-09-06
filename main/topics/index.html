@@ -17,7 +17,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -25,7 +25,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1423,16 +1423,16 @@ all queues whose patterns match that key. This enables flexible publish-subscrib
 <h3 id="routing-keys-and-patterns">Routing Keys and Patterns<a class="headerlink" href="#routing-keys-and-patterns" title="Permanent link">&para;</a></h3>
 <p>Routing keys and patterns use dot-separated segments:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Routing keys (used when sending messages)</span>
-<span class="s1">&#39;logs.api.error&#39;</span>
-<span class="s1">&#39;orders.created&#39;</span>
-<span class="s1">&#39;user.signup.completed&#39;</span>
+<span class="s1">'logs.api.error'</span>
+<span class="s1">'orders.created'</span>
+<span class="s1">'user.signup.completed'</span>
 
 <span class="c1">-- Patterns (used when binding to queues)</span>
-<span class="s1">&#39;logs.*&#39;</span><span class="w">           </span><span class="c1">-- Matches exactly one segment after &#39;logs.&#39;</span>
-<span class="s1">&#39;logs.#&#39;</span><span class="w">           </span><span class="c1">-- Matches zero or more segments after &#39;logs.&#39;</span>
-<span class="s1">&#39;*.error&#39;</span><span class="w">          </span><span class="c1">-- Matches any single segment before &#39;.error&#39;</span>
-<span class="s1">&#39;#.error&#39;</span><span class="w">          </span><span class="c1">-- Matches zero or more segments before &#39;.error&#39;</span>
-<span class="s1">&#39;logs.*.error&#39;</span><span class="w">     </span><span class="c1">-- Matches &#39;logs.{any}.error&#39;</span>
+<span class="s1">'logs.*'</span><span class="w">           </span><span class="c1">-- Matches exactly one segment after 'logs.'</span>
+<span class="s1">'logs.#'</span><span class="w">           </span><span class="c1">-- Matches zero or more segments after 'logs.'</span>
+<span class="s1">'*.error'</span><span class="w">          </span><span class="c1">-- Matches any single segment before '.error'</span>
+<span class="s1">'#.error'</span><span class="w">          </span><span class="c1">-- Matches zero or more segments before '.error'</span>
+<span class="s1">'logs.*.error'</span><span class="w">     </span><span class="c1">-- Matches 'logs.{any}.error'</span>
 </code></pre></div>
 
 <h3 id="wildcards">Wildcards<a class="headerlink" href="#wildcards" title="Permanent link">&para;</a></h3>
@@ -1465,25 +1465,25 @@ all queues whose patterns match that key. This enables flexible publish-subscrib
 </table>
 <h3 id="binding-patterns-to-queues">Binding Patterns to Queues<a class="headerlink" href="#binding-patterns-to-queues" title="Permanent link">&para;</a></h3>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Create queues</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;all_logs&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;error_logs&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;api_errors&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'all_logs'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'error_logs'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'api_errors'</span><span class="p">);</span>
 
 <span class="c1">-- Bind patterns</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;logs.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;all_logs&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">-- All logs</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;logs.*.error&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;error_logs&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">-- Error logs from any service</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;logs.api.error&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;api_errors&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">-- Only API errors</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'logs.#'</span><span class="p">,</span><span class="w"> </span><span class="s1">'all_logs'</span><span class="p">);</span><span class="w"> </span><span class="c1">-- All logs</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'logs.*.error'</span><span class="p">,</span><span class="w"> </span><span class="s1">'error_logs'</span><span class="p">);</span><span class="w"> </span><span class="c1">-- Error logs from any service</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'logs.api.error'</span><span class="p">,</span><span class="w"> </span><span class="s1">'api_errors'</span><span class="p">);</span><span class="w"> </span><span class="c1">-- Only API errors</span>
 </code></pre></div>
 
 <h3 id="sending-messages-with-routing-keys">Sending Messages with Routing Keys<a class="headerlink" href="#sending-messages-with-routing-keys" title="Permanent link">&para;</a></h3>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- This message routes to: all_logs, error_logs, api_errors (3 queues)</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;logs.api.error&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;message&quot;: &quot;API failed&quot;}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">'logs.api.error'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"message": "API failed"}'</span><span class="p">);</span>
 
 <span class="c1">-- This message routes to: all_logs, error_logs (2 queues)</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;logs.db.error&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;message&quot;: &quot;DB connection failed&quot;}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">'logs.db.error'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"message": "DB connection failed"}'</span><span class="p">);</span>
 
 <span class="c1">-- This message routes to: all_logs only (1 queue)</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;logs.api.info&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;message&quot;: &quot;Request received&quot;}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">'logs.api.info'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"message": "Request received"}'</span><span class="p">);</span>
 </code></pre></div>
 
 <h2 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h2>
@@ -1497,8 +1497,8 @@ all queues whose patterns match that key. This enables flexible publish-subscrib
 </ul>
 <p><strong>Returns:</strong> void</p>
 <p><strong>Example:</strong></p>
-<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;orders.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;order_events&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;orders.*.failed&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;failed_orders&#39;</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'orders.#'</span><span class="p">,</span><span class="w"> </span><span class="s1">'order_events'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'orders.*.failed'</span><span class="p">,</span><span class="w"> </span><span class="s1">'failed_orders'</span><span class="p">);</span>
 </code></pre></div>
 
 <p><strong>Notes:</strong></p>
@@ -1517,7 +1517,7 @@ all queues whose patterns match that key. This enables flexible publish-subscrib
 </ul>
 <p><strong>Returns:</strong> boolean - <code>true</code> if a binding was removed, <code>false</code> if no binding existed</p>
 <p><strong>Example:</strong></p>
-<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">unbind_topic</span><span class="p">(</span><span class="s1">&#39;orders.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;order_events&#39;</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">unbind_topic</span><span class="p">(</span><span class="s1">'orders.#'</span><span class="p">,</span><span class="w"> </span><span class="s1">'order_events'</span><span class="p">);</span>
 </code></pre></div>
 
 <h4 id="pgmqlist_topic_bindings"><code>pgmq.list_topic_bindings()</code><a class="headerlink" href="#pgmqlist_topic_bindings" title="Permanent link">&para;</a></h4>
@@ -1557,7 +1557,7 @@ all queues whose patterns match that key. This enables flexible publish-subscrib
 <li><code>compiled_regex</code> (text): The internal regex used for matching</li>
 </ul>
 <p><strong>Example:</strong></p>
-<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">list_topic_bindings</span><span class="p">(</span><span class="s1">&#39;order_events&#39;</span><span class="p">);</span>
+<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">list_topic_bindings</span><span class="p">(</span><span class="s1">'order_events'</span><span class="p">);</span>
 <span class="c1">-- Returns:</span>
 <span class="c1">--   pattern         | queue_name    | bound_at                   | compiled_regex</span>
 <span class="c1">--   ----------------+---------------+----------------------------+---------------------</span>
@@ -1584,11 +1584,11 @@ all queues whose patterns match that key. This enables flexible publish-subscrib
 <p><strong>Returns:</strong> integer - Number of queues the message was sent to</p>
 <p><strong>Example:</strong></p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Full signature</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;orders.created&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;order_id&quot;: 123}&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;priority&quot;: &quot;high&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">'orders.created'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"order_id": 123}'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"priority": "high"}'</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
 
 <span class="c1">-- Simplified versions</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;orders.created&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;order_id&quot;: 123}&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;orders.created&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;order_id&quot;: 123}&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span><span class="w"> </span><span class="c1">-- 5 second delay</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">'orders.created'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"order_id": 123}'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">'orders.created'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"order_id": 123}'</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span><span class="w"> </span><span class="c1">-- 5 second delay</span>
 </code></pre></div>
 
 <p><strong>Notes:</strong></p>
@@ -1613,11 +1613,11 @@ all queues whose patterns match that key. This enables flexible publish-subscrib
 <p><strong>Example:</strong></p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Send 3 messages to all matching queues</span>
 <span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch_topic</span><span class="p">(</span>
-<span class="w">    </span><span class="s1">&#39;orders.created&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">'orders.created'</span><span class="p">,</span>
 <span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span>
-<span class="w">        </span><span class="s1">&#39;{&quot;order_id&quot;: 1, &quot;amount&quot;: 100}&#39;</span><span class="p">,</span>
-<span class="w">        </span><span class="s1">&#39;{&quot;order_id&quot;: 2, &quot;amount&quot;: 200}&#39;</span><span class="p">,</span>
-<span class="w">        </span><span class="s1">&#39;{&quot;order_id&quot;: 3, &quot;amount&quot;: 300}&#39;</span>
+<span class="w">        </span><span class="s1">'{"order_id": 1, "amount": 100}'</span><span class="p">,</span>
+<span class="w">        </span><span class="s1">'{"order_id": 2, "amount": 200}'</span><span class="p">,</span>
+<span class="w">        </span><span class="s1">'{"order_id": 3, "amount": 300}'</span>
 <span class="w">    </span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[]</span>
 <span class="p">);</span>
 
@@ -1633,20 +1633,20 @@ all queues whose patterns match that key. This enables flexible publish-subscrib
 
 <span class="c1">-- With headers</span>
 <span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch_topic</span><span class="p">(</span>
-<span class="w">    </span><span class="s1">&#39;notifications.email&#39;</span><span class="p">,</span>
-<span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">&#39;{&quot;to&quot;: &quot;user1@example.com&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;to&quot;: &quot;user2@example.com&quot;}&#39;</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span>
-<span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">&#39;{&quot;priority&quot;: &quot;high&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;priority&quot;: &quot;normal&quot;}&#39;</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[]</span>
+<span class="w">    </span><span class="s1">'notifications.email'</span><span class="p">,</span>
+<span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">'{"to": "user1@example.com"}'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"to": "user2@example.com"}'</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span>
+<span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">'{"priority": "high"}'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"priority": "normal"}'</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[]</span>
 <span class="p">);</span>
 
 <span class="c1">-- Simplified versions</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch_topic</span><span class="p">(</span><span class="s1">&#39;logs.info&#39;</span><span class="p">,</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">&#39;{&quot;msg&quot;: &quot;test&quot;}&#39;</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[]);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch_topic</span><span class="p">(</span><span class="s1">&#39;alerts.critical&#39;</span><span class="p">,</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">&#39;{&quot;alert&quot;: &quot;down&quot;}&#39;</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span><span class="w"> </span><span class="mi">60</span><span class="p">);</span><span class="w"> </span><span class="c1">-- 60 second delay</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch_topic</span><span class="p">(</span><span class="s1">'logs.info'</span><span class="p">,</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">'{"msg": "test"}'</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[]);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch_topic</span><span class="p">(</span><span class="s1">'alerts.critical'</span><span class="p">,</span><span class="w"> </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">'{"alert": "down"}'</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span><span class="w"> </span><span class="mi">60</span><span class="p">);</span><span class="w"> </span><span class="c1">-- 60 second delay</span>
 
 <span class="c1">-- With timestamp delay (visible in 1 hour)</span>
 <span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch_topic</span><span class="p">(</span>
-<span class="w">    </span><span class="s1">&#39;scheduled.tasks&#39;</span><span class="p">,</span>
-<span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">&#39;{&quot;task&quot;: &quot;backup&quot;}&#39;</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span>
-<span class="w">    </span><span class="k">CURRENT_TIMESTAMP</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">INTERVAL</span><span class="w"> </span><span class="s1">&#39;1 hour&#39;</span>
+<span class="w">    </span><span class="s1">'scheduled.tasks'</span><span class="p">,</span>
+<span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">'{"task": "backup"}'</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span>
+<span class="w">    </span><span class="k">CURRENT_TIMESTAMP</span><span class="w"> </span><span class="o">+</span><span class="w"> </span><span class="nb">INTERVAL</span><span class="w"> </span><span class="s1">'1 hour'</span>
 <span class="p">);</span>
 </code></pre></div>
 
@@ -1673,7 +1673,7 @@ all queues whose patterns match that key. This enables flexible publish-subscrib
 </ul>
 <p><strong>Example:</strong></p>
 <div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="o">*</span>
-<span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">test_routing</span><span class="p">(</span><span class="s1">&#39;logs.api.error&#39;</span><span class="p">);</span>
+<span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">test_routing</span><span class="p">(</span><span class="s1">'logs.api.error'</span><span class="p">);</span>
 <span class="c1">-- Returns:</span>
 <span class="c1">--   pattern      | queue_name  | compiled_regex</span>
 <span class="c1">--   -------------+-------------+-------------------</span>
@@ -1693,8 +1693,8 @@ all queues whose patterns match that key. This enables flexible publish-subscrib
 <li>Maximum 255 characters</li>
 </ul>
 <p><strong>Example:</strong></p>
-<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">validate_routing_key</span><span class="p">(</span><span class="s1">&#39;logs.api.error&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">-- Returns true</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">validate_routing_key</span><span class="p">(</span><span class="s1">&#39;logs..error&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">-- Raises exception</span>
+<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">validate_routing_key</span><span class="p">(</span><span class="s1">'logs.api.error'</span><span class="p">);</span><span class="w"> </span><span class="c1">-- Returns true</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">validate_routing_key</span><span class="p">(</span><span class="s1">'logs..error'</span><span class="p">);</span><span class="w"> </span><span class="c1">-- Raises exception</span>
 </code></pre></div>
 
 <h4 id="pgmqvalidate_topic_patternpattern"><code>pgmq.validate_topic_pattern(pattern)</code><a class="headerlink" href="#pgmqvalidate_topic_patternpattern" title="Permanent link">&para;</a></h4>
@@ -1705,143 +1705,143 @@ all queues whose patterns match that key. This enables flexible publish-subscrib
 <li>Cannot have consecutive wildcards (<code>**</code>, <code>##</code>, <code>*#</code>, <code>#*</code>)</li>
 </ul>
 <p><strong>Example:</strong></p>
-<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">validate_topic_pattern</span><span class="p">(</span><span class="s1">&#39;logs.*.error&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">-- Returns true</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">validate_topic_pattern</span><span class="p">(</span><span class="s1">&#39;logs.**&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">-- Raises exception</span>
+<div class="codehilite"><pre><span></span><code><span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">validate_topic_pattern</span><span class="p">(</span><span class="s1">'logs.*.error'</span><span class="p">);</span><span class="w"> </span><span class="c1">-- Returns true</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">validate_topic_pattern</span><span class="p">(</span><span class="s1">'logs.**'</span><span class="p">);</span><span class="w"> </span><span class="c1">-- Raises exception</span>
 </code></pre></div>
 
 <h2 id="usage-patterns">Usage Patterns<a class="headerlink" href="#usage-patterns" title="Permanent link">&para;</a></h2>
 <h3 id="1-log-aggregation">1. Log Aggregation<a class="headerlink" href="#1-log-aggregation" title="Permanent link">&para;</a></h3>
 <p>Route logs to different queues based on severity and service:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Create queues</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;logs_all&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;logs_errors&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;logs_critical&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;api_logs&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'logs_all'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'logs_errors'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'logs_critical'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'api_logs'</span><span class="p">);</span>
 
 <span class="c1">-- Bind patterns</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;logs_all&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">-- All logs</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;*.error&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;logs_errors&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">-- All errors</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;*.critical&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;logs_critical&#39;</span><span class="p">);</span><span class="w"> </span><span class="c1">-- All critical</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;api.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;api_logs&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'#'</span><span class="p">,</span><span class="w"> </span><span class="s1">'logs_all'</span><span class="p">);</span><span class="w"> </span><span class="c1">-- All logs</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'*.error'</span><span class="p">,</span><span class="w"> </span><span class="s1">'logs_errors'</span><span class="p">);</span><span class="w"> </span><span class="c1">-- All errors</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'*.critical'</span><span class="p">,</span><span class="w"> </span><span class="s1">'logs_critical'</span><span class="p">);</span><span class="w"> </span><span class="c1">-- All critical</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'api.#'</span><span class="p">,</span><span class="w"> </span><span class="s1">'api_logs'</span><span class="p">);</span>
 <span class="c1">-- API service logs</span>
 
 <span class="c1">-- Send logs</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;api.error&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;msg&quot;: &quot;API error&quot;}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">'api.error'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"msg": "API error"}'</span><span class="p">);</span>
 <span class="c1">-- Routes to: logs_all, logs_errors, api_logs</span>
 
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;db.critical&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;msg&quot;: &quot;DB down&quot;}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">'db.critical'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"msg": "DB down"}'</span><span class="p">);</span>
 <span class="c1">-- Routes to: logs_all, logs_critical</span>
 </code></pre></div>
 
 <h3 id="2-event-broadcasting-fanout">2. Event Broadcasting (Fanout)<a class="headerlink" href="#2-event-broadcasting-fanout" title="Permanent link">&para;</a></h3>
 <p>Send events to all interested consumers:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Create consumer queues</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;notifications&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;analytics&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;audit_log&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'notifications'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'analytics'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'audit_log'</span><span class="p">);</span>
 
 <span class="c1">-- All queues subscribe to everything</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;notifications&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;analytics&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;audit_log&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'#'</span><span class="p">,</span><span class="w"> </span><span class="s1">'notifications'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'#'</span><span class="p">,</span><span class="w"> </span><span class="s1">'analytics'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'#'</span><span class="p">,</span><span class="w"> </span><span class="s1">'audit_log'</span><span class="p">);</span>
 
 <span class="c1">-- Any event goes to all queues</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;user.signup&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;user_id&quot;: 123}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">'user.signup'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"user_id": 123}'</span><span class="p">);</span>
 <span class="c1">-- Routes to all 3 queues</span>
 </code></pre></div>
 
 <h3 id="3-direct-routing-exact-match">3. Direct Routing (Exact Match)<a class="headerlink" href="#3-direct-routing-exact-match" title="Permanent link">&para;</a></h3>
 <p>Route specific events to specific queues:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Create queues</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;user_events&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;order_events&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'user_events'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'order_events'</span><span class="p">);</span>
 
 <span class="c1">-- Bind exact patterns (no wildcards)</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;user.created&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;user_events&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;user.updated&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;user_events&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;user.deleted&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;user_events&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;order.placed&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;order_events&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;order.shipped&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;order_events&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'user.created'</span><span class="p">,</span><span class="w"> </span><span class="s1">'user_events'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'user.updated'</span><span class="p">,</span><span class="w"> </span><span class="s1">'user_events'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'user.deleted'</span><span class="p">,</span><span class="w"> </span><span class="s1">'user_events'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'order.placed'</span><span class="p">,</span><span class="w"> </span><span class="s1">'order_events'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'order.shipped'</span><span class="p">,</span><span class="w"> </span><span class="s1">'order_events'</span><span class="p">);</span>
 
 <span class="c1">-- Messages route to exactly one queue</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;user.created&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;user_id&quot;: 1}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">'user.created'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"user_id": 1}'</span><span class="p">);</span>
 <span class="c1">-- Routes to: user_events only</span>
 </code></pre></div>
 
 <h3 id="4-geographic-routing">4. Geographic Routing<a class="headerlink" href="#4-geographic-routing" title="Permanent link">&para;</a></h3>
 <p>Route messages based on region:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Create regional queues</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;events_us&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;events_eu&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;events_global&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'events_us'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'events_eu'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'events_global'</span><span class="p">);</span>
 
 <span class="c1">-- Bind regional patterns</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;us.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;events_us&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;eu.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;events_eu&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;events_global&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'us.#'</span><span class="p">,</span><span class="w"> </span><span class="s1">'events_us'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'eu.#'</span><span class="p">,</span><span class="w"> </span><span class="s1">'events_eu'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'#'</span><span class="p">,</span><span class="w"> </span><span class="s1">'events_global'</span><span class="p">);</span>
 
 <span class="c1">-- Route by region</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;us.orders.created&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;order_id&quot;: 100}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">'us.orders.created'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"order_id": 100}'</span><span class="p">);</span>
 <span class="c1">-- Routes to: events_us, events_global</span>
 
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;eu.users.signup&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;user_id&quot;: 50}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">'eu.users.signup'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"user_id": 50}'</span><span class="p">);</span>
 <span class="c1">-- Routes to: events_eu, events_global</span>
 </code></pre></div>
 
 <h3 id="5-multi-tenant-processing">5. Multi-Tenant Processing<a class="headerlink" href="#5-multi-tenant-processing" title="Permanent link">&para;</a></h3>
 <p>Route messages to tenant-specific and shared queues:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Create queues</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;tenant_acme&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;tenant_globex&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;all_tenants&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'tenant_acme'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'tenant_globex'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'all_tenants'</span><span class="p">);</span>
 
 <span class="c1">-- Bind patterns</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;acme.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;tenant_acme&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;globex.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;tenant_globex&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;all_tenants&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'acme.#'</span><span class="p">,</span><span class="w"> </span><span class="s1">'tenant_acme'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'globex.#'</span><span class="p">,</span><span class="w"> </span><span class="s1">'tenant_globex'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'#'</span><span class="p">,</span><span class="w"> </span><span class="s1">'all_tenants'</span><span class="p">);</span>
 
 <span class="c1">-- Route by tenant</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">&#39;acme.orders.new&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;order&quot;: &quot;data&quot;}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_topic</span><span class="p">(</span><span class="s1">'acme.orders.new'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"order": "data"}'</span><span class="p">);</span>
 <span class="c1">-- Routes to: tenant_acme, all_tenants</span>
 </code></pre></div>
 
 <h3 id="6-batch-message-publishing">6. Batch Message Publishing<a class="headerlink" href="#6-batch-message-publishing" title="Permanent link">&para;</a></h3>
 <p>Send multiple messages at once using <code>send_batch_topic</code>:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Create notification queues</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;email_queue&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;sms_queue&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">&#39;all_notifications&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'email_queue'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'sms_queue'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="k">create</span><span class="p">(</span><span class="s1">'all_notifications'</span><span class="p">);</span>
 
 <span class="c1">-- Bind patterns</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;notify.email.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;email_queue&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;notify.sms.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;sms_queue&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">&#39;notify.#&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;all_notifications&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'notify.email.#'</span><span class="p">,</span><span class="w"> </span><span class="s1">'email_queue'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'notify.sms.#'</span><span class="p">,</span><span class="w"> </span><span class="s1">'sms_queue'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">bind_topic</span><span class="p">(</span><span class="s1">'notify.#'</span><span class="p">,</span><span class="w"> </span><span class="s1">'all_notifications'</span><span class="p">);</span>
 
 <span class="c1">-- Send batch of email notifications</span>
 <span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch_topic</span><span class="p">(</span>
-<span class="w">    </span><span class="s1">&#39;notify.email.welcome&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">'notify.email.welcome'</span><span class="p">,</span>
 <span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span>
-<span class="w">        </span><span class="s1">&#39;{&quot;to&quot;: &quot;user1@example.com&quot;, &quot;name&quot;: &quot;Alice&quot;}&#39;</span><span class="p">,</span>
-<span class="w">        </span><span class="s1">&#39;{&quot;to&quot;: &quot;user2@example.com&quot;, &quot;name&quot;: &quot;Bob&quot;}&#39;</span><span class="p">,</span>
-<span class="w">        </span><span class="s1">&#39;{&quot;to&quot;: &quot;user3@example.com&quot;, &quot;name&quot;: &quot;Carol&quot;}&#39;</span>
+<span class="w">        </span><span class="s1">'{"to": "user1@example.com", "name": "Alice"}'</span><span class="p">,</span>
+<span class="w">        </span><span class="s1">'{"to": "user2@example.com", "name": "Bob"}'</span><span class="p">,</span>
+<span class="w">        </span><span class="s1">'{"to": "user3@example.com", "name": "Carol"}'</span>
 <span class="w">    </span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[]</span>
 <span class="p">);</span>
 <span class="c1">-- Routes 3 messages each to: email_queue and all_notifications (6 total messages)</span>
 
 <span class="c1">-- Send batch with headers for priority handling</span>
 <span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch_topic</span><span class="p">(</span>
-<span class="w">    </span><span class="s1">&#39;notify.sms.alert&#39;</span><span class="p">,</span>
-<span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">&#39;{&quot;phone&quot;: &quot;+1234567890&quot;, &quot;msg&quot;: &quot;Alert!&quot;}&#39;</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span>
-<span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">&#39;{&quot;priority&quot;: &quot;urgent&quot;}&#39;</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[]</span>
+<span class="w">    </span><span class="s1">'notify.sms.alert'</span><span class="p">,</span>
+<span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">'{"phone": "+1234567890", "msg": "Alert!"}'</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span>
+<span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span><span class="s1">'{"priority": "urgent"}'</span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[]</span>
 <span class="p">);</span>
 <span class="c1">-- Routes to: sms_queue and all_notifications with priority header</span>
 
 <span class="c1">-- Send batch with delay (e.g., scheduled notifications)</span>
 <span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send_batch_topic</span><span class="p">(</span>
-<span class="w">    </span><span class="s1">&#39;notify.email.reminder&#39;</span><span class="p">,</span>
+<span class="w">    </span><span class="s1">'notify.email.reminder'</span><span class="p">,</span>
 <span class="w">    </span><span class="nb">ARRAY</span><span class="p">[</span>
-<span class="w">        </span><span class="s1">&#39;{&quot;to&quot;: &quot;user@example.com&quot;, &quot;subject&quot;: &quot;Reminder&quot;}&#39;</span><span class="p">,</span>
-<span class="w">        </span><span class="s1">&#39;{&quot;to&quot;: &quot;admin@example.com&quot;, &quot;subject&quot;: &quot;Daily report&quot;}&#39;</span>
+<span class="w">        </span><span class="s1">'{"to": "user@example.com", "subject": "Reminder"}'</span><span class="p">,</span>
+<span class="w">        </span><span class="s1">'{"to": "admin@example.com", "subject": "Daily report"}'</span>
 <span class="w">    </span><span class="p">]::</span><span class="n">jsonb</span><span class="p">[],</span>
 <span class="w">    </span><span class="mi">3600</span><span class="w">  </span><span class="c1">-- Delay 1 hour</span>
 <span class="p">);</span>
@@ -1930,7 +1930,7 @@ all queues whose patterns match that key. This enables flexible publish-subscrib
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": [], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>

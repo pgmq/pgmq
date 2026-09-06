@@ -19,7 +19,7 @@
       
       
       <link rel="icon" href="../assets/images/favicon.png">
-      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.6">
+      <meta name="generator" content="mkdocs-1.6.1, mkdocs-material-9.7.7">
     
     
       
@@ -27,7 +27,7 @@
       
     
     
-      <link rel="stylesheet" href="../assets/stylesheets/main.484c7ddc.min.css">
+      <link rel="stylesheet" href="../assets/stylesheets/main.ec1eaa64.min.css">
       
         
         <link rel="stylesheet" href="../assets/stylesheets/palette.ab4e12ef.min.css">
@@ -1554,11 +1554,11 @@
 <h3 id="message-group-ids">Message Group IDs<a class="headerlink" href="#message-group-ids" title="Permanent link">&para;</a></h3>
 <p>FIFO ordering is controlled by the <code>x-pgmq-group</code> header value:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Send messages to the same FIFO group</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;order&quot;: 1}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;user123&quot;}&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;order&quot;: 2}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;user123&quot;}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"order": 1}'</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">'{"x-pgmq-group": "user123"}'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"order": 2}'</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">'{"x-pgmq-group": "user123"}'</span><span class="p">);</span>
 
 <span class="c1">-- Send message to different FIFO group</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;order&quot;: 1}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;user456&quot;}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"order": 1}'</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">'{"x-pgmq-group": "user456"}'</span><span class="p">);</span>
 </code></pre></div>
 
 <h3 id="reading-fifo-messages">Reading FIFO Messages<a class="headerlink" href="#reading-fifo-messages" title="Permanent link">&para;</a></h3>
@@ -1569,13 +1569,13 @@
 <li><code>pgmq.read_grouped_head(...)</code> (One-per-group): Returns exactly one message per group (the head of each group), up to N groups. Ideal for parallel, per-group processing.</li>
 </ul>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Fair distribution across groups (round-robin, layered)</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_rr</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_rr</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
 
 <span class="c1">-- Throughput-optimized, SQS-style batch filling</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
 
 <span class="c1">-- One message per group, up to 5 groups</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_head</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_head</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">5</span><span class="p">);</span>
 </code></pre></div>
 
 <p>Round-robin (RR) will:
@@ -1595,8 +1595,8 @@
 <h3 id="default-group-behavior">Default Group Behavior<a class="headerlink" href="#default-group-behavior" title="Permanent link">&para;</a></h3>
 <p>Messages without the <code>x-pgmq-group</code> header are treated as belonging to a single default group:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- These messages will be processed in FIFO order relative to each other</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;message&quot;: &quot;first&quot;}&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;message&quot;: &quot;second&quot;}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"message": "first"}'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"message": "second"}'</span><span class="p">);</span>
 </code></pre></div>
 
 <h2 id="api-reference">API Reference<a class="headerlink" href="#api-reference" title="Permanent link">&para;</a></h2>
@@ -1640,7 +1640,7 @@
 </ul>
 <p><strong>Example:</strong></p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Claim the head message from up to 10 groups, locking them for 30 seconds</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_head</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_head</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">);</span>
 </code></pre></div>
 
 <h4 id="pgmqread_grouped_head_with_pollqueue_name-vt-qty-max_poll_seconds-poll_interval_ms"><code>pgmq.read_grouped_head_with_poll(queue_name, vt, qty, max_poll_seconds, poll_interval_ms)</code><a class="headerlink" href="#pgmqread_grouped_head_with_pollqueue_name-vt-qty-max_poll_seconds-poll_interval_ms" title="Permanent link">&para;</a></h4>
@@ -1654,33 +1654,33 @@
 <h3 id="1-user-specific-processing">1. User-Specific Processing<a class="headerlink" href="#1-user-specific-processing" title="Permanent link">&para;</a></h3>
 <p>Ensure messages for each user are processed in order:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- User 1 messages</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;user_events&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;action&quot;: &quot;login&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;user_123&quot;}&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;user_events&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;action&quot;: &quot;purchase&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;user_123&quot;}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'user_events'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"action": "login"}'</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">'{"x-pgmq-group": "user_123"}'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'user_events'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"action": "purchase"}'</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">'{"x-pgmq-group": "user_123"}'</span><span class="p">);</span>
 
 <span class="c1">-- User 2 messages (can be processed in parallel)</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;user_events&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;action&quot;: &quot;login&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;user_456&quot;}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'user_events'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"action": "login"}'</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">'{"x-pgmq-group": "user_456"}'</span><span class="p">);</span>
 </code></pre></div>
 
 <h3 id="2-order-processing">2. Order Processing<a class="headerlink" href="#2-order-processing" title="Permanent link">&para;</a></h3>
 <p>Maintain order integrity for financial transactions:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Order lifecycle events</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;orders&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;order_id&quot;: &quot;ord_1&quot;, &quot;action&quot;: &quot;create&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;ord_1&quot;}&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;orders&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;order_id&quot;: &quot;ord_1&quot;, &quot;action&quot;: &quot;payment&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;ord_1&quot;}&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;orders&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;order_id&quot;: &quot;ord_1&quot;, &quot;action&quot;: &quot;fulfill&quot;}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;ord_1&quot;}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'orders'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"order_id": "ord_1", "action": "create"}'</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">'{"x-pgmq-group": "ord_1"}'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'orders'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"order_id": "ord_1", "action": "payment"}'</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">'{"x-pgmq-group": "ord_1"}'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'orders'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"order_id": "ord_1", "action": "fulfill"}'</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">'{"x-pgmq-group": "ord_1"}'</span><span class="p">);</span>
 </code></pre></div>
 
 <h3 id="3-document-processing">3. Document Processing<a class="headerlink" href="#3-document-processing" title="Permanent link">&para;</a></h3>
 <p>Process document versions in sequence:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Document updates</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;docs&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;doc_id&quot;: &quot;doc_1&quot;, &quot;version&quot;: 1}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;doc_1&quot;}&#39;</span><span class="p">);</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">&#39;docs&#39;</span><span class="p">,</span><span class="w"> </span><span class="s1">&#39;{&quot;doc_id&quot;: &quot;doc_1&quot;, &quot;version&quot;: 2}&#39;</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">&#39;{&quot;x-pgmq-group&quot;: &quot;doc_1&quot;}&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'docs'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"doc_id": "doc_1", "version": 1}'</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">'{"x-pgmq-group": "doc_1"}'</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">send</span><span class="p">(</span><span class="s1">'docs'</span><span class="p">,</span><span class="w"> </span><span class="s1">'{"doc_id": "doc_1", "version": 2}'</span><span class="p">,</span><span class="w"> </span><span class="n">headers</span><span class="o">=&gt;</span><span class="s1">'{"x-pgmq-group": "doc_1"}'</span><span class="p">);</span>
 </code></pre></div>
 
 <h2 id="performance-considerations">Performance Considerations<a class="headerlink" href="#performance-considerations" title="Permanent link">&para;</a></h2>
 <h3 id="indexing">Indexing<a class="headerlink" href="#indexing" title="Permanent link">&para;</a></h3>
 <p>Create FIFO indexes for better performance:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- For a specific queue</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">create_fifo_index</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">create_fifo_index</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">);</span>
 
 <span class="c1">-- For all queues</span>
 <span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">create_fifo_indexes_all</span><span class="p">();</span>
@@ -1707,13 +1707,13 @@
 <h3 id="manual-retry">Manual Retry<a class="headerlink" href="#manual-retry" title="Permanent link">&para;</a></h3>
 <p>Force a message to be immediately available:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- Set visibility timeout to 0 for immediate retry</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">set_vt</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">123</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">set_vt</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">123</span><span class="p">,</span><span class="w"> </span><span class="mi">0</span><span class="p">);</span>
 </code></pre></div>
 
 <h3 id="dead-letter-handling">Dead Letter Handling<a class="headerlink" href="#dead-letter-handling" title="Permanent link">&para;</a></h3>
 <p>Archive messages that fail repeatedly:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- After max retries, archive the problematic message</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">archive</span><span class="p">(</span><span class="s1">&#39;my_queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">123</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">archive</span><span class="p">(</span><span class="s1">'my_queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">123</span><span class="p">);</span>
 </code></pre></div>
 
 <h2 id="migration-from-regular-queues">Migration from Regular Queues<a class="headerlink" href="#migration-from-regular-queues" title="Permanent link">&para;</a></h2>
@@ -1729,7 +1729,7 @@
 <h3 id="fair-distribution-pgmqread_grouped_rr">Fair Distribution (<code>pgmq.read_grouped_rr()</code>)<a class="headerlink" href="#fair-distribution-pgmqread_grouped_rr" title="Permanent link">&para;</a></h3>
 <p>Interleaves messages across FIFO groups in layers:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- With groups A (5 messages), B (3 messages), C (2 messages)</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_rr</span><span class="p">(</span><span class="s1">&#39;queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_rr</span><span class="p">(</span><span class="s1">'queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">);</span>
 <span class="c1">-- Returns (layered interleaving): A1, B1, C1, A2, B2, C2, A3, B3, A4, ...</span>
 </code></pre></div>
 
@@ -1742,10 +1742,10 @@
 <h3 id="throughput-optimization-pgmqread_grouped">Throughput Optimization (<code>pgmq.read_grouped()</code>)<a class="headerlink" href="#throughput-optimization-pgmqread_grouped" title="Permanent link">&para;</a></h3>
 <p>Attempts to fill the batch from the earliest group first:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- With groups A (5 messages), B (3 messages), C (2 messages)</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped</span><span class="p">(</span><span class="s1">&#39;queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped</span><span class="p">(</span><span class="s1">'queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">);</span>
 <span class="c1">-- Returns: 10 messages (5 from A + 3 from B + 2 from C)</span>
 
-<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped</span><span class="p">(</span><span class="s1">&#39;queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped</span><span class="p">(</span><span class="s1">'queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">3</span><span class="p">);</span>
 <span class="c1">-- Returns: 3 messages (all from group A)</span>
 </code></pre></div>
 
@@ -1756,10 +1756,10 @@
 <h3 id="one-per-group-pgmqread_grouped_head">One-per-Group (<code>pgmq.read_grouped_head()</code>)<a class="headerlink" href="#one-per-group-pgmqread_grouped_head" title="Permanent link">&para;</a></h3>
 <p>Returns exactly one message per FIFO group, up to N groups:</p>
 <div class="codehilite"><pre><span></span><code><span class="c1">-- With groups A (5 messages), B (3 messages), C (2 messages)</span>
-<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_head</span><span class="p">(</span><span class="s1">&#39;queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_head</span><span class="p">(</span><span class="s1">'queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">10</span><span class="p">);</span>
 <span class="c1">-- Returns: 3 messages — 1 from A, 1 from B, 1 from C</span>
 
-<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_head</span><span class="p">(</span><span class="s1">&#39;queue&#39;</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">);</span>
+<span class="k">SELECT</span><span class="w"> </span><span class="o">*</span><span class="w"> </span><span class="k">FROM</span><span class="w"> </span><span class="n">pgmq</span><span class="p">.</span><span class="n">read_grouped_head</span><span class="p">(</span><span class="s1">'queue'</span><span class="p">,</span><span class="w"> </span><span class="mi">30</span><span class="p">,</span><span class="w"> </span><span class="mi">2</span><span class="p">);</span>
 <span class="c1">-- Returns: 2 messages — 1 from A, 1 from B (oldest two groups)</span>
 </code></pre></div>
 
@@ -1934,7 +1934,7 @@
       <script id="__config" type="application/json">{"annotate": null, "base": "..", "features": [], "search": "../assets/javascripts/workers/search.2c215733.min.js", "tags": null, "translations": {"clipboard.copied": "Copied to clipboard", "clipboard.copy": "Copy to clipboard", "search.result.more.one": "1 more on this page", "search.result.more.other": "# more on this page", "search.result.none": "No matching documents", "search.result.one": "1 matching document", "search.result.other": "# matching documents", "search.result.placeholder": "Type to start searching", "search.result.term.missing": "Missing", "select.version": "Select version"}, "version": {"provider": "mike"}}</script>
     
     
-      <script src="../assets/javascripts/bundle.79ae519e.min.js"></script>
+      <script src="../assets/javascripts/bundle.d7400e89.min.js"></script>
       
     
   </body>
