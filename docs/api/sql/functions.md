@@ -1302,7 +1302,7 @@ RETURNS pgmq.metrics_result
 | total_messages   | bigint      | Total number of messages that have passed through the queue over all time   |
 | scrape_time   | timestamp with time zone      | The current timestamp   |
 | queue_visible_length | bigint | Number of messages currently visible (vt <= now) |
-| default_partition_length | bigint \| null | Messages in the queue's default partition, which means partition maintenance is failing for this queue. Null for queues that are not partitioned |
+| default_partition_length | bigint \| null | Estimated messages in the default partitions of the queue and its archive, which means partition maintenance is failing for this queue. Null for queues that are not partitioned |
 
 Example:
 
@@ -1335,7 +1335,7 @@ RETURNS SETOF pgmq.metrics_result
 | total_messages   | bigint      | Total number of messages that have passed through the queue over all time   |
 | scrape_time   | timestamp with time zone      | The current timestamp   |
 | queue_visible_length | bigint | Number of messages currently visible (vt <= now) |
-| default_partition_length | bigint \| null | Messages in the queue's default partition, which means partition maintenance is failing for this queue. Null for queues that are not partitioned |
+| default_partition_length | bigint \| null | Estimated messages in the default partitions of the queue and its archive, which means partition maintenance is failing for this queue. Null for queues that are not partitioned |
 
 ```sql
 select * from pgmq.metrics_all();

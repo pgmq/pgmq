@@ -55,7 +55,7 @@ Contains metrics and statistics for a queue.
 | total_messages   | bigint     | Total number of messages that have ever been in the queue   |
 | scrape_time      | timestamp with time zone | Timestamp when metrics were collected   |
 | queue_visible_length | bigint | Number of messages currently visible (vt <= now)   |
-| default_partition_length | bigint | Messages in the queue's default partition; non-zero means partition maintenance is failing for this queue. Null for queues that are not partitioned   |
+| default_partition_length | bigint | Estimated messages in the default partitions of the queue and its archive; non-zero means partition maintenance is failing for this queue. Null for queues that are not partitioned   |
 
 Example:
 

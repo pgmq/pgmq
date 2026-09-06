@@ -692,9 +692,21 @@ SELECT identity_generation FROM information_schema.columns
 SELECT count(*) FROM pgmq.send_batch('test_premake_custom', ARRAY['1', '2', '3']::jsonb[]);
 SELECT default_partition_length FROM pgmq.metrics('test_premake_custom');
 
--- a burst past the premake runway (2 ahead x 10 per partition) lands in the default partition
+-- a burst past the premake runway (2 ahead x 10 per partition) lands in the default partition.
+-- The length is the planner's estimate, so the statistics are refreshed before reading it
 SELECT count(*) FROM pgmq.send_batch('test_premake_custom', ARRAY(SELECT '0'::jsonb FROM generate_series(1, 40)));
+ANALYZE pgmq.q_test_premake_custom_default;
 SELECT default_partition_length > 0 FROM pgmq.metrics('test_premake_custom');
+
+-- archiving a spilled message moves it to the archive's default partition, which is counted too
+SELECT pgmq.archive('test_premake_custom', (SELECT max(msg_id) FROM pgmq.q_test_premake_custom_default));
+ANALYZE pgmq.q_test_premake_custom_default;
+ANALYZE pgmq.a_test_premake_custom_default;
+SELECT count(*) FROM pgmq.a_test_premake_custom_default;
+SELECT default_partition_length =
+       (SELECT count(*) FROM pgmq.q_test_premake_custom_default) +
+       (SELECT count(*) FROM pgmq.a_test_premake_custom_default)
+  FROM pgmq.metrics('test_premake_custom');
 
 -- a queue that is not partitioned has no default partition to report
 SELECT pgmq.create('test_premake_plain');

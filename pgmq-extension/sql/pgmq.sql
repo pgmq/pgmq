@@ -874,14 +874,22 @@ DECLARE
     result_row pgmq.metrics_result;
     query TEXT;
     qtable TEXT := pgmq.format_table_name(queue_name, 'q');
-    default_partition TEXT := qtable || '_default';
+    q_default_partition TEXT := qtable || '_default';
+    a_default_partition TEXT := pgmq.format_table_name(queue_name, 'a') || '_default';
     default_partition_length BIGINT;
 BEGIN
-    -- Only partitioned queues have a default partition. Messages in it have no
+    -- Only partitioned queues have default partitions. Messages in them have no
     -- partition of their own, which means pg_partman maintenance is failing for
-    -- this queue; a non-zero value here is the signal to act on.
-    IF to_regclass(FORMAT('pgmq.%I', default_partition)) IS NOT NULL THEN
-        EXECUTE FORMAT('SELECT count(*) FROM pgmq.%I', default_partition) INTO default_partition_length;
+    -- this queue; a non-zero value here is the signal to act on. The planner's
+    -- estimate is used so that a large spill does not slow down every scrape.
+    IF to_regclass(FORMAT('pgmq.%I', q_default_partition)) IS NOT NULL THEN
+        SELECT COALESCE(SUM(GREATEST(c.reltuples, 0))::bigint, 0)
+        INTO default_partition_length
+        FROM pg_class c
+        WHERE c.oid IN (
+            to_regclass(FORMAT('pgmq.%I', q_default_partition)),
+            to_regclass(FORMAT('pgmq.%I', a_default_partition))
+        );
     END IF;
 
     query := FORMAT(

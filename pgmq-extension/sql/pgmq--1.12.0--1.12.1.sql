@@ -9,7 +9,7 @@ DECLARE
     qtable TEXT;
 BEGIN
     FOR queue_record IN SELECT queue_name FROM pgmq.meta WHERE is_partitioned LOOP
-        qtable := 'q_' || queue_record.queue_name;
+        qtable := pgmq.format_table_name(queue_record.queue_name, 'q');
 
         IF EXISTS (
             SELECT 1 FROM information_schema.columns
@@ -190,36 +190,32 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
--- metrics_result gains default_partition_length. The functions returning the
--- type are dropped by the cascade and recreated below.
-DROP TYPE IF EXISTS pgmq.metrics_result CASCADE;
-
-CREATE TYPE pgmq.metrics_result AS (
-    queue_name text,
-    queue_length bigint,
-    newest_msg_age_sec int,
-    oldest_msg_age_sec int,
-    total_messages bigint,
-    scrape_time timestamp with time zone,
-    queue_visible_length bigint,
-    default_partition_length bigint
-);
+-- metrics_result gains default_partition_length, which metrics() now reports.
+ALTER TYPE pgmq.metrics_result ADD ATTRIBUTE default_partition_length bigint;
 
 -- get metrics for a single queue
-CREATE FUNCTION pgmq.metrics(queue_name TEXT)
+CREATE OR REPLACE FUNCTION pgmq.metrics(queue_name TEXT)
 RETURNS pgmq.metrics_result AS $$
 DECLARE
     result_row pgmq.metrics_result;
     query TEXT;
     qtable TEXT := pgmq.format_table_name(queue_name, 'q');
-    default_partition TEXT := qtable || '_default';
+    q_default_partition TEXT := qtable || '_default';
+    a_default_partition TEXT := pgmq.format_table_name(queue_name, 'a') || '_default';
     default_partition_length BIGINT;
 BEGIN
-    -- Only partitioned queues have a default partition. Messages in it have no
+    -- Only partitioned queues have default partitions. Messages in them have no
     -- partition of their own, which means pg_partman maintenance is failing for
-    -- this queue; a non-zero value here is the signal to act on.
-    IF to_regclass(FORMAT('pgmq.%I', default_partition)) IS NOT NULL THEN
-        EXECUTE FORMAT('SELECT count(*) FROM pgmq.%I', default_partition) INTO default_partition_length;
+    -- this queue; a non-zero value here is the signal to act on. The planner's
+    -- estimate is used so that a large spill does not slow down every scrape.
+    IF to_regclass(FORMAT('pgmq.%I', q_default_partition)) IS NOT NULL THEN
+        SELECT COALESCE(SUM(GREATEST(c.reltuples, 0))::bigint, 0)
+        INTO default_partition_length
+        FROM pg_class c
+        WHERE c.oid IN (
+            to_regclass(FORMAT('pgmq.%I', q_default_partition)),
+            to_regclass(FORMAT('pgmq.%I', a_default_partition))
+        );
     END IF;
 
     query := FORMAT(
@@ -254,19 +250,5 @@ BEGIN
     );
     EXECUTE query INTO result_row;
     RETURN result_row;
-END;
-$$ LANGUAGE plpgsql;
-
--- get metrics for all queues
-CREATE FUNCTION pgmq."metrics_all"()
-RETURNS SETOF pgmq.metrics_result AS $$
-DECLARE
-    row_name RECORD;
-    result_row pgmq.metrics_result;
-BEGIN
-    FOR row_name IN SELECT queue_name FROM pgmq.meta LOOP
-        result_row := pgmq.metrics(row_name.queue_name);
-        RETURN NEXT result_row;
-    END LOOP;
 END;
 $$ LANGUAGE plpgsql;
