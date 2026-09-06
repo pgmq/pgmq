@@ -1033,7 +1033,8 @@ Create a partitioned queue. Requires the `pg_partman` extension to be installed.
 pgmq.create_partitioned (
     queue_name text,
     partition_interval text DEFAULT '10000'::text,
-    retention_interval text DEFAULT '100000'::text
+    retention_interval text DEFAULT '100000'::text,
+    premake integer DEFAULT 4
 )
 RETURNS void
 ```
@@ -1045,6 +1046,7 @@ RETURNS void
 | queue_name      | text       | The name of the queue (max 47 characters)   |
 | partition_interval      | text       | Partition size - numeric value for msg_id-based partitioning (e.g., '10000'), or time interval for timestamp-based partitioning (e.g., '1 day'). Defaults to '10000'.   |
 | retention_interval      | text       | How long/how many messages to retain before deleting old partitions. Same format as partition_interval. Defaults to '100000'.   |
+| premake      | integer       | Number of partitions pg_partman keeps created ahead of the current one. Defaults to 4. See [Runway and overrun](../../partitioned-queues.md#runway-and-overrun).   |
 
 Example:
 
@@ -1300,6 +1302,7 @@ RETURNS pgmq.metrics_result
 | total_messages   | bigint      | Total number of messages that have passed through the queue over all time   |
 | scrape_time   | timestamp with time zone      | The current timestamp   |
 | queue_visible_length | bigint | Number of messages currently visible (vt <= now) |
+| default_partition_length | bigint \| null | Estimated messages in the default partitions of the queue and its archive, which means partition maintenance is failing for this queue. Null for queues that are not partitioned |
 
 Example:
 
@@ -1332,6 +1335,7 @@ RETURNS SETOF pgmq.metrics_result
 | total_messages   | bigint      | Total number of messages that have passed through the queue over all time   |
 | scrape_time   | timestamp with time zone      | The current timestamp   |
 | queue_visible_length | bigint | Number of messages currently visible (vt <= now) |
+| default_partition_length | bigint \| null | Estimated messages in the default partitions of the queue and its archive, which means partition maintenance is failing for this queue. Null for queues that are not partitioned |
 
 ```sql
 select * from pgmq.metrics_all();
