@@ -138,4 +138,7 @@ pub struct QueueMetrics {
     pub total_messages: i64,
     pub scrape_time: DateTime<Utc>,
     pub queue_visible_length: i64,
+    /// Estimated number of messages sitting in a partitioned queue's default partition. `None` for
+    /// non-partitioned queues; a non-zero value signals that pg_partman maintenance is failing.
+    pub default_partition_length: Option<i64>,
 }
