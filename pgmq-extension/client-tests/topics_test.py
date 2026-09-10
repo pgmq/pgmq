@@ -932,7 +932,70 @@ class TestSendTopic:
             assert msg is not None
             assert msg["headers"]["correlation_id"] == "abc123"
             assert msg["headers"]["source"] == "test"
+            assert msg["headers"]["x-pgmq-pattern"] == "events.#"
+            assert msg["headers"]["x-pgmq-routing-key"] == "events.user.signup"
             print("Test passed: send_topic preserves headers")
+
+        finally:
+            drop_queue(db_connection, queue_name)
+
+    def test_send_topic_exposes_pattern_and_routing_key_in_headers(
+        self, db_connection: psycopg.Connection
+    ):
+        """Test that send_topic sets x-pgmq-pattern and x-pgmq-routing-key in message headers."""
+        now = int(time.time())
+        queue_name = f"test_send_topic_headers_{now}"
+
+        try:
+            create_queue(db_connection, queue_name)
+            bind_topic(db_connection, "logs.app.#", queue_name)
+
+            count = send_topic(
+                db_connection,
+                "logs.app.error",
+                {"message": "test error"},
+            )
+            assert count == 1
+
+            msg = read_message(db_connection, queue_name)
+            assert msg is not None
+            assert msg["headers"]["x-pgmq-pattern"] == "logs.app.#"
+            assert msg["headers"]["x-pgmq-routing-key"] == "logs.app.error"
+            print("Test passed: send_topic exposes x-pgmq-pattern and x-pgmq-routing-key in headers")
+
+        finally:
+            drop_queue(db_connection, queue_name)
+
+    def test_send_batch_topic_exposes_pattern_and_routing_key_in_headers(
+        self, db_connection: psycopg.Connection
+    ):
+        """Test that send_batch_topic sets x-pgmq-pattern and x-pgmq-routing-key in message headers."""
+        now = int(time.time())
+        queue_name = f"test_batch_topic_headers_{now}"
+
+        try:
+            create_queue(db_connection, queue_name)
+            bind_topic(db_connection, "batch.routing.#", queue_name)
+
+            with db_connection.cursor() as cur:
+                cur.execute(
+                    """
+                    SELECT queue_name, msg_id FROM pgmq.send_batch_topic(
+                        'batch.routing.key',
+                        ARRAY['{"n": 1}'::jsonb, '{"n": 2}'::jsonb]
+                    )
+                    """,
+                )
+                rows = cur.fetchall()
+            assert len(rows) == 2, f"Expected 2 rows (2 msgs x 1 queue), got {len(rows)}"
+
+            msg = read_message(db_connection, queue_name)
+            assert msg is not None
+            assert msg["headers"]["x-pgmq-pattern"] == "batch.routing.#"
+            assert msg["headers"]["x-pgmq-routing-key"] == "batch.routing.key"
+            print(
+                "Test passed: send_batch_topic exposes x-pgmq-pattern and x-pgmq-routing-key in headers"
+            )
 
         finally:
             drop_queue(db_connection, queue_name)

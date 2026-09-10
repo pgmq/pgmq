@@ -661,7 +661,7 @@ SELECT pgmq.send_topic(
     0
 );
 
--- Verify message was delivered with headers
+-- Verify message was delivered with headers (including x-pgmq-pattern and x-pgmq-routing-key)
 WITH msg AS (
     SELECT * FROM pgmq.read('topic_queue_1', 10, 1)
 )
@@ -669,7 +669,26 @@ SELECT
     COUNT(*) = 1 as has_message,
     (SELECT message->>'order_id' FROM msg) = '456' as correct_body,
     (SELECT headers->>'priority' FROM msg) = 'high' as has_priority,
-    (SELECT headers->>'source' FROM msg) = 'web' as has_source;
+    (SELECT headers->>'source' FROM msg) = 'web' as has_source,
+    (SELECT headers->>'x-pgmq-pattern' FROM msg) = 'orders.created' as has_x_pgmq_pattern,
+    (SELECT headers->>'x-pgmq-routing-key' FROM msg) = 'orders.created' as has_x_pgmq_routing_key;
+
+-- Clean up
+SELECT pgmq.purge_queue('topic_queue_1');
+DELETE FROM pgmq.topic_bindings;
+
+-- test_send_topic_x_pgmq_headers
+-- Test that send_topic sets x-pgmq-pattern and x-pgmq-routing-key in message headers
+SELECT pgmq.bind_topic('events.user.#', 'topic_queue_1');
+
+SELECT pgmq.send_topic('events.user.signup', '{"user_id": 1}'::jsonb, NULL, 0);
+
+WITH msg AS (
+    SELECT * FROM pgmq.read('topic_queue_1', 10, 1)
+)
+SELECT
+    (SELECT headers->>'x-pgmq-pattern' FROM msg) = 'events.user.#' as has_x_pgmq_pattern,
+    (SELECT headers->>'x-pgmq-routing-key' FROM msg) = 'events.user.signup' as has_x_pgmq_routing_key;
 
 -- Clean up
 SELECT pgmq.purge_queue('topic_queue_1');
@@ -823,6 +842,14 @@ SELECT queue_name, msg_id FROM pgmq.send_batch_topic(
 SELECT COUNT(*) = 3 FROM pgmq.q_batch_topic_queue_1;
 SELECT COUNT(*) = 3 FROM pgmq.q_batch_topic_queue_2;
 
+-- Verify x-pgmq-pattern and x-pgmq-routing-key are set (no custom headers)
+WITH msg AS (
+    SELECT * FROM pgmq.read('batch_topic_queue_1', 10, 1)
+)
+SELECT
+    (SELECT headers->>'x-pgmq-pattern' FROM msg) = 'batch.test.*' as has_x_pgmq_pattern,
+    (SELECT headers->>'x-pgmq-routing-key' FROM msg) = 'batch.test.messages' as has_x_pgmq_routing_key;
+
 -- Clean up
 SELECT pgmq.purge_queue('batch_topic_queue_1');
 SELECT pgmq.purge_queue('batch_topic_queue_2');
@@ -838,8 +865,16 @@ SELECT queue_name, msg_id FROM pgmq.send_batch_topic(
     ARRAY['{"header": "A"}'::jsonb, '{"header": "B"}'::jsonb]::jsonb[]
 ) ORDER BY queue_name, msg_id;
 
--- Verify messages and headers
+-- Verify messages and headers (including x-pgmq-pattern and x-pgmq-routing-key)
 SELECT message, headers FROM pgmq.q_batch_topic_queue_1 ORDER BY msg_id;
+
+WITH msg AS (
+    SELECT * FROM pgmq.read('batch_topic_queue_1', 10, 1)
+)
+SELECT
+    (SELECT headers->>'x-pgmq-pattern' FROM msg) = 'headers.test' as has_x_pgmq_pattern,
+    (SELECT headers->>'x-pgmq-routing-key' FROM msg) = 'headers.test' as has_x_pgmq_routing_key,
+    (SELECT headers->>'header' FROM msg) = 'A' as preserves_custom_header;
 
 -- Clean up
 SELECT pgmq.purge_queue('batch_topic_queue_1');
