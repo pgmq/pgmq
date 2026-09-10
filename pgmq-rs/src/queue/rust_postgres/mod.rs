@@ -91,6 +91,7 @@ impl TryFrom<::tokio_postgres::Row> for crate::types::QueueMetrics {
             total_messages: value.try_get("total_messages")?,
             scrape_time: value.try_get("scrape_time")?,
             queue_visible_length: value.try_get("queue_visible_length")?,
+            default_partition_length: value.try_get("default_partition_length")?,
         })
     }
 }

@@ -175,6 +175,8 @@ type PgQueueMetrics = diesel::sql_types::Record<(
     Timestamptz,
     // queue_visible_length
     BigInt,
+    // default_partition_length
+    Nullable<BigInt>,
 )>;
 
 impl FromSql<PgQueueMetrics, Pg> for crate::types::QueueMetrics {
@@ -187,6 +189,7 @@ impl FromSql<PgQueueMetrics, Pg> for crate::types::QueueMetrics {
             total_messages,
             scrape_time,
             queue_visible_length,
+            default_partition_length,
         ) = FromSql::<PgQueueMetrics, Pg>::from_sql(bytes)?;
 
         Ok(Self {
@@ -197,6 +200,7 @@ impl FromSql<PgQueueMetrics, Pg> for crate::types::QueueMetrics {
             total_messages,
             scrape_time,
             queue_visible_length,
+            default_partition_length,
         })
     }
 }
