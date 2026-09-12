@@ -6,10 +6,15 @@ use crate::queue::diesel::sql::{
     pgmq_enable_notify_insert, pgmq_list_notify_insert_throttles, pgmq_list_queues,
     pgmq_list_topic_bindings, pgmq_list_topic_bindings_all, pgmq_metrics, pgmq_metrics_all,
     pgmq_pop, pgmq_purge_queue, pgmq_read, pgmq_read_grouped, pgmq_read_grouped_head,
-    pgmq_read_grouped_rr, pgmq_send, pgmq_send_batch, pgmq_send_batch_topic, pgmq_send_topic,
-    pgmq_set_vt, pgmq_unbind_topic, pgmq_update_notify_insert,
+    pgmq_read_grouped_head_with_poll, pgmq_read_grouped_rr, pgmq_read_grouped_rr_with_poll,
+    pgmq_read_grouped_with_poll, pgmq_read_with_poll, pgmq_send, pgmq_send_batch,
+    pgmq_send_batch_topic, pgmq_send_topic, pgmq_set_vt, pgmq_unbind_topic,
+    pgmq_update_notify_insert,
 };
-use crate::types::{InsertNotificationThrottleInterval, QueueName, VisibilityTimeoutOffset};
+use crate::types::{
+    InsertNotificationThrottleInterval, PollInterval, PollTimeout, QueueName,
+    VisibilityTimeoutOffset,
+};
 use diesel::dsl::select;
 use diesel::{ExpressionMethods, QueryDsl};
 
@@ -284,4 +289,88 @@ pub fn metrics_query(queue_name: QueueName<'_>) -> _ {
 #[diesel::dsl::auto_type(no_type_alias)]
 pub fn metrics_all_query() -> _ {
     select(pgmq_metrics_all())
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn read_with_poll_query(
+    queue_name: QueueName<'_>,
+    visibility_timeout: VisibilityTimeoutOffset,
+    quantity: i32,
+    poll_timeout: PollTimeout,
+    poll_interval: PollInterval,
+) -> _ {
+    let queue_name: &str = *queue_name;
+    let visibility_timeout: i32 = *visibility_timeout;
+    let poll_timeout: i32 = *poll_timeout;
+    let poll_interval: i32 = *poll_interval;
+    select(pgmq_read_with_poll(
+        queue_name,
+        visibility_timeout,
+        quantity,
+        poll_timeout,
+        poll_interval,
+    ))
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn read_grouped_with_poll_query(
+    queue_name: QueueName<'_>,
+    visibility_timeout: VisibilityTimeoutOffset,
+    quantity: i32,
+    poll_timeout: PollTimeout,
+    poll_interval: PollInterval,
+) -> _ {
+    let queue_name: &str = *queue_name;
+    let visibility_timeout: i32 = *visibility_timeout;
+    let poll_timeout: i32 = *poll_timeout;
+    let poll_interval: i32 = *poll_interval;
+    select(pgmq_read_grouped_with_poll(
+        queue_name,
+        visibility_timeout,
+        quantity,
+        poll_timeout,
+        poll_interval,
+    ))
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn read_grouped_rr_with_poll_query(
+    queue_name: QueueName<'_>,
+    visibility_timeout: VisibilityTimeoutOffset,
+    quantity: i32,
+    poll_timeout: PollTimeout,
+    poll_interval: PollInterval,
+) -> _ {
+    let queue_name: &str = *queue_name;
+    let visibility_timeout: i32 = *visibility_timeout;
+    let poll_timeout: i32 = *poll_timeout;
+    let poll_interval: i32 = *poll_interval;
+    select(pgmq_read_grouped_rr_with_poll(
+        queue_name,
+        visibility_timeout,
+        quantity,
+        poll_timeout,
+        poll_interval,
+    ))
+}
+
+#[diesel::dsl::auto_type(no_type_alias)]
+pub fn read_grouped_head_with_poll_query(
+    queue_name: QueueName<'_>,
+    visibility_timeout: VisibilityTimeoutOffset,
+    quantity: i32,
+    poll_timeout: PollTimeout,
+    poll_interval: PollInterval,
+) -> _ {
+    let queue_name: &str = *queue_name;
+    let visibility_timeout: i32 = *visibility_timeout;
+    let poll_timeout: i32 = *poll_timeout;
+    let poll_interval: i32 = *poll_interval;
+    select(pgmq_read_grouped_head_with_poll(
+        queue_name,
+        visibility_timeout,
+        quantity,
+        poll_timeout,
+        poll_interval,
+    ))
 }

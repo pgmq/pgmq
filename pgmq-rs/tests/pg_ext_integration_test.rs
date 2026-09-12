@@ -1161,6 +1161,49 @@ async fn test_read_grouped_head_diff_groups() {
 }
 
 #[tokio::test]
+async fn test_read_grouped_head_with_poll() {
+    let test_queue = format!(
+        "test_read_grouped_head_with_poll_{}",
+        rand::rng().random_range(0..100000)
+    );
+    let queue = init_queue_ext(&test_queue).await;
+
+    let delay = 4;
+
+    let msg1 = MyMessage {
+        foo: "a".to_string(),
+        num: 1,
+    };
+    let headers1 = serde_json::json!({
+        "x-pgmq-group": msg1.num
+    });
+    let msg2 = MyMessage {
+        foo: "b".to_string(),
+        num: 1,
+    };
+    let headers2 = serde_json::json!({
+        "x-pgmq-group": msg2.num
+    });
+    let msgs = [msg1, msg2];
+    queue
+        .send_batch_with_delay_with_headers(&test_queue, &msgs, Some(&[headers1, headers2]), 0)
+        .await
+        .unwrap();
+
+    let read_msgs: Vec<Message<MyMessage>> = queue
+        .read_grouped_head_with_poll(
+            &test_queue,
+            100,
+            2,
+            Some(Duration::from_secs(delay + 1)),
+            Some(Duration::from_millis(100)),
+        )
+        .await
+        .unwrap();
+    assert_eq!(1, read_msgs.len());
+}
+
+#[tokio::test]
 async fn test_read_grouped_with_poll() {
     let test_queue = format!(
         "test_read_grouped_with_poll_{}",

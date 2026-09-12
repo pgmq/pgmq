@@ -1,8 +1,9 @@
 use crate::errors::PgmqError;
-use crate::queue::sql::READ;
-use crate::queue::sqlx::util::handle_read_batch_result;
+use crate::queue::sql::{
+    READ, READ_GROUPED_HEAD_WITH_POLL, READ_GROUPED_RR_WITH_POLL, READ_GROUPED_WITH_POLL,
+    READ_WITH_POLL,
+};
 use crate::queue::{Queue, QueueTransaction};
-use crate::types::queue_name::check_queue_name;
 use crate::types::{
     ListNotifyInsertThrottlesRow, ListTopicBindingsRow, Message, PGMQueueMeta, QueueMetrics,
     SendBatchTopicRow,
@@ -623,9 +624,14 @@ impl PGMQueueExt {
         qty: i32,
         executor: E,
     ) -> Result<Vec<Message<T, H>>, PgmqError> {
-        let query = sqlx::query(READ);
-
-        Self::read_batch_common(query, queue_name, vt, qty, executor).await
+        crate::queue::sqlx::read_common(
+            executor,
+            sqlx::query(READ),
+            queue_name.try_into()?,
+            vt.into(),
+            qty,
+        )
+        .await
     }
 
     pub async fn read_batch<T: for<'de> Deserialize<'de>, H: for<'de> Deserialize<'de>>(
@@ -687,18 +693,8 @@ impl PGMQueueExt {
         poll_interval: Option<std::time::Duration>,
         executor: E,
     ) -> Result<Vec<Message<T, H>>, PgmqError> {
-        let query = sqlx::query(
-            r#"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.read_with_poll(
-                queue_name=>$1::text,
-                vt=>$2::integer,
-                qty=>$3::integer,
-                max_poll_seconds=>$4::integer,
-                poll_interval_ms=>$5::integer
-            )"#,
-        );
-
         Self::read_batch_with_poll_common(
-            query,
+            sqlx::query(READ_WITH_POLL),
             queue_name,
             vt,
             max_batch_size,
@@ -771,18 +767,8 @@ impl PGMQueueExt {
         poll_interval: Option<std::time::Duration>,
         executor: E,
     ) -> Result<Vec<Message<T, H>>, PgmqError> {
-        let query = sqlx::query(
-            r#"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.read_grouped_with_poll(
-                queue_name=>$1::text,
-                vt=>$2::integer,
-                qty=>$3::integer,
-                max_poll_seconds=>$4::integer,
-                poll_interval_ms=>$5::integer
-            )"#,
-        );
-
         Self::read_batch_with_poll_common(
-            query,
+            sqlx::query(READ_GROUPED_WITH_POLL),
             queue_name,
             vt,
             qty,
@@ -841,6 +827,54 @@ impl PGMQueueExt {
             .await
     }
 
+    pub async fn read_grouped_head_with_poll_with_cxn<
+        'c,
+        E: sqlx::Executor<'c, Database = Postgres>,
+        T: for<'de> Deserialize<'de>,
+        H: for<'de> Deserialize<'de>,
+    >(
+        &self,
+        queue_name: &str,
+        vt: impl Into<VisibilityTimeoutOffset>,
+        qty: i32,
+        poll_timeout: Option<std::time::Duration>,
+        poll_interval: Option<std::time::Duration>,
+        executor: E,
+    ) -> Result<Vec<Message<T, H>>, PgmqError> {
+        Self::read_batch_with_poll_common(
+            sqlx::query(READ_GROUPED_HEAD_WITH_POLL),
+            queue_name,
+            vt,
+            qty,
+            poll_timeout,
+            poll_interval,
+            executor,
+        )
+        .await
+    }
+
+    pub async fn read_grouped_head_with_poll<
+        T: for<'de> Deserialize<'de>,
+        H: for<'de> Deserialize<'de>,
+    >(
+        &self,
+        queue_name: &str,
+        vt: impl Into<VisibilityTimeoutOffset>,
+        qty: i32,
+        poll_timeout: Option<std::time::Duration>,
+        poll_interval: Option<std::time::Duration>,
+    ) -> Result<Vec<Message<T, H>>, PgmqError> {
+        self.read_grouped_head_with_poll_with_cxn(
+            queue_name,
+            vt,
+            qty,
+            poll_timeout,
+            poll_interval,
+            &self.connection,
+        )
+        .await
+    }
+
     pub async fn read_grouped_rr_with_cxn<
         'c,
         E: sqlx::Executor<'c, Database = Postgres>,
@@ -881,18 +915,8 @@ impl PGMQueueExt {
         poll_interval: Option<std::time::Duration>,
         executor: E,
     ) -> Result<Vec<Message<T, H>>, PgmqError> {
-        let query = sqlx::query(
-            r#"SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.read_grouped_rr_with_poll(
-                queue_name=>$1::text,
-                vt=>$2::integer,
-                qty=>$3::integer,
-                max_poll_seconds=>$4::integer,
-                poll_interval_ms=>$5::integer
-            )"#,
-        );
-
         Self::read_batch_with_poll_common(
-            query,
+            sqlx::query(READ_GROUPED_RR_WITH_POLL),
             queue_name,
             vt,
             qty,
@@ -925,31 +949,6 @@ impl PGMQueueExt {
         .await
     }
 
-    async fn read_batch_common<
-        'c,
-        'q,
-        E: sqlx::Executor<'c, Database = Postgres>,
-        T: for<'de> Deserialize<'de>,
-        H: for<'de> Deserialize<'de>,
-    >(
-        query: sqlx::query::Query<'q, Postgres, <Postgres as sqlx::Database>::Arguments>,
-        queue_name: &'q str,
-        vt: impl Into<VisibilityTimeoutOffset>,
-        qty: i32,
-        executor: E,
-    ) -> Result<Vec<Message<T, H>>, PgmqError> {
-        check_queue_name(queue_name)?;
-        let vt: VisibilityTimeoutOffset = vt.into();
-        let rows = query
-            .bind(queue_name)
-            .bind(vt)
-            .bind(qty)
-            .fetch_all(executor)
-            .await?;
-
-        handle_read_batch_result(rows)
-    }
-
     async fn read_batch_with_poll_common<
         'c,
         'q,
@@ -965,21 +964,19 @@ impl PGMQueueExt {
         poll_interval: Option<std::time::Duration>,
         executor: E,
     ) -> Result<Vec<Message<T, H>>, PgmqError> {
-        check_queue_name(queue_name)?;
-        let vt: VisibilityTimeoutOffset = vt.into();
-        let poll_timeout_s = poll_timeout.map_or(DEFAULT_POLL_TIMEOUT_S, |t| t.as_secs() as i32);
-        let poll_interval_ms =
+        let poll_timeout = poll_timeout.map_or(DEFAULT_POLL_TIMEOUT_S, |t| t.as_secs() as i32);
+        let poll_interval =
             poll_interval.map_or(DEFAULT_POLL_INTERVAL_MS, |i| i.as_millis() as i32);
-        let rows = query
-            .bind(queue_name)
-            .bind(vt)
-            .bind(max_batch_size)
-            .bind(poll_timeout_s)
-            .bind(poll_interval_ms)
-            .fetch_all(executor)
-            .await?;
-
-        handle_read_batch_result(rows)
+        crate::queue::sqlx::read_with_poll_common(
+            executor,
+            query,
+            queue_name.try_into()?,
+            vt.into(),
+            max_batch_size,
+            poll_timeout.into(),
+            poll_interval.into(),
+        )
+        .await
     }
 
     pub async fn archive_with_cxn<'c, E: sqlx::Executor<'c, Database = Postgres>>(

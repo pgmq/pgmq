@@ -674,7 +674,7 @@ async fn read_grouped_custom_group(conn_details: ConnDetails, queue: impl Queue)
 }
 
 #[pgmq_test_macro::queue_test]
-async fn read_grouped_head_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+async fn read_group_head_invalid_queue(conn_details: ConnDetails, queue: impl Queue) {
     let result: Result<Vec<Message>, _> =
         queue.read_grouped_head("invalid-queue-name", 10, 1).await;
     assert_matches!(
@@ -1338,7 +1338,7 @@ async fn drop_queue_does_not_exist(conn_details: ConnDetails, queue: impl Queue)
 }
 
 #[pgmq_test_macro::queue_test]
-async fn test_metrics(conn_details: ConnDetails, queue: impl Queue) {
+async fn metrics(conn_details: ConnDetails, queue: impl Queue) {
     queue.create(QUEUE).await.unwrap();
 
     let messages = [TestMessage::new(), TestMessage::new(), TestMessage::new()];
@@ -1365,7 +1365,7 @@ async fn test_metrics(conn_details: ConnDetails, queue: impl Queue) {
 }
 
 #[pgmq_test_macro::queue_test]
-async fn test_metrics_all(conn_details: ConnDetails, queue: impl Queue) {
+async fn metrics_all(conn_details: ConnDetails, queue: impl Queue) {
     queue.create(QUEUE).await.unwrap();
 
     let messages = [TestMessage::new(), TestMessage::new(), TestMessage::new()];
@@ -1388,6 +1388,191 @@ async fn test_metrics_all(conn_details: ConnDetails, queue: impl Queue) {
     assert_eq!((messages.len() - 1) as i64, metrics.queue_visible_length);
     assert_eq!(messages.len() as i64, metrics.queue_length);
     assert_eq!(messages.len() as i64, metrics.total_messages);
+}
+
+#[pgmq_test_macro::queue_test]
+async fn read_with_poll_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result: Result<Vec<Message<TestMessage>>, _> = queue
+        .read_with_poll("invalid-queue-name", 10, 1, 1, 100)
+        .await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn read_with_poll_empty(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+    let msgs: Vec<Message<TestMessage>> = queue.read_with_poll(QUEUE, 10, 1, 1, 100).await.unwrap();
+    assert!(msgs.is_empty());
+}
+
+#[pgmq_test_macro::queue_test]
+async fn read_with_poll(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+
+    let delay = 4;
+
+    let msgs = [TestMessage::new(), TestMessage::new(), TestMessage::new()];
+    queue
+        .send_batch(QUEUE, &msgs, EMPTY_HEADERS, delay)
+        .await
+        .unwrap();
+
+    let read_msgs: Vec<Message<TestMessage>> = queue
+        .read_with_poll(QUEUE, 10, msgs.len() as i32, delay + 1, 100)
+        .await
+        .unwrap();
+    assert_eq!(msgs.len(), read_msgs.len());
+}
+
+#[pgmq_test_macro::queue_test]
+async fn read_grouped_poll_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result: Result<Vec<Message<TestMessage>>, _> = queue
+        .read_grouped_with_poll("invalid-queue-name", 10, 1, 1, 100)
+        .await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn read_grouped_with_poll(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+
+    let delay = 4;
+
+    let msg1 = TestMessage {
+        a: "a".to_string(),
+        b: 1,
+    };
+    let headers1 = json!({
+        "x-pgmq-group": msg1.b
+    });
+    let msg2 = TestMessage {
+        a: "b".to_string(),
+        b: 2,
+    };
+    let headers2 = json!({
+        "x-pgmq-group": msg2.b
+    });
+    let msgs = [msg1, msg2];
+    queue
+        .send_batch(QUEUE, &msgs, Some(&[headers1, headers2]), delay)
+        .await
+        .unwrap();
+
+    let read_msgs: Vec<Message<TestMessage>> = queue
+        .read_grouped_with_poll(QUEUE, 100, msgs.len() as i32, delay + 1, 100)
+        .await
+        .unwrap();
+    assert_eq!(msgs.len(), read_msgs.len());
+    assert_ne!(
+        read_msgs.first().unwrap().message.b,
+        read_msgs.get(1).unwrap().message.b
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn read_grouped_rr_poll_invalid_queue_name(conn_details: ConnDetails, queue: impl Queue) {
+    let result: Result<Vec<Message<TestMessage>>, _> = queue
+        .read_grouped_rr_with_poll("invalid-queue-name", 10, 1, 1, 100)
+        .await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn read_grouped_rr_with_poll(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+
+    let delay = 4;
+
+    let msg1 = TestMessage {
+        a: "a".to_string(),
+        b: 1,
+    };
+    let headers1 = json!({
+        "x-pgmq-group": msg1.b
+    });
+    let msg2 = TestMessage {
+        a: "b".to_string(),
+        b: 2,
+    };
+    let headers2 = json!({
+        "x-pgmq-group": msg2.b
+    });
+    let msgs = [msg1, msg2];
+    queue
+        .send_batch(QUEUE, &msgs, Some(&[headers1, headers2]), delay)
+        .await
+        .unwrap();
+
+    let read_msgs: Vec<Message<TestMessage>> = queue
+        .read_grouped_rr_with_poll(QUEUE, 100, msgs.len() as i32, delay + 1, 100)
+        .await
+        .unwrap();
+    assert_eq!(msgs.len(), read_msgs.len());
+    assert_ne!(
+        read_msgs.first().unwrap().message.b,
+        read_msgs.get(1).unwrap().message.b
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn read_grouped_head_poll_invalid_queue(conn_details: ConnDetails, queue: impl Queue) {
+    let result: Result<Vec<Message<TestMessage>>, _> = queue
+        .read_grouped_head_with_poll("invalid-queue-name", 10, 1, 1, 100)
+        .await;
+    assert_matches!(
+        result,
+        Err(PgmqError::QueueNameError(QueueNameError::InvalidCharacter(
+            _
+        )))
+    );
+}
+
+#[pgmq_test_macro::queue_test]
+async fn read_grouped_head_with_poll(conn_details: ConnDetails, queue: impl Queue) {
+    queue.create(QUEUE).await.unwrap();
+
+    let delay = 4;
+
+    let msg1 = TestMessage {
+        a: "a".to_string(),
+        b: 1,
+    };
+    let headers1 = json!({
+        "x-pgmq-group": msg1.b
+    });
+    let msg2 = TestMessage {
+        a: "b".to_string(),
+        b: 1,
+    };
+    let headers2 = json!({
+        "x-pgmq-group": msg2.b
+    });
+    let msgs = [msg1, msg2];
+    queue
+        .send_batch(QUEUE, &msgs, Some(&[headers1, headers2]), 0)
+        .await
+        .unwrap();
+
+    let read_msgs: Vec<Message<TestMessage>> = queue
+        .read_grouped_head_with_poll(QUEUE, 100, 2, delay + 1, 100)
+        .await
+        .unwrap();
+    assert_eq!(1, read_msgs.len());
 }
 
 #[pgmq_test_macro::queue_transaction_test]

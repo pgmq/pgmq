@@ -320,4 +320,40 @@ extern "SQL" {
 
     #[sql_name = "pgmq.metrics_all"]
     fn pgmq_metrics_all() -> PgQueueMetrics;
+
+    #[sql_name = "pgmq.read_with_poll"]
+    fn pgmq_read_with_poll(
+        queue_name: Text,
+        vt: Integer,
+        qty: Integer,
+        max_poll_seconds: Integer,
+        poll_interval_ms: Integer,
+    ) -> PgMessage;
+
+    #[sql_name = "pgmq.read_grouped_with_poll"]
+    fn pgmq_read_grouped_with_poll(
+        queue_name: Text,
+        vt: Integer,
+        qty: Integer,
+        max_poll_seconds: Integer,
+        poll_interval_ms: Integer,
+    ) -> PgMessage;
+
+    #[sql_name = "pgmq.read_grouped_rr_with_poll"]
+    fn pgmq_read_grouped_rr_with_poll(
+        queue_name: Text,
+        vt: Integer,
+        qty: Integer,
+        max_poll_seconds: Integer,
+        poll_interval_ms: Integer,
+    ) -> PgMessage;
+
+    #[sql_name = "pgmq.read_grouped_head_with_poll"]
+    fn pgmq_read_grouped_head_with_poll(
+        queue_name: Text,
+        vt: Integer,
+        qty: Integer,
+        max_poll_seconds: Integer,
+        poll_interval_ms: Integer,
+    ) -> PgMessage;
 }
