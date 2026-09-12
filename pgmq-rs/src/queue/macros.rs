@@ -561,6 +561,138 @@ macro_rules! impl_queue {
             ) -> Result<Vec<crate::types::QueueMetrics>, crate::PgmqError> {
                 metrics_all($transform_self!(self)).await
             }
+
+            async fn read_with_poll<'q, T, H, Q, QE, VT, PT, PI>(
+                self,
+                queue_name: Q,
+                visibility_timeout: VT,
+                quantity: i32,
+                poll_timeout: PT,
+                poll_interval: PI,
+            ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+            where
+                T: 'static + Send + for<'de> serde::Deserialize<'de>,
+                H: 'static + Send + for<'de> serde::Deserialize<'de>,
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+                VT: Send + Into<crate::types::VisibilityTimeoutOffset>,
+                PT: Send + Into<crate::types::PollTimeout>,
+                PI: Send + Into<crate::types::PollInterval>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                let visibility_timeout: crate::types::VisibilityTimeoutOffset =
+                    visibility_timeout.into();
+                let poll_timeout: crate::types::PollTimeout = poll_timeout.into();
+                let poll_interval: crate::types::PollInterval = poll_interval.into();
+                read_with_poll(
+                    $transform_self!(self),
+                    queue_name,
+                    visibility_timeout,
+                    quantity,
+                    poll_timeout,
+                    poll_interval,
+                )
+                .await
+            }
+
+            async fn read_grouped_with_poll<'q, T, H, Q, QE, VT, PT, PI>(
+                self,
+                queue_name: Q,
+                visibility_timeout: VT,
+                quantity: i32,
+                poll_timeout: PT,
+                poll_interval: PI,
+            ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+            where
+                T: 'static + Send + for<'de> serde::Deserialize<'de>,
+                H: 'static + Send + for<'de> serde::Deserialize<'de>,
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+                VT: Send + Into<crate::types::VisibilityTimeoutOffset>,
+                PT: Send + Into<crate::types::PollTimeout>,
+                PI: Send + Into<crate::types::PollInterval>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                let visibility_timeout: crate::types::VisibilityTimeoutOffset =
+                    visibility_timeout.into();
+                let poll_timeout: crate::types::PollTimeout = poll_timeout.into();
+                let poll_interval: crate::types::PollInterval = poll_interval.into();
+                read_grouped_with_poll(
+                    $transform_self!(self),
+                    queue_name,
+                    visibility_timeout,
+                    quantity,
+                    poll_timeout,
+                    poll_interval,
+                )
+                .await
+            }
+
+            async fn read_grouped_rr_with_poll<'q, T, H, Q, QE, VT, PT, PI>(
+                self,
+                queue_name: Q,
+                visibility_timeout: VT,
+                quantity: i32,
+                poll_timeout: PT,
+                poll_interval: PI,
+            ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+            where
+                T: 'static + Send + for<'de> serde::Deserialize<'de>,
+                H: 'static + Send + for<'de> serde::Deserialize<'de>,
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+                VT: Send + Into<crate::types::VisibilityTimeoutOffset>,
+                PT: Send + Into<crate::types::PollTimeout>,
+                PI: Send + Into<crate::types::PollInterval>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                let visibility_timeout: crate::types::VisibilityTimeoutOffset =
+                    visibility_timeout.into();
+                let poll_timeout: crate::types::PollTimeout = poll_timeout.into();
+                let poll_interval: crate::types::PollInterval = poll_interval.into();
+                read_grouped_rr_with_poll(
+                    $transform_self!(self),
+                    queue_name,
+                    visibility_timeout,
+                    quantity,
+                    poll_timeout,
+                    poll_interval,
+                )
+                .await
+            }
+
+            async fn read_grouped_head_with_poll<'q, T, H, Q, QE, VT, PT, PI>(
+                self,
+                queue_name: Q,
+                visibility_timeout: VT,
+                quantity: i32,
+                poll_timeout: PT,
+                poll_interval: PI,
+            ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+            where
+                T: 'static + Send + for<'de> serde::Deserialize<'de>,
+                H: 'static + Send + for<'de> serde::Deserialize<'de>,
+                Q: Send + TryInto<crate::types::QueueName<'q>, Error = QE>,
+                QE: Into<crate::types::queue_name::QueueNameError>,
+                VT: Send + Into<crate::types::VisibilityTimeoutOffset>,
+                PT: Send + Into<crate::types::PollTimeout>,
+                PI: Send + Into<crate::types::PollInterval>,
+            {
+                let queue_name = queue_name.try_into().map_err(|err| err.into())?;
+                let visibility_timeout: crate::types::VisibilityTimeoutOffset =
+                    visibility_timeout.into();
+                let poll_timeout: crate::types::PollTimeout = poll_timeout.into();
+                let poll_interval: crate::types::PollInterval = poll_interval.into();
+                read_grouped_head_with_poll(
+                    $transform_self!(self),
+                    queue_name,
+                    visibility_timeout,
+                    quantity,
+                    poll_timeout,
+                    poll_interval,
+                )
+                .await
+            }
         }
     };
 }

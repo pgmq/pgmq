@@ -4,12 +4,15 @@ use crate::queue::sql::{
     CREATE_FIFO_INDEX, CREATE_FIFO_INDEXES_ALL, CREATE_PARTITIONED, CREATE_UNLOGGED, DELETE,
     DISABLE_NOTIFY_INSERT, DROP_QUEUE, ENABLE_NOTIFY_INSERT, LIST_NOTIFY_INSERT_THROTTLES,
     LIST_QUEUES, LIST_TOPIC_BINDINGS, LIST_TOPIC_BINDINGS_ALL, METRICS, METRICS_ALL, POP,
-    PURGE_QUEUE, QUEUE_METADATA, READ, READ_GROUPED, READ_GROUPED_HEAD, READ_GROUPED_RR, SEND,
-    SEND_BATCH, SEND_BATCH_TOPIC, SEND_TOPIC, SET_VT, UNBIND_TOPIC, UPDATE_NOTIFY_INSERT,
+    PURGE_QUEUE, QUEUE_METADATA, READ, READ_GROUPED, READ_GROUPED_HEAD,
+    READ_GROUPED_HEAD_WITH_POLL, READ_GROUPED_RR, READ_GROUPED_RR_WITH_POLL,
+    READ_GROUPED_WITH_POLL, READ_WITH_POLL, SEND, SEND_BATCH, SEND_BATCH_TOPIC, SEND_TOPIC, SET_VT,
+    UNBIND_TOPIC, UPDATE_NOTIFY_INSERT,
 };
 use crate::types::{
     InsertNotificationThrottleInterval, ListNotifyInsertThrottlesRow, ListTopicBindingsRow,
-    PGMQueueMeta, QueueMetrics, QueueName, SendBatchTopicRow, VisibilityTimeoutOffset,
+    PGMQueueMeta, PollInterval, PollTimeout, QueueMetrics, QueueName, SendBatchTopicRow,
+    VisibilityTimeoutOffset,
 };
 use crate::{Message, PgmqError};
 use sqlx::{Executor, Postgres};
@@ -148,7 +151,14 @@ where
     T: for<'de> serde::Deserialize<'de>,
     H: for<'de> serde::Deserialize<'de>,
 {
-    read_common(executor, READ, queue_name, visibility_timeout, quantity).await
+    read_common(
+        executor,
+        sqlx::query(READ),
+        queue_name,
+        visibility_timeout,
+        quantity,
+    )
+    .await
 }
 
 pub(crate) async fn pop<'c, C, T, H>(
@@ -263,7 +273,7 @@ where
 {
     read_common(
         executor,
-        READ_GROUPED,
+        sqlx::query(READ_GROUPED),
         queue_name,
         visibility_timeout,
         quantity,
@@ -284,7 +294,7 @@ where
 {
     read_common(
         executor,
-        READ_GROUPED_HEAD,
+        sqlx::query(READ_GROUPED_HEAD),
         queue_name,
         visibility_timeout,
         quantity,
@@ -305,7 +315,7 @@ where
 {
     read_common(
         executor,
-        READ_GROUPED_RR,
+        sqlx::query(READ_GROUPED_RR),
         queue_name,
         visibility_timeout,
         quantity,
@@ -313,9 +323,9 @@ where
     .await
 }
 
-async fn read_common<'c, C, T, H>(
+pub(crate) async fn read_common<'c, 'q, C, T, H>(
     executor: C,
-    query: &'static str,
+    query: sqlx::query::Query<'q, Postgres, <Postgres as sqlx::Database>::Arguments>,
     queue_name: QueueName<'_>,
     visibility_timeout: VisibilityTimeoutOffset,
     quantity: i32,
@@ -325,7 +335,6 @@ where
     T: for<'de> serde::Deserialize<'de>,
     H: for<'de> serde::Deserialize<'de>,
 {
-    let query = sqlx::query(query);
     let rows = query
         .bind(*queue_name)
         .bind(visibility_timeout)
@@ -588,4 +597,130 @@ where
 {
     let metrics = sqlx::query_as(METRICS_ALL).fetch_all(executor).await?;
     Ok(metrics)
+}
+
+async fn read_with_poll<'c, C, T, H>(
+    executor: C,
+    queue_name: QueueName<'_>,
+    visibility_timeout: VisibilityTimeoutOffset,
+    quantity: i32,
+    poll_timeout: PollTimeout,
+    poll_interval: PollInterval,
+) -> Result<Vec<Message<T, H>>, PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+    T: for<'de> serde::Deserialize<'de>,
+    H: for<'de> serde::Deserialize<'de>,
+{
+    read_with_poll_common(
+        executor,
+        sqlx::query(READ_WITH_POLL),
+        queue_name,
+        visibility_timeout,
+        quantity,
+        poll_timeout,
+        poll_interval,
+    )
+    .await
+}
+
+async fn read_grouped_with_poll<'c, C, T, H>(
+    executor: C,
+    queue_name: QueueName<'_>,
+    visibility_timeout: VisibilityTimeoutOffset,
+    quantity: i32,
+    poll_timeout: PollTimeout,
+    poll_interval: PollInterval,
+) -> Result<Vec<Message<T, H>>, PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+    T: for<'de> serde::Deserialize<'de>,
+    H: for<'de> serde::Deserialize<'de>,
+{
+    read_with_poll_common(
+        executor,
+        sqlx::query(READ_GROUPED_WITH_POLL),
+        queue_name,
+        visibility_timeout,
+        quantity,
+        poll_timeout,
+        poll_interval,
+    )
+    .await
+}
+
+async fn read_grouped_rr_with_poll<'c, C, T, H>(
+    executor: C,
+    queue_name: QueueName<'_>,
+    visibility_timeout: VisibilityTimeoutOffset,
+    quantity: i32,
+    poll_timeout: PollTimeout,
+    poll_interval: PollInterval,
+) -> Result<Vec<Message<T, H>>, PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+    T: for<'de> serde::Deserialize<'de>,
+    H: for<'de> serde::Deserialize<'de>,
+{
+    read_with_poll_common(
+        executor,
+        sqlx::query(READ_GROUPED_RR_WITH_POLL),
+        queue_name,
+        visibility_timeout,
+        quantity,
+        poll_timeout,
+        poll_interval,
+    )
+    .await
+}
+
+async fn read_grouped_head_with_poll<'c, C, T, H>(
+    executor: C,
+    queue_name: QueueName<'_>,
+    visibility_timeout: VisibilityTimeoutOffset,
+    quantity: i32,
+    poll_timeout: PollTimeout,
+    poll_interval: PollInterval,
+) -> Result<Vec<Message<T, H>>, PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+    T: for<'de> serde::Deserialize<'de>,
+    H: for<'de> serde::Deserialize<'de>,
+{
+    read_with_poll_common(
+        executor,
+        sqlx::query(READ_GROUPED_HEAD_WITH_POLL),
+        queue_name,
+        visibility_timeout,
+        quantity,
+        poll_timeout,
+        poll_interval,
+    )
+    .await
+}
+
+pub(crate) async fn read_with_poll_common<'c, 'q, C, T, H>(
+    executor: C,
+    query: sqlx::query::Query<'q, Postgres, <Postgres as sqlx::Database>::Arguments>,
+    queue_name: QueueName<'_>,
+    visibility_timeout: VisibilityTimeoutOffset,
+    quantity: i32,
+    poll_timeout: PollTimeout,
+    poll_interval: PollInterval,
+) -> Result<Vec<Message<T, H>>, PgmqError>
+where
+    C: Executor<'c, Database = Postgres>,
+    T: for<'de> serde::Deserialize<'de>,
+    H: for<'de> serde::Deserialize<'de>,
+{
+    let rows = query
+        .bind(*queue_name)
+        .bind(visibility_timeout)
+        .bind(quantity)
+        .bind(poll_timeout)
+        .bind(poll_interval)
+        .fetch_all(executor)
+        .await?;
+
+    handle_read_batch_result(rows)
 }

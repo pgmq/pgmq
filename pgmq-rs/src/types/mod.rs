@@ -15,6 +15,14 @@ pub type VisibilityTimeoutOffset = duration::Duration<duration::Seconds>;
 /// e.g. in [`crate::queue::Queue::enable_notify_insert`] and [`crate::pg_ext::PGMQueueExt::enable_notify_insert`].
 pub type InsertNotificationThrottleInterval = duration::Duration<duration::Milliseconds>;
 
+/// Alias for the duration type expected for poll timeout parameters,
+/// e.g. in [`crate::queue::Queue::read_with_poll`] and [`crate::pg_ext::PGMQueueExt::read_with_poll`].
+pub type PollTimeout = duration::Duration<duration::Seconds>;
+
+/// Alias for the duration type expected for poll interval parameters,
+/// e.g. in [`crate::queue::Queue::read_with_poll`] and [`crate::pg_ext::PGMQueueExt::read_with_poll`].
+pub type PollInterval = duration::Duration<duration::Milliseconds>;
+
 /// Convenience value to provide for an optional `headers` parameter when no headers
 /// need to be sent. This is useful to avoid the somewhat cumbersome syntax required to specify
 /// the [`Option`] type when providing a [`None`] value.

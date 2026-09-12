@@ -529,6 +529,106 @@ macro_rules! diesel_functions {
             let rows = $transform_result!(rows)?;
             Ok(rows)
         }
+
+        async fn read_with_poll<C, T, H>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+            visibility_timeout: crate::types::VisibilityTimeoutOffset,
+            quantity: i32,
+            poll_timeout: crate::types::PollTimeout,
+            poll_interval: crate::types::PollInterval,
+        ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+        where
+            C: $executor_trait,
+            T: 'static + Send + for<'de> serde::Deserialize<'de>,
+            H: 'static + Send + for<'de> serde::Deserialize<'de>,
+        {
+            let messages = crate::queue::diesel::query::read_with_poll_query(
+                queue_name,
+                visibility_timeout,
+                quantity,
+                poll_timeout,
+                poll_interval,
+            )
+            .get_results(executor);
+            let messages = $transform_result!(messages)?;
+            Ok(messages)
+        }
+
+        async fn read_grouped_with_poll<C, T, H>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+            visibility_timeout: crate::types::VisibilityTimeoutOffset,
+            quantity: i32,
+            poll_timeout: crate::types::PollTimeout,
+            poll_interval: crate::types::PollInterval,
+        ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+        where
+            C: $executor_trait,
+            T: 'static + Send + for<'de> serde::Deserialize<'de>,
+            H: 'static + Send + for<'de> serde::Deserialize<'de>,
+        {
+            let messages = crate::queue::diesel::query::read_grouped_with_poll_query(
+                queue_name,
+                visibility_timeout,
+                quantity,
+                poll_timeout,
+                poll_interval,
+            )
+            .get_results(executor);
+            let messages = $transform_result!(messages)?;
+            Ok(messages)
+        }
+
+        async fn read_grouped_rr_with_poll<C, T, H>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+            visibility_timeout: crate::types::VisibilityTimeoutOffset,
+            quantity: i32,
+            poll_timeout: crate::types::PollTimeout,
+            poll_interval: crate::types::PollInterval,
+        ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+        where
+            C: $executor_trait,
+            T: 'static + Send + for<'de> serde::Deserialize<'de>,
+            H: 'static + Send + for<'de> serde::Deserialize<'de>,
+        {
+            let messages = crate::queue::diesel::query::read_grouped_rr_with_poll_query(
+                queue_name,
+                visibility_timeout,
+                quantity,
+                poll_timeout,
+                poll_interval,
+            )
+            .get_results(executor);
+            let messages = $transform_result!(messages)?;
+            Ok(messages)
+        }
+
+        async fn read_grouped_head_with_poll<C, T, H>(
+            executor: &mut C,
+            queue_name: crate::types::QueueName<'_>,
+            visibility_timeout: crate::types::VisibilityTimeoutOffset,
+            quantity: i32,
+            poll_timeout: crate::types::PollTimeout,
+            poll_interval: crate::types::PollInterval,
+        ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+        where
+            C: $executor_trait,
+            T: 'static + Send + for<'de> serde::Deserialize<'de>,
+            H: 'static + Send + for<'de> serde::Deserialize<'de>,
+        {
+            let messages = crate::queue::diesel::query::read_grouped_head_with_poll_query(
+                queue_name,
+                visibility_timeout,
+                quantity,
+                poll_timeout,
+                poll_interval,
+            )
+            .get_results(executor);
+            let messages = $transform_result!(messages)?;
+            Ok(messages)
+        }
     };
 }
 
