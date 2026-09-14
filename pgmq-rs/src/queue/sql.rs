@@ -111,3 +111,15 @@ pub(crate) const METRICS: &str = "SELECT queue_name, queue_length, newest_msg_ag
 
 // language=PostgreSQL
 pub(crate) const METRICS_ALL: &str = "SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time, queue_visible_length, default_partition_length FROM pgmq.metrics_all()";
+
+// language=PostgreSQL
+pub(crate) const READ_WITH_POLL: &str = "SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.read_with_poll(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer, max_poll_seconds=>$4::integer, poll_interval_ms=>$5::integer)";
+
+// language=PostgreSQL
+pub(crate) const READ_GROUPED_WITH_POLL: &str = "SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.read_grouped_with_poll(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer, max_poll_seconds=>$4::integer, poll_interval_ms=>$5::integer)";
+
+// language=PostgreSQL
+pub(crate) const READ_GROUPED_RR_WITH_POLL: &str = "SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.read_grouped_rr_with_poll(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer, max_poll_seconds=>$4::integer, poll_interval_ms=>$5::integer)";
+
+// language=PostgreSQL
+pub(crate) const READ_GROUPED_HEAD_WITH_POLL: &str = "SELECT msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers from pgmq.read_grouped_head_with_poll(queue_name=>$1::text, vt=>$2::integer, qty=>$3::integer, max_poll_seconds=>$4::integer, poll_interval_ms=>$5::integer)";

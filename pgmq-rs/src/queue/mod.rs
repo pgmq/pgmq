@@ -18,8 +18,8 @@ pub mod sqlx;
 mod transaction;
 
 use crate::types::{
-    InsertNotificationThrottleInterval, ListNotifyInsertThrottlesRow, PGMQueueMeta, QueueMetrics,
-    QueueName, VisibilityTimeoutOffset,
+    InsertNotificationThrottleInterval, ListNotifyInsertThrottlesRow, PGMQueueMeta, PollInterval,
+    PollTimeout, QueueMetrics, QueueName, VisibilityTimeoutOffset,
 };
 use crate::{Message, PgmqError};
 
@@ -961,4 +961,275 @@ pub trait Queue: crate::private::Sealed {
     /// # }
     /// ```
     async fn metrics_all(self) -> Result<Vec<QueueMetrics>, PgmqError>;
+
+    /// Read at most `quantity` messages from the queue with the provided `queue_name`, polling
+    /// the queue at the given `poll_interval`. If no messages are available, an empty [`Vec`] will
+    /// be returned after `poll_timeout` has elapsed.
+    ///
+    /// Invokes the `pgmq.read_with_poll` SQL function.
+    ///
+    /// Note: If the queue is empty, this method will hold the DB connection until the provided
+    /// `poll_timeout` elapses. Therefore, care should be taken when using this method. In
+    /// particular, it's not advised to use this method with a connection pool. Instead, consider
+    /// the following alternatives:
+    ///
+    /// 1. Use this method with a dedicated connection that can be safely held for `poll_timeout`
+    /// 2. Implement polling logic in your application code and call the normal [`Self::read`] method
+    /// 3. Listen for insert notifications. See [`Self::enable_notify_insert`] for more details
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// # use pgmq::{Message, PgmqError};
+    /// // Read a message, deserializing as a `serde_json::Value`, using an integer to update
+    /// // the visibility timeout (`vt`)
+    /// let msgs: Vec<Message> = queue.read_with_poll("my_queue", 10, 1, 10, 250).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// # use std::time::Duration;
+    /// # use serde_derive::Deserialize;
+    /// # use pgmq::{Message, PgmqError};
+    /// #[derive(Deserialize)]
+    /// struct MyMessage {
+    ///     a: String
+    /// }
+    /// // Read multiple messages, deserializing as a custom message struct, `MyMessage`, using
+    /// // a `Duration` to update the visibility timeout (`vt`) and set the `poll_timeout`/`poll_interval`.
+    /// let msgs: Vec<Message<MyMessage>> = queue.read_with_poll(
+    ///     "my_queue",
+    ///     Duration::from_secs(10),
+    ///     2,
+    ///     Duration::from_secs(10),
+    ///     Duration::from_millis(250)
+    /// ).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn read_with_poll<'q, T, H, Q, QE, VT, PT, PI>(
+        self,
+        queue_name: Q,
+        visibility_timeout: VT,
+        quantity: i32,
+        poll_timeout: PT,
+        poll_interval: PI,
+    ) -> Result<Vec<Message<T, H>>, PgmqError>
+    where
+        T: 'static + Send + for<'de> serde::Deserialize<'de>,
+        H: 'static + Send + for<'de> serde::Deserialize<'de>,
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: Into<crate::types::queue_name::QueueNameError>,
+        VT: Send + Into<VisibilityTimeoutOffset>,
+        PT: Send + Into<PollTimeout>,
+        PI: Send + Into<PollInterval>;
+
+    /// Reads messages with AWS SQS FIFO-style batch retrieval behavior. Returns at most `quantity`
+    /// messages from the same FIFO group from the queue with the provided `queue_name`, polling
+    /// the queue at the given `poll_interval`. If no messages are available, an empty [`Vec`] will
+    /// be returned after `poll_timeout` has elapsed.
+    ///
+    /// Invokes the `pgmq.read_grouped_with_poll` SQL function.
+    ///
+    /// Note: If the queue is empty, this method will hold the DB connection until the provided
+    /// `poll_timeout` elapses. Therefore, care should be taken when using this method. In
+    /// particular, it's not advised to use this method with a connection pool. Instead, consider
+    /// the following alternatives:
+    ///
+    /// 1. Use this method with a dedicated connection that can be safely held for `poll_timeout`
+    /// 2. Implement polling logic in your application code and call the normal [`Self::read_grouped`] method
+    /// 3. Listen for insert notifications. See [`Self::enable_notify_insert`] for more details
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// # use pgmq::{Message, PgmqError};
+    /// // Read a message, deserializing as a `serde_json::Value`, using an integer to update
+    /// // the visibility timeout (`vt`)
+    /// let msgs: Vec<Message> = queue.read_grouped_with_poll("my_queue", 10, 1, 10, 250).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// # use std::time::Duration;
+    /// # use serde_derive::Deserialize;
+    /// # use pgmq::{Message, PgmqError};
+    /// #[derive(Deserialize)]
+    /// struct MyMessage {
+    ///     a: String
+    /// }
+    /// // Read multiple messages, deserializing as a custom message struct, `MyMessage`, using
+    /// // a `Duration` to update the visibility timeout (`vt`) and set the `poll_timeout`/`poll_interval`.
+    /// let msgs: Vec<Message<MyMessage>> = queue.read_grouped_with_poll(
+    ///     "my_queue",
+    ///     Duration::from_secs(10),
+    ///     2,
+    ///     Duration::from_secs(10),
+    ///     Duration::from_millis(250)
+    /// ).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn read_grouped_with_poll<'q, T, H, Q, QE, VT, PT, PI>(
+        self,
+        queue_name: Q,
+        visibility_timeout: VT,
+        quantity: i32,
+        poll_timeout: PT,
+        poll_interval: PI,
+    ) -> Result<Vec<Message<T, H>>, PgmqError>
+    where
+        T: 'static + Send + for<'de> serde::Deserialize<'de>,
+        H: 'static + Send + for<'de> serde::Deserialize<'de>,
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: Into<crate::types::queue_name::QueueNameError>,
+        VT: Send + Into<VisibilityTimeoutOffset>,
+        PT: Send + Into<PollTimeout>,
+        PI: Send + Into<PollInterval>;
+
+    /// Read at most `quantity` messages from the queue with the provided `queue_name`, polling
+    /// the queue at the given `poll_interval`. Preserves FIFO order within groups and interleaves
+    /// across groups (layered round-robin). If no messages are available, an empty [`Vec`] will
+    /// be returned after `poll_timeout` has elapsed.
+    ///
+    /// Invokes the `pgmq.read_grouped_rr_with_poll` SQL function.
+    ///
+    /// Note: If the queue is empty, this method will hold the DB connection until the provided
+    /// `poll_timeout` elapses. Therefore, care should be taken when using this method. In
+    /// particular, it's not advised to use this method with a connection pool. Instead, consider
+    /// the following alternatives:
+    ///
+    /// 1. Use this method with a dedicated connection that can be safely held for `poll_timeout`
+    /// 2. Implement polling logic in your application code and call the normal [`Self::read_grouped_rr`] method
+    /// 3. Listen for insert notifications. See [`Self::enable_notify_insert`] for more details
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// # use pgmq::{Message, PgmqError};
+    /// // Read a message, deserializing as a `serde_json::Value`, using an integer to update
+    /// // the visibility timeout (`vt`)
+    /// let msgs: Vec<Message> = queue.read_grouped_rr_with_poll("my_queue", 10, 1, 10, 250).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// # use std::time::Duration;
+    /// # use serde_derive::Deserialize;
+    /// # use pgmq::{Message, PgmqError};
+    /// #[derive(Deserialize)]
+    /// struct MyMessage {
+    ///     a: String
+    /// }
+    /// // Read multiple messages, deserializing as a custom message struct, `MyMessage`, using
+    /// // a `Duration` to update the visibility timeout (`vt`) and set the `poll_timeout`/`poll_interval`.
+    /// let msgs: Vec<Message<MyMessage>> = queue.read_grouped_rr_with_poll(
+    ///     "my_queue",
+    ///     Duration::from_secs(10),
+    ///     2,
+    ///     Duration::from_secs(10),
+    ///     Duration::from_millis(250)
+    /// ).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn read_grouped_rr_with_poll<'q, T, H, Q, QE, VT, PT, PI>(
+        self,
+        queue_name: Q,
+        visibility_timeout: VT,
+        quantity: i32,
+        poll_timeout: PT,
+        poll_interval: PI,
+    ) -> Result<Vec<Message<T, H>>, PgmqError>
+    where
+        T: 'static + Send + for<'de> serde::Deserialize<'de>,
+        H: 'static + Send + for<'de> serde::Deserialize<'de>,
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: Into<crate::types::queue_name::QueueNameError>,
+        VT: Send + Into<VisibilityTimeoutOffset>,
+        PT: Send + Into<PollTimeout>,
+        PI: Send + Into<PollInterval>;
+
+    /// Read the head of at most `quantity` FIFO groups from the queue with the provided
+    /// `queue_name`. This supports horizontal scaling by processing groups in parallel while
+    /// ensuring message ordering is preserved per group. If no messages are available, an empty
+    /// [`Vec`] will be returned after `poll_timeout` has elapsed.
+    ///
+    /// Invokes the `pgmq.read_grouped_head_with_poll` SQL function.
+    ///
+    /// Note: If the queue is empty, this method will hold the DB connection until the provided
+    /// `poll_timeout` elapses. Therefore, care should be taken when using this method. In
+    /// particular, it's not advised to use this method with a connection pool. Instead, consider
+    /// the following alternatives:
+    ///
+    /// 1. Use this method with a dedicated connection that can be safely held for `poll_timeout`
+    /// 2. Implement polling logic in your application code and call the normal [`Self::read_grouped_head`] method
+    /// 3. Listen for insert notifications. See [`Self::enable_notify_insert`] for more details
+    ///
+    /// # Examples
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// # use pgmq::{Message, PgmqError};
+    /// // Read a message, deserializing as a `serde_json::Value`, using an integer to update
+    /// // the visibility timeout (`vt`)
+    /// let msgs: Vec<Message> = queue.read_grouped_head_with_poll("my_queue", 10, 1, 10, 250).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    ///
+    /// ```rust,no_run
+    /// # #[cfg(feature = "queue-experimental")]
+    /// # async fn example(queue: impl pgmq::queue::Queue) -> Result<(), pgmq::PgmqError> {
+    /// # use std::time::Duration;
+    /// # use serde_derive::Deserialize;
+    /// # use pgmq::{Message, PgmqError};
+    /// #[derive(Deserialize)]
+    /// struct MyMessage {
+    ///     a: String
+    /// }
+    /// // Read multiple messages, deserializing as a custom message struct, `MyMessage`, using
+    /// // a `Duration` to update the visibility timeout (`vt`) and set the `poll_timeout`/`poll_interval`.
+    /// let msgs: Vec<Message<MyMessage>> = queue.read_grouped_head_with_poll(
+    ///     "my_queue",
+    ///     Duration::from_secs(10),
+    ///     2,
+    ///     Duration::from_secs(10),
+    ///     Duration::from_millis(250)
+    /// ).await?;
+    /// # Ok(())
+    /// # }
+    /// ```
+    async fn read_grouped_head_with_poll<'q, T, H, Q, QE, VT, PT, PI>(
+        self,
+        queue_name: Q,
+        visibility_timeout: VT,
+        quantity: i32,
+        poll_timeout: PT,
+        poll_interval: PI,
+    ) -> Result<Vec<Message<T, H>>, PgmqError>
+    where
+        T: 'static + Send + for<'de> serde::Deserialize<'de>,
+        H: 'static + Send + for<'de> serde::Deserialize<'de>,
+        Q: Send + TryInto<QueueName<'q>, Error = QE>,
+        QE: Into<crate::types::queue_name::QueueNameError>,
+        VT: Send + Into<VisibilityTimeoutOffset>,
+        PT: Send + Into<PollTimeout>,
+        PI: Send + Into<PollInterval>;
 }

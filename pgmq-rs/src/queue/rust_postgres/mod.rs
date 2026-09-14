@@ -693,6 +693,132 @@ macro_rules! rust_postgres_functions {
             let rows = $transform_result!(rows)?;
             crate::queue::rust_postgres::convert_rows(rows)
         }
+
+        async fn read_with_poll<C, T, H>(
+            executor: $ref_type!(C),
+            queue_name: crate::types::QueueName<'_>,
+            visibility_timeout: crate::types::VisibilityTimeoutOffset,
+            quantity: i32,
+            poll_timeout: crate::types::PollTimeout,
+            poll_interval: crate::types::PollInterval,
+        ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+        where
+            C: $executor_trait,
+            T: for<'de> serde::Deserialize<'de>,
+            H: for<'de> serde::Deserialize<'de>,
+        {
+            read_with_poll_common(
+                executor,
+                crate::queue::sql::READ_WITH_POLL,
+                queue_name,
+                visibility_timeout,
+                quantity,
+                poll_timeout,
+                poll_interval,
+            )
+            .await
+        }
+
+        async fn read_grouped_with_poll<C, T, H>(
+            executor: $ref_type!(C),
+            queue_name: crate::types::QueueName<'_>,
+            visibility_timeout: crate::types::VisibilityTimeoutOffset,
+            quantity: i32,
+            poll_timeout: crate::types::PollTimeout,
+            poll_interval: crate::types::PollInterval,
+        ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+        where
+            C: $executor_trait,
+            T: for<'de> serde::Deserialize<'de>,
+            H: for<'de> serde::Deserialize<'de>,
+        {
+            read_with_poll_common(
+                executor,
+                crate::queue::sql::READ_GROUPED_WITH_POLL,
+                queue_name,
+                visibility_timeout,
+                quantity,
+                poll_timeout,
+                poll_interval,
+            )
+            .await
+        }
+
+        async fn read_grouped_rr_with_poll<C, T, H>(
+            executor: $ref_type!(C),
+            queue_name: crate::types::QueueName<'_>,
+            visibility_timeout: crate::types::VisibilityTimeoutOffset,
+            quantity: i32,
+            poll_timeout: crate::types::PollTimeout,
+            poll_interval: crate::types::PollInterval,
+        ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+        where
+            C: $executor_trait,
+            T: for<'de> serde::Deserialize<'de>,
+            H: for<'de> serde::Deserialize<'de>,
+        {
+            read_with_poll_common(
+                executor,
+                crate::queue::sql::READ_GROUPED_RR_WITH_POLL,
+                queue_name,
+                visibility_timeout,
+                quantity,
+                poll_timeout,
+                poll_interval,
+            )
+            .await
+        }
+
+        async fn read_grouped_head_with_poll<C, T, H>(
+            executor: $ref_type!(C),
+            queue_name: crate::types::QueueName<'_>,
+            visibility_timeout: crate::types::VisibilityTimeoutOffset,
+            quantity: i32,
+            poll_timeout: crate::types::PollTimeout,
+            poll_interval: crate::types::PollInterval,
+        ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+        where
+            C: $executor_trait,
+            T: for<'de> serde::Deserialize<'de>,
+            H: for<'de> serde::Deserialize<'de>,
+        {
+            read_with_poll_common(
+                executor,
+                crate::queue::sql::READ_GROUPED_HEAD_WITH_POLL,
+                queue_name,
+                visibility_timeout,
+                quantity,
+                poll_timeout,
+                poll_interval,
+            )
+            .await
+        }
+
+        async fn read_with_poll_common<C, T, H>(
+            executor: $ref_type!(C),
+            query: &'static str,
+            queue_name: crate::types::QueueName<'_>,
+            visibility_timeout: crate::types::VisibilityTimeoutOffset,
+            quantity: i32,
+            poll_timeout: crate::types::PollTimeout,
+            poll_interval: crate::types::PollInterval,
+        ) -> Result<Vec<crate::Message<T, H>>, crate::PgmqError>
+        where
+            C: $executor_trait,
+            T: for<'de> serde::Deserialize<'de>,
+            H: for<'de> serde::Deserialize<'de>,
+        {
+            let params: [crate::queue::rust_postgres::SqlParam; _] = [
+                (&*queue_name, postgres_types::Type::TEXT),
+                (&*visibility_timeout, postgres_types::Type::INT4),
+                (&quantity, postgres_types::Type::INT4),
+                (&*poll_timeout, postgres_types::Type::INT4),
+                (&*poll_interval, postgres_types::Type::INT4),
+            ];
+            let rows = executor.query_typed(query, &params);
+            let rows = $transform_result!(rows)?;
+            crate::queue::rust_postgres::convert_rows(rows)
+        }
     };
 }
 pub(crate) use rust_postgres_functions;
