@@ -1,0 +1,22 @@
+[package]
+name = "diesel-bench"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+diesel = { version = "2.3.13", features = ["postgres", "chrono", "serde_json", "i-implement-a-third-party-backend-and-opt-into-breaking-changes"] }
+chrono = { version = "0.4.34", features = ["serde"] }
+serde = { version = "1.0.229" }
+serde_derive = { version = "1.0.229" }
+
+[dev-dependencies]
+criterion = { version = "0.8.2", features = ["html_reports"] }
+
+[[bench]]
+name = "worker_bench"
+path = "src/bench.rs"
+harness = false
+
+[lib]
+name = "diesel_bench"
+path = "src/lib.rs"
