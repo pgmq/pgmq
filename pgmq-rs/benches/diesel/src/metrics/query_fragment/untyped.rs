@@ -53,4 +53,17 @@ mod tests {
             debug_query(&metrics_query("queue")).to_string()
         );
     }
+
+    #[test]
+    fn query_cache_prepared() {
+        use diesel::connection::statement_cache::QueryFragmentForCachedStatement;
+        use diesel::pg::Pg;
+
+        assert!(
+            metrics_query("queue")
+                .is_safe_to_cache_prepared(&Pg)
+                .unwrap(),
+            "Should be cached"
+        );
+    }
 }
