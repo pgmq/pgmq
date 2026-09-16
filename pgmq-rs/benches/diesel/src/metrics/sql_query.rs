@@ -3,7 +3,7 @@
 //! SQL string constants). However, this approach does not use the prepared statement cache, which
 //! impacts its performance.
 
-use crate::QueueMetricsQueryableByName;
+use crate::metrics::QueueMetricsQueryableByName;
 use diesel::RunQueryDsl;
 use diesel::query_builder::SqlQuery;
 use diesel::sql_types::Text;

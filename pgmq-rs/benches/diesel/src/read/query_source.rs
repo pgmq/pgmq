@@ -3,8 +3,7 @@
 //! approach of invoking SQL functions. However, as far as I can tell, this approach requires using
 //! private types and does not use the prepared statement cache, which impacts its performance.
 
-use crate::PgQueueMetrics;
-use crate::QueueMetricsFromSqlRow;
+use crate::read::{MessageFromSqlRow, PgMessage};
 use diesel::dsl::sql;
 use diesel::expression::SqlLiteral;
 use diesel::query_builder::SelectStatement;
@@ -14,13 +13,13 @@ use diesel::{QuerySource, RunQueryDsl};
 
 #[declare_sql_function]
 extern "SQL" {
-    #[sql_name = "pgmq.metrics"]
-    fn pgmq_metrics(queue_name: Text) -> PgQueueMetrics;
+    #[sql_name = "pgmq.read"]
+    fn pgmq_read(queue_name: Text, vt: Integer, qty: Integer) -> PgMessage;
 }
 
-impl<A: Clone> QuerySource for pgmq_metrics_utils::pgmq_metrics<A> {
+impl<A: Clone, B: Clone, C: Clone> QuerySource for pgmq_read_utils::pgmq_read<A, B, C> {
     type FromClause = Self;
-    type DefaultSelection = SqlLiteral<PgQueueMetrics>;
+    type DefaultSelection = SqlLiteral<PgMessage>;
 
     fn from_clause(&self) -> Self::FromClause {
         self.clone()
@@ -29,35 +28,35 @@ impl<A: Clone> QuerySource for pgmq_metrics_utils::pgmq_metrics<A> {
     fn default_selection(&self) -> Self::DefaultSelection {
         // Todo: This `sql` causes the query to not use the prepared statement cache. Is there any
         //  other way to provide the list of fields?
-        sql(
-            "(queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time, queue_visible_length, default_partition_length)",
-        )
+        sql("(msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers)")
     }
 }
 
 // Todo: `FromClause` is a private struct behind the `i-implement-a-third-party-backend-and-opt-into-breaking-changes` feature.
 //  Is there any other way to trigger the use of the `QuerySource` impl?
-fn metrics_query(
+fn read_query(
     queue_name: &str,
-) -> SelectStatement<diesel::query_builder::FromClause<pgmq_metrics<&str>>> {
-    SelectStatement::simple(pgmq_metrics(queue_name))
+    visibility_timeout: i32,
+    quantity: i32,
+) -> SelectStatement<diesel::query_builder::FromClause<pgmq_read<&str, i32, i32>>> {
+    SelectStatement::simple(pgmq_read(queue_name, visibility_timeout, quantity))
 }
 
-pub fn execute(conn: &mut PgConnection, queue: &str) {
-    let _: QueueMetricsFromSqlRow = metrics_query(queue).get_result(conn).unwrap();
+pub fn execute(conn: &mut PgConnection, queue: &str, quantity: i32) {
+    let _: Vec<MessageFromSqlRow> = read_query(queue, 0, quantity).get_results(conn).unwrap();
 }
 
 #[cfg(test)]
 mod tests {
-    use super::metrics_query;
+    use super::read_query;
     use diesel::debug_query;
     use diesel::pg::Pg;
 
     #[test]
     fn query() {
         assert_eq!(
-            "SELECT (queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time, queue_visible_length, default_partition_length) FROM pgmq.metrics($1) -- binds: [\"queue\"]",
-            debug_query::<Pg, _>(&metrics_query("queue")).to_string()
+            "SELECT (msg_id, read_ct, enqueued_at, last_read_at, vt, message, headers) FROM pgmq.read($1, $2, $3) -- binds: [\"queue\", 0, 1]",
+            debug_query::<Pg, _>(&read_query("queue", 0, 1)).to_string()
         );
     }
 }

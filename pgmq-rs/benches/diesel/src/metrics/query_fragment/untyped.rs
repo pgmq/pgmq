@@ -2,7 +2,7 @@
 //! constructed with `sql_query`. This means the resulting type needs to implement
 //! [`diesel::QueryableByName`], which results in fetching the field values from the row by name.
 
-use crate::QueueMetricsQueryableByName;
+use crate::metrics::QueueMetricsQueryableByName;
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_builder::*;

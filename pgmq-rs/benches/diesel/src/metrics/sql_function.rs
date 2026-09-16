@@ -2,8 +2,8 @@
 //! a SQL function. This approach is not resilient to changes in the SQL return type (new fields
 //! or updates in the field order).
 
-use crate::PgQueueMetrics;
-use crate::QueueMetricsFromSqlRow;
+use crate::metrics::PgQueueMetrics;
+use crate::metrics::QueueMetricsFromSqlRow;
 use diesel::RunQueryDsl;
 use diesel::dsl::select;
 use diesel::sql_types::*;

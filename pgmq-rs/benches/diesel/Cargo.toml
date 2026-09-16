@@ -8,6 +8,9 @@ diesel = { version = "2.3.13", features = ["postgres", "chrono", "serde_json", "
 chrono = { version = "0.4.34", features = ["serde"] }
 serde = { version = "1.0.229" }
 serde_derive = { version = "1.0.229" }
+serde_json = { version = "1.0.151" }
+
+pgmq = { version = "0.34.0-alpha.7", path = "../..", features = ["diesel-sync"], default-features = false }
 
 [dev-dependencies]
 criterion = { version = "0.8.2", features = ["html_reports"] }

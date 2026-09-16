@@ -1,7 +1,7 @@
-//! This implementation mimics the query performed by the standard approach of invoking a SQL
-//! function (no `FROM` clause, unnamed parameters, and returns the result as a tuple).
+//! This implementation uses unnamed parameters when invoking the SQL function. This means the
+//! parameter order needs to match the order in which they're defined in SQL.
 
-use crate::{PgQueueMetrics, QueueMetricsFromSqlRow};
+use crate::metrics::{PgQueueMetrics, QueueMetricsFromSqlRow};
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_builder::*;
@@ -19,7 +19,7 @@ impl QueryId for Metrics<'_> {
 
 impl<'a> QueryFragment<Pg> for Metrics<'a> {
     fn walk_ast<'b>(&'b self, mut out: AstPass<'_, 'b, Pg>) -> QueryResult<()> {
-        out.push_sql("SELECT pgmq.metrics(");
+        out.push_sql("SELECT (queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time, queue_visible_length, default_partition_length) FROM pgmq.metrics(");
         out.push_bind_param::<Text, _>(self.queue_name)?;
         out.push_sql(")");
         Ok(())
@@ -48,7 +48,7 @@ mod tests {
     #[test]
     fn query() {
         assert_eq!(
-            "SELECT pgmq.metrics($1) -- binds: [\"queue\"]",
+            "SELECT (queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time, queue_visible_length, default_partition_length) FROM pgmq.metrics($1) -- binds: [\"queue\"]",
             debug_query(&metrics_query("queue")).to_string()
         );
     }

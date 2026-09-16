@@ -1,7 +1,7 @@
-//! This implementation uses unnamed parameters when invoking the SQL function. This means the
-//! parameter order needs to match the order in which they're defined in SQL.
+//! This implementation returns the results as a tuple. The resulting type needs to implement
+//! [`diesel::FromSqlRow`], which results in fetching the field values from the row by index.
 
-use crate::{PgQueueMetrics, QueueMetricsFromSqlRow};
+use crate::metrics::{PgQueueMetrics, QueueMetricsFromSqlRow};
 use diesel::pg::Pg;
 use diesel::prelude::*;
 use diesel::query_builder::*;
@@ -19,9 +19,10 @@ impl QueryId for Metrics<'_> {
 
 impl<'a> QueryFragment<Pg> for Metrics<'a> {
     fn walk_ast<'b>(&'b self, mut out: AstPass<'_, 'b, Pg>) -> QueryResult<()> {
-        out.push_sql("SELECT (queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time, queue_visible_length, default_partition_length) FROM pgmq.metrics(");
+        // Todo: statically generate the list of fields to select
+        out.push_sql("SELECT (queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time, queue_visible_length, default_partition_length) FROM pgmq.metrics(queue_name=>");
         out.push_bind_param::<Text, _>(self.queue_name)?;
-        out.push_sql(")");
+        out.push_sql("::text)");
         Ok(())
     }
 }
@@ -48,7 +49,7 @@ mod tests {
     #[test]
     fn query() {
         assert_eq!(
-            "SELECT (queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time, queue_visible_length, default_partition_length) FROM pgmq.metrics($1) -- binds: [\"queue\"]",
+            "SELECT (queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time, queue_visible_length, default_partition_length) FROM pgmq.metrics(queue_name=>$1::text) -- binds: [\"queue\"]",
             debug_query(&metrics_query("queue")).to_string()
         );
     }
