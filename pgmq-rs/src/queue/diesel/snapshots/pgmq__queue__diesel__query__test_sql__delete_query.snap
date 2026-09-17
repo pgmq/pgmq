@@ -1,0 +1,5 @@
+---
+source: src/queue/diesel/query.rs
+expression: "debug_query::<Pg,\n_>(&super::delete_query(\"queue\".try_into().unwrap(), &[1])).to_string()"
+---
+SELECT pgmq.delete($1, $2) -- binds: ["queue", [1]]

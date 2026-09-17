@@ -1,0 +1,5 @@
+---
+source: src/queue/diesel/query.rs
+expression: "debug_query::<Pg,\n_>(&super::send_topic_query(\"pattern\", serde_json::Value::Null,\nserde_json::Value::Null, 0.into())).to_string()"
+---
+SELECT pgmq.send_topic($1, $2, $3, $4) -- binds: ["pattern", Null, Null, 0]

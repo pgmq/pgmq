@@ -1,0 +1,5 @@
+---
+source: src/queue/diesel/query.rs
+expression: "debug_query::<Pg,\n_>(&super::send_batch_query(\"queue\".try_into().unwrap(),\nvec![serde_json::Value::Null], Some(vec![serde_json::Value::Null]),\n0.into())).to_string()"
+---
+SELECT pgmq.send_batch($1, $2, $3, $4) -- binds: ["queue", [Null], Some([Null]), 0]

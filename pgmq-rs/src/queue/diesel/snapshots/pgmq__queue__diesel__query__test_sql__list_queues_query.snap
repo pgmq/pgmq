@@ -1,0 +1,5 @@
+---
+source: src/queue/diesel/query.rs
+expression: "debug_query::<Pg, _>(&super::list_queues_query()).to_string()"
+---
+SELECT pgmq.list_queues() -- binds: []

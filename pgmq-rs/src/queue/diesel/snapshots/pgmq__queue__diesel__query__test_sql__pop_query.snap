@@ -1,0 +1,5 @@
+---
+source: src/queue/diesel/query.rs
+expression: "debug_query::<Pg,\n_>(&super::pop_query(\"queue\".try_into().unwrap(), 1)).to_string()"
+---
+SELECT pgmq.pop($1, $2) -- binds: ["queue", 1]

@@ -1,0 +1,5 @@
+---
+source: src/queue/diesel/query.rs
+expression: "debug_query::<Pg,\n_>(&super::read_grouped_rr_with_poll_query(\"queue\".try_into().unwrap(),\n10.into(), 1, 1.into(), 250.into())).to_string()"
+---
+SELECT pgmq.read_grouped_rr_with_poll($1, $2, $3, $4, $5) -- binds: ["queue", 10, 1, 1, 250]

@@ -1,0 +1,5 @@
+---
+source: src/queue/diesel/query.rs
+expression: "debug_query::<Pg,\n_>(&super::enable_notify_insert_query(\"queue\".try_into().unwrap(),\n100.into())).to_string()"
+---
+SELECT pgmq.enable_notify_insert($1, $2) -- binds: ["queue", 100]
