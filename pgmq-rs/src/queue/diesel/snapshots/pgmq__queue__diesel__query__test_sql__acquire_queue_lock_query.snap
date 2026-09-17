@@ -1,0 +1,5 @@
+---
+source: src/queue/diesel/query.rs
+expression: "debug_query::<Pg,\n_>(&super::acquire_queue_lock_query(\"queue\".try_into().unwrap(),)).to_string()"
+---
+SELECT pgmq.acquire_queue_lock($1) -- binds: ["queue"]

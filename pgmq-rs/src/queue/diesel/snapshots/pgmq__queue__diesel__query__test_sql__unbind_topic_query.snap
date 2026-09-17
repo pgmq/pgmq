@@ -1,0 +1,5 @@
+---
+source: src/queue/diesel/query.rs
+expression: "debug_query::<Pg,\n_>(&super::unbind_topic_query(\"pattern\",\n\"queue\".try_into().unwrap(),)).to_string()"
+---
+SELECT pgmq.unbind_topic($1, $2) -- binds: ["pattern", "queue"]

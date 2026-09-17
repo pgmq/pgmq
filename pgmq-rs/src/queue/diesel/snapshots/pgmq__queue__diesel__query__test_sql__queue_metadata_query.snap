@@ -1,0 +1,5 @@
+---
+source: src/queue/diesel/query.rs
+expression: "debug_query::<Pg,\n_>(&super::queue_metadata_query(\"queue\".try_into().unwrap(),)).to_string()"
+---
+SELECT "pgmq"."meta"."queue_name", "pgmq"."meta"."is_partitioned", "pgmq"."meta"."is_unlogged", "pgmq"."meta"."created_at" FROM "pgmq"."meta" WHERE ("pgmq"."meta"."queue_name" = $1) -- binds: ["queue"]

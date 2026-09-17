@@ -1,0 +1,5 @@
+---
+source: src/queue/diesel/query.rs
+expression: "debug_query::<Pg,\n_>(&super::send_batch_topic_query(\"pattern\", vec![serde_json::Value::Null],\nNone, 0.into())).to_string()"
+---
+SELECT pgmq.send_batch_topic($1, $2, $3, $4) -- binds: ["pattern", [Null], None, 0]

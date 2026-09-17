@@ -1,0 +1,5 @@
+---
+source: src/queue/diesel/query.rs
+expression: "debug_query::<Pg,\n_>(&super::list_topic_bindings_query(\"queue\".try_into().unwrap(),)).to_string()"
+---
+SELECT pgmq.list_topic_bindings($1) -- binds: ["queue"]

@@ -1,0 +1,5 @@
+---
+source: src/queue/diesel/query.rs
+expression: "debug_query::<Pg,\n_>(&super::create_fifo_index_query(\"queue\".try_into().unwrap(),)).to_string()"
+---
+SELECT pgmq.create_fifo_index($1) -- binds: ["queue"]

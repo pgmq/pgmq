@@ -1,0 +1,5 @@
+---
+source: src/queue/diesel/query.rs
+expression: "debug_query::<Pg,\n_>(&super::read_query(\"queue\".try_into().unwrap(), 10.into(), 1)).to_string()"
+---
+SELECT pgmq.read($1, $2, $3) -- binds: ["queue", 10, 1]
