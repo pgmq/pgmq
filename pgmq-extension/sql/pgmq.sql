@@ -1683,14 +1683,19 @@ $$ LANGUAGE plpgsql;
 CREATE OR REPLACE FUNCTION pgmq.notify_queue_listeners()
 RETURNS TRIGGER AS $$
 DECLARE
-  queue_name_extracted TEXT; -- Queue name extracted from trigger table name
-  updated_count        INTEGER; -- Number of rows updated (0 or 1)
+  v_queue_name  TEXT; -- Queue name, as stored in pgmq.meta
+  updated_count INTEGER; -- Number of rows updated (0 or 1)
 BEGIN
-  queue_name_extracted := substring(TG_TABLE_NAME from 3);
+  -- enable_notify_insert passes the queue name as a trigger argument. The table
+  -- name cannot be turned back into it: format_table_name lowercases, so the
+  -- queue MyQueue lives in pgmq.q_myqueue and stripping the prefix yields
+  -- myqueue, which matches no row in notify_insert_throttle. Triggers created
+  -- before the argument existed fall back to the table name.
+  v_queue_name := COALESCE(TG_ARGV[0], substring(TG_TABLE_NAME from 3));
 
   UPDATE pgmq.notify_insert_throttle
   SET last_notified_at = clock_timestamp()
-  WHERE queue_name = queue_name_extracted
+  WHERE queue_name = v_queue_name
     AND (
       throttle_interval_ms = 0 -- No throttling configured
           OR clock_timestamp() - last_notified_at >=
@@ -1701,7 +1706,7 @@ BEGIN
   GET DIAGNOSTICS updated_count = ROW_COUNT;
 
   IF updated_count > 0 THEN
-    PERFORM PG_NOTIFY('pgmq.' || TG_TABLE_NAME || '.' || TG_OP, NULL);
+    PERFORM PG_NOTIFY('pgmq.q_' || v_queue_name || '.' || TG_OP, NULL);
   END IF;
 
 RETURN NEW;
@@ -1738,9 +1743,9 @@ BEGIN
     CREATE CONSTRAINT TRIGGER trigger_notify_queue_insert_listeners
     AFTER INSERT ON pgmq.%I
     DEFERRABLE FOR EACH ROW
-    EXECUTE PROCEDURE pgmq.notify_queue_listeners()
+    EXECUTE PROCEDURE pgmq.notify_queue_listeners(%L)
     $QUERY$,
-    qtable
+    qtable, v_queue_name
   );
 END;
 $$ LANGUAGE plpgsql;

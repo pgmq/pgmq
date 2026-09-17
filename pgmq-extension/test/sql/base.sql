@@ -667,6 +667,21 @@ END $$;
 SELECT pgmq.update_notify_insert('notify_queue_2', 0);
 SELECT throttle_interval_ms = 0 FROM pgmq.list_notify_insert_throttles() WHERE queue_name = 'notify_queue_2';
 
+-- test_notify_insert_mixed_case_queue_name
+-- The throttle row is keyed on the queue name as given, while the queue table is
+-- lowercased, so a queue name that is not all lowercase must still notify: the
+-- trigger carries the queue name instead of rebuilding it from the table name
+SELECT pgmq.create('Notify_Mixed_Case');
+SELECT pgmq.enable_notify_insert('Notify_Mixed_Case', 0);
+SELECT pgmq.send('Notify_Mixed_Case', '{"hello": "mixed case"}');
+
+-- last_notified_at moves off the epoch only when the throttle row was found,
+-- which is the same condition that guards PG_NOTIFY
+SELECT last_notified_at > to_timestamp(0) AS notified
+  FROM pgmq.list_notify_insert_throttles() WHERE queue_name = 'Notify_Mixed_Case';
+
+SELECT pgmq.drop_queue('Notify_Mixed_Case');
+
 -- Clean up notify test queues
 SELECT pgmq.drop_queue('notify_queue_1');
 SELECT pgmq.drop_queue('notify_queue_2');

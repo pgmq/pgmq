@@ -1365,7 +1365,7 @@ RETURNS void
 
 **Notes:**
 
-- The notification channel will be named `pgmq.q_<queue_name>.INSERT` where `q_<queue_name>` is the internal table name.
+- The notification channel will be named `pgmq.q_<queue_name>.INSERT`, using the queue name exactly as it was passed to `pgmq.create()`. For a queue named `MyQueue` the channel is `pgmq.q_MyQueue.INSERT`, while the internal table is the lowercased `pgmq.q_myqueue`.
 
 - **Throttling behavior**: Throttling prevents excessive notifications during high-volume inserts. When multiple messages are inserted rapidly, only one notification per throttle interval will be sent. This protects your system from notification overhead when message volume is high.
 
