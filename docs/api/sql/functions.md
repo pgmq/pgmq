@@ -181,6 +181,8 @@ RETURNS integer
 
 **Returns:** The number of queues the message was sent to.
 
+**Topic headers:** Every message sent via `send_topic` includes two headers set by the broker: `x-pgmq-pattern` (the binding pattern that matched for that queue) and `x-pgmq-routing-key` (the routing key used when sending). These are merged with any caller-provided headers, so consumers can dispatch or log by pattern and routing key without changing the message payload.
+
 Examples:
 
 ```sql
@@ -234,6 +236,8 @@ RETURNS TABLE(queue_name text, msg_id bigint)
 | delay       | timestamp with time zone | Timestamp when the messages become visible           |
 
 **Returns:** A table with the queue name and message ID for each message sent.
+
+**Topic headers:** Every message sent via `send_batch_topic` includes two headers set by the broker: `x-pgmq-pattern` (the binding pattern that matched for that queue) and `x-pgmq-routing-key` (the routing key used when sending). These are merged with any per-message headers you pass, so consumers can dispatch or log by pattern and routing key without changing the message payload.
 
 **Validation:** When `headers` is provided (not NULL), its array length must exactly match the length of `msgs`. Empty headers arrays will fail validation if `msgs` is not empty. To send messages without headers, either omit the `headers` parameter or pass NULL.
 
