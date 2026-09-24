@@ -21,15 +21,17 @@ CREATE TABLE IF NOT EXISTS pgmq.meta (
     created_at TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL
 );
 
--- Grant permission to pg_monitor to all tables and sequences
+-- pg_monitor can list queues (pgmq.list_queues / pgmq.meta) and compute queue metrics
+-- (pgmq.metrics / pgmq.metrics_all), but it must not read message payloads. It therefore gets
+-- USAGE on the schema and SELECT on pgmq.meta only; the per-queue create functions additionally
+-- grant column-level SELECT on the metrics columns (vt, enqueued_at) of each queue table and
+-- SELECT on the queue's msg_id sequence. It is intentionally NOT granted SELECT on the queue or
+-- archive tables (which hold application data) nor on their message/headers columns.
 -- These grants are intentionally placed here (after creating `pgmq.meta` but before creating other tables). This
 -- allows the `pg_dump` output for a fresh installation to match the output for an installation that followed the
 -- upgrade path.
 GRANT USAGE ON SCHEMA pgmq TO pg_monitor;
-GRANT SELECT ON ALL TABLES IN SCHEMA pgmq TO pg_monitor;
-GRANT SELECT ON ALL SEQUENCES IN SCHEMA pgmq TO pg_monitor;
-ALTER DEFAULT PRIVILEGES IN SCHEMA pgmq GRANT SELECT ON TABLES TO pg_monitor;
-ALTER DEFAULT PRIVILEGES IN SCHEMA pgmq GRANT SELECT ON SEQUENCES TO pg_monitor;
+GRANT SELECT ON pgmq.meta TO pg_monitor;
 
 -- Table to track notification throttling for queues
 CREATE UNLOGGED TABLE IF NOT EXISTS pgmq.notify_insert_throttle (
@@ -1259,6 +1261,11 @@ BEGIN
     queue_name
   );
 
+  -- Let pg_monitor compute queue metrics (pgmq.metrics / pgmq.metrics_all) without exposing
+  -- message payloads: column-level SELECT on the metrics columns only, plus the msg_id sequence.
+  EXECUTE FORMAT('GRANT SELECT (vt, enqueued_at) ON pgmq.%I TO pg_monitor', qtable);
+  EXECUTE FORMAT('GRANT SELECT ON SEQUENCE pgmq.%I TO pg_monitor', qtable_seq);
+
 END;
 $$ LANGUAGE plpgsql;
 
@@ -1326,6 +1333,11 @@ BEGIN
     $QUERY$,
     queue_name
   );
+
+  -- Let pg_monitor compute queue metrics (pgmq.metrics / pgmq.metrics_all) without exposing
+  -- message payloads: column-level SELECT on the metrics columns only, plus the msg_id sequence.
+  EXECUTE FORMAT('GRANT SELECT (vt, enqueued_at) ON pgmq.%I TO pg_monitor', qtable);
+  EXECUTE FORMAT('GRANT SELECT ON SEQUENCE pgmq.%I TO pg_monitor', qtable_seq);
 END;
 $$ LANGUAGE plpgsql;
 
@@ -1531,6 +1543,13 @@ BEGIN
     $QUERY$,
     'archived_at_idx_' || queue_name, atable
   );
+
+  -- Let pg_monitor compute queue metrics (pgmq.metrics / pgmq.metrics_all) without exposing
+  -- message payloads: column-level SELECT on the metrics columns only, plus the msg_id sequence.
+  -- For partitioned queues, granting on the parent is sufficient: metrics query the parent and
+  -- the privilege check is performed there, not on individual partitions.
+  EXECUTE FORMAT('GRANT SELECT (vt, enqueued_at) ON pgmq.%I TO pg_monitor', qtable);
+  EXECUTE FORMAT('GRANT SELECT ON SEQUENCE pgmq.%I TO pg_monitor', qtable_seq);
 
 END;
 $$ LANGUAGE plpgsql;

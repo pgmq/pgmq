@@ -134,6 +134,71 @@ SELECT queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_m
 -- get metrics all
 SELECT COUNT(1) from pgmq.metrics_all();
 
+-- partitioned and unlogged queues to cover their create-path grants too
+SELECT pgmq.create_partitioned('test_metrics_part');
+SELECT pgmq.create_unlogged('test_metrics_unlogged');
+SELECT pgmq.send('test_metrics_part', '{"secret": 1}');
+SELECT pgmq.send('test_metrics_unlogged', '{"secret": 1}');
+
+-- pg_monitor can compute metrics but must not read queue/archive payloads.
+-- It is granted only column-level SELECT on (vt, enqueued_at) of each queue table
+-- and SELECT on the msg_id sequence; there is no SECURITY DEFINER path.
+CREATE ROLE pgmq_test_monitor IN ROLE pg_monitor;
+CREATE ROLE pgmq_test_no_access;
+GRANT USAGE ON SCHEMA pgmq TO pgmq_test_no_access;
+
+-- fresh installs must not create default ACLs for the pgmq schema
+SELECT count(*) FROM pg_default_acl WHERE defaclnamespace = 'pgmq'::regnamespace;
+
+-- the metrics path must not rely on any SECURITY DEFINER function in schema pgmq
+SELECT count(*) FROM pg_proc p
+JOIN pg_namespace n ON n.oid = p.pronamespace
+WHERE n.nspname = 'pgmq' AND p.prosecdef;
+
+SET ROLE pgmq_test_monitor;
+-- metrics / metrics_all / list_queues work for pg_monitor
+SELECT queue_name, queue_length, total_messages, queue_visible_length FROM pgmq.metrics('test_metrics_queue');
+SELECT COUNT(1) > 0 FROM pgmq.metrics_all();
+SELECT queue_name FROM pgmq.list_queues() WHERE queue_name = 'test_metrics_queue';
+-- pg_monitor may read the metrics columns and the sequence it needs
+SELECT count(*) > 0 AS can_read_metrics_cols FROM (SELECT vt, enqueued_at FROM pgmq.q_test_metrics_queue) x;
+SELECT last_value > 0 AS can_read_sequence FROM pgmq.q_test_metrics_queue_msg_id_seq;
+-- partitioned and unlogged queues behave the same: metrics work and the metrics
+-- columns are readable (for partitioned, the grant on the parent is sufficient)
+SELECT queue_length >= 0 AS part_metrics_ok FROM pgmq.metrics('test_metrics_part');
+SELECT queue_length >= 0 AS unlogged_metrics_ok FROM pgmq.metrics('test_metrics_unlogged');
+SELECT count(*) >= 0 AS part_cols_ok FROM (SELECT vt, enqueued_at FROM pgmq.q_test_metrics_part) x;
+-- but must not read payloads: the whole queue table, message column, archive table, or read()
+\set VERBOSITY terse
+SELECT * FROM pgmq.q_test_metrics_queue;
+SELECT message FROM pgmq.q_test_metrics_queue;
+SELECT * FROM pgmq.a_test_metrics_queue;
+SELECT * FROM pgmq.read('test_metrics_queue', 0, 1);
+SELECT message FROM pgmq.q_test_metrics_part;
+SELECT message FROM pgmq.q_test_metrics_unlogged;
+\set VERBOSITY default
+RESET ROLE;
+
+-- metrics for roles that are neither pg_monitor nor able to read the queue table are denied
+SET ROLE pgmq_test_no_access;
+\set VERBOSITY terse
+DO $$
+BEGIN
+  PERFORM pgmq.metrics('test_metrics_queue');
+  RAISE NOTICE 'metrics returned';
+EXCEPTION WHEN insufficient_privilege THEN
+  RAISE NOTICE 'permission denied';
+END
+$$;
+\set VERBOSITY default
+RESET ROLE;
+
+REVOKE USAGE ON SCHEMA pgmq FROM pgmq_test_no_access;
+DROP ROLE pgmq_test_no_access;
+DROP ROLE pgmq_test_monitor;
+SELECT pgmq.drop_queue('test_metrics_part');
+SELECT pgmq.drop_queue('test_metrics_unlogged');
+
 -- delete an existing queue returns true
 select pgmq.create('exists');
 select pgmq.drop_queue('exists');
