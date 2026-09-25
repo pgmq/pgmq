@@ -510,7 +510,8 @@ $$;
 --    existing queue: column-level SELECT on (vt, enqueued_at) of the queue table
 --    and SELECT on its msg_id sequence. For partitioned queues the grant on the
 --    parent is sufficient (metrics query the parent). This mirrors the grants that
---    pgmq.create_* now apply to new queues. Idempotent: re-running is a no-op.
+--    pgmq.create_* now apply to new queues. Re-running can apply grants that
+--    previously failed due to insufficient privileges.
 DO $$
 DECLARE
     q RECORD;
@@ -524,14 +525,14 @@ BEGIN
             BEGIN
                 EXECUTE FORMAT('GRANT SELECT (vt, enqueued_at) ON pgmq.%I TO pg_monitor', qtable);
             EXCEPTION WHEN insufficient_privilege THEN
-                RAISE WARNING 'pgmq: could not grant SELECT (vt, enqueued_at) on pgmq.% to pg_monitor; run it as the table owner or a superuser so queue metrics work for pg_monitor', qtable;
+                RAISE WARNING 'pgmq: could not grant SELECT (vt, enqueued_at) on pgmq.% to pg_monitor; run it as the table owner or a superuser so queue metrics work for pg_monitor', quote_ident(qtable);
             END;
         END IF;
         IF to_regclass(FORMAT('pgmq.%I', qseq)) IS NOT NULL THEN
             BEGIN
                 EXECUTE FORMAT('GRANT SELECT ON SEQUENCE pgmq.%I TO pg_monitor', qseq);
             EXCEPTION WHEN insufficient_privilege THEN
-                RAISE WARNING 'pgmq: could not grant SELECT on sequence pgmq.% to pg_monitor; run it as the sequence owner or a superuser so queue metrics work for pg_monitor', qseq;
+                RAISE WARNING 'pgmq: could not grant SELECT on sequence pgmq.% to pg_monitor; run it as the sequence owner or a superuser so queue metrics work for pg_monitor', quote_ident(qseq);
             END;
         END IF;
     END LOOP;
