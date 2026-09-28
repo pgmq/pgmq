@@ -5,59 +5,159 @@
 
 use crate::metrics::PgQueueMetrics;
 use crate::metrics::QueueMetricsFromSqlRow;
-use diesel::dsl::sql;
-use diesel::expression::SqlLiteral;
-use diesel::query_builder::SelectStatement;
+use diesel::RunQueryDsl;
 use diesel::sql_types::*;
-use diesel::{PgConnection, declare_sql_function};
-use diesel::{QuerySource, RunQueryDsl};
+use diesel::{PgConnection, QueryDsl, SelectableHelper, declare_sql_function};
 
 #[declare_sql_function]
 extern "SQL" {
+    // Todo: How to tie the `PgQueueMetrics` return type to its utility types?
     #[sql_name = "pgmq.metrics"]
     fn pgmq_metrics(queue_name: Text) -> PgQueueMetrics;
 }
 
-impl<A: Clone> QuerySource for pgmq_metrics_utils::pgmq_metrics<A> {
-    type FromClause = Self;
-    type DefaultSelection = SqlLiteral<PgQueueMetrics>;
-
-    fn from_clause(&self) -> Self::FromClause {
-        self.clone()
-    }
-
-    fn default_selection(&self) -> Self::DefaultSelection {
-        // Todo: This `sql` causes the query to not use the prepared statement cache. Is there any
-        //  other way to provide the list of fields?
-        sql(
-            "(queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time, queue_visible_length, default_partition_length)",
-        )
-    }
-}
-
-// Todo: `FromClause` is a private struct behind the `i-implement-a-third-party-backend-and-opt-into-breaking-changes` feature.
-//  Is there any other way to trigger the use of the `QuerySource` impl?
-fn metrics_query(
-    queue_name: &str,
-) -> SelectStatement<diesel::query_builder::FromClause<pgmq_metrics<&str>>> {
-    SelectStatement::simple(pgmq_metrics(queue_name))
+#[diesel::dsl::auto_type]
+fn metrics_query<'a>(queue_name: &'a str) -> _ {
+    pgmq_metrics(queue_name)
 }
 
 pub fn execute(conn: &mut PgConnection, queue: &str) {
-    let _: QueueMetricsFromSqlRow = metrics_query(queue).get_result(conn).unwrap();
+    let _: QueueMetricsFromSqlRow = metrics_query(queue)
+        .select(QueueMetricsFromSqlRow::as_select())
+        .get_result(conn)
+        .unwrap();
+}
+
+/// This module implements the traits required to be able to select from the SQL function. This
+/// is similar to the traits implemented when using the `table!`/`view!` macros, but only a subset
+/// of the traits from those macros are implemented.
+///
+/// Additionally, the column/field types from [`crate::metrics::utility_types`] are not tied
+/// directly to a single SQL function and can be selected from any SQL function that returns the
+/// [`crate::metrics::PgQueueMetrics`] type. [`AppearsOnTable`] and [`SelectableExpression`] need
+/// to be implemented for each field of the [`crate::metrics::PgQueueMetrics`] type.
+mod impls {
+    use diesel::QuerySource;
+    use diesel::query_builder::AsQuery;
+    use diesel::query_source::QueryRelation;
+    use diesel::{AppearsOnTable, SelectableExpression};
+
+    impl<A: Copy> QuerySource for crate::metrics::query_source::pgmq_metrics_utils::pgmq_metrics<A> {
+        type FromClause = Self;
+        type DefaultSelection = crate::metrics::utility_types::AllColumns;
+
+        fn from_clause(&self) -> Self::FromClause {
+            *self
+        }
+
+        fn default_selection(&self) -> Self::DefaultSelection {
+            crate::metrics::utility_types::all_columns
+        }
+    }
+
+    impl<A: Copy> AsQuery for crate::metrics::query_source::pgmq_metrics_utils::pgmq_metrics<A> {
+        type SqlType = crate::metrics::utility_types::SqlType;
+        // Todo: This type is internal and intended to be used by the `table!/`view!` macros. Can we
+        //  update diesel directly to generate this impl from the `declare_sql_function` macro?
+        type Query = diesel::internal::table_macro::SelectStatement<
+            diesel::internal::table_macro::FromClause<Self>,
+        >;
+
+        fn as_query(self) -> Self::Query {
+            diesel::internal::table_macro::SelectStatement::simple(self)
+        }
+    }
+
+    impl<A: Copy> QueryRelation for crate::metrics::query_source::pgmq_metrics_utils::pgmq_metrics<A> {
+        type AllColumns = crate::metrics::utility_types::AllColumns;
+
+        fn all_columns() -> Self::AllColumns {
+            crate::metrics::utility_types::all_columns
+        }
+    }
+
+    impl<A> AppearsOnTable<crate::metrics::query_source::pgmq_metrics_utils::pgmq_metrics<A>>
+        for crate::metrics::utility_types::queue_name
+    {
+    }
+    impl<A> AppearsOnTable<crate::metrics::query_source::pgmq_metrics_utils::pgmq_metrics<A>>
+        for crate::metrics::utility_types::queue_length
+    {
+    }
+    impl<A> AppearsOnTable<crate::metrics::query_source::pgmq_metrics_utils::pgmq_metrics<A>>
+        for crate::metrics::utility_types::newest_msg_age_sec
+    {
+    }
+    impl<A> AppearsOnTable<crate::metrics::query_source::pgmq_metrics_utils::pgmq_metrics<A>>
+        for crate::metrics::utility_types::oldest_msg_age_sec
+    {
+    }
+    impl<A> AppearsOnTable<crate::metrics::query_source::pgmq_metrics_utils::pgmq_metrics<A>>
+        for crate::metrics::utility_types::total_messages
+    {
+    }
+    impl<A> AppearsOnTable<crate::metrics::query_source::pgmq_metrics_utils::pgmq_metrics<A>>
+        for crate::metrics::utility_types::scrape_time
+    {
+    }
+    impl<A> AppearsOnTable<crate::metrics::query_source::pgmq_metrics_utils::pgmq_metrics<A>>
+        for crate::metrics::utility_types::queue_visible_length
+    {
+    }
+    impl<A> AppearsOnTable<crate::metrics::query_source::pgmq_metrics_utils::pgmq_metrics<A>>
+        for crate::metrics::utility_types::default_partition_length
+    {
+    }
+
+    impl<A> SelectableExpression<crate::metrics::query_source::pgmq_metrics_utils::pgmq_metrics<A>>
+        for crate::metrics::utility_types::queue_name
+    {
+    }
+    impl<A> SelectableExpression<crate::metrics::query_source::pgmq_metrics_utils::pgmq_metrics<A>>
+        for crate::metrics::utility_types::queue_length
+    {
+    }
+    impl<A> SelectableExpression<crate::metrics::query_source::pgmq_metrics_utils::pgmq_metrics<A>>
+        for crate::metrics::utility_types::newest_msg_age_sec
+    {
+    }
+    impl<A> SelectableExpression<crate::metrics::query_source::pgmq_metrics_utils::pgmq_metrics<A>>
+        for crate::metrics::utility_types::oldest_msg_age_sec
+    {
+    }
+    impl<A> SelectableExpression<crate::metrics::query_source::pgmq_metrics_utils::pgmq_metrics<A>>
+        for crate::metrics::utility_types::total_messages
+    {
+    }
+    impl<A> SelectableExpression<crate::metrics::query_source::pgmq_metrics_utils::pgmq_metrics<A>>
+        for crate::metrics::utility_types::scrape_time
+    {
+    }
+    impl<A> SelectableExpression<crate::metrics::query_source::pgmq_metrics_utils::pgmq_metrics<A>>
+        for crate::metrics::utility_types::queue_visible_length
+    {
+    }
+    impl<A> SelectableExpression<crate::metrics::query_source::pgmq_metrics_utils::pgmq_metrics<A>>
+        for crate::metrics::utility_types::default_partition_length
+    {
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::metrics_query;
-    use diesel::debug_query;
+    use crate::metrics::QueueMetricsFromSqlRow;
     use diesel::pg::Pg;
+    use diesel::{QueryDsl, SelectableHelper, debug_query};
 
     #[test]
     fn query() {
         assert_eq!(
-            "SELECT (queue_name, queue_length, newest_msg_age_sec, oldest_msg_age_sec, total_messages, scrape_time, queue_visible_length, default_partition_length) FROM pgmq.metrics($1) -- binds: [\"queue\"]",
-            debug_query::<Pg, _>(&metrics_query("queue")).to_string()
+            "SELECT \"queue_name\", \"queue_length\", \"newest_msg_age_sec\", \"oldest_msg_age_sec\", \"total_messages\", \"scrape_time\", \"queue_visible_length\", \"default_partition_length\" FROM pgmq.metrics($1) -- binds: [\"queue\"]",
+            debug_query::<Pg, _>(
+                &metrics_query("queue").select(QueueMetricsFromSqlRow::as_select())
+            )
+            .to_string()
         );
     }
 
@@ -66,10 +166,11 @@ mod tests {
         use diesel::connection::statement_cache::QueryFragmentForCachedStatement;
 
         assert!(
-            !metrics_query("queue")
+            metrics_query("queue")
+                .select(QueueMetricsFromSqlRow::as_select())
                 .is_safe_to_cache_prepared(&Pg)
                 .unwrap(),
-            "Should not be cached"
+            "Should be cached"
         );
     }
 }
