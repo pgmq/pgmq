@@ -568,3 +568,22 @@ BEGIN
     END IF;
 END;
 $$;
+
+-- metrics_all() returns every queue. This overload takes a regular expression
+-- and returns only the queues whose name matches it, for example
+-- pgmq.metrics_all('^orders_'); a null pattern returns all queues. It is a
+-- separate function rather than a default argument on metrics_all(), because
+-- adding a default would mean dropping metrics_all() here, which fails when a
+-- view depends on it.
+CREATE FUNCTION pgmq."metrics_all"(pattern TEXT)
+RETURNS SETOF pgmq.metrics_result AS $$
+DECLARE
+    row_name RECORD;
+    result_row pgmq.metrics_result;
+BEGIN
+    FOR row_name IN SELECT queue_name FROM pgmq.meta WHERE pattern IS NULL OR queue_name ~ pattern LOOP
+        result_row := pgmq.metrics(row_name.queue_name);
+        RETURN NEXT result_row;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
