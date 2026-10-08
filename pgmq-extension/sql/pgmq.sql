@@ -943,6 +943,20 @@ BEGIN
 END;
 $$ LANGUAGE plpgsql;
 
+-- get metrics for the queues whose name matches a regular expression (all queues if it is null)
+CREATE FUNCTION pgmq."metrics_all"(pattern TEXT)
+RETURNS SETOF pgmq.metrics_result AS $$
+DECLARE
+    row_name RECORD;
+    result_row pgmq.metrics_result;
+BEGIN
+    FOR row_name IN SELECT queue_name FROM pgmq.meta WHERE pattern IS NULL OR queue_name ~ pattern LOOP
+        result_row := pgmq.metrics(row_name.queue_name);
+        RETURN NEXT result_row;
+    END LOOP;
+END;
+$$ LANGUAGE plpgsql;
+
 -- list queues
 CREATE FUNCTION pgmq."list_queues"()
 RETURNS SETOF pgmq.queue_record AS $$

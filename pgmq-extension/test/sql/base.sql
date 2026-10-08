@@ -140,6 +140,12 @@ SELECT pgmq.create_unlogged('test_metrics_unlogged');
 SELECT pgmq.send('test_metrics_part', '{"secret": 1}');
 SELECT pgmq.send('test_metrics_unlogged', '{"secret": 1}');
 
+-- metrics_all can be limited to the queues whose name matches a regular expression
+SELECT queue_name FROM pgmq.metrics_all('^test_metrics_') ORDER BY queue_name;
+SELECT queue_name, queue_length FROM pgmq.metrics_all(pattern => '_part$');
+SELECT COUNT(1) FROM pgmq.metrics_all('^no_such_queue$');
+SELECT (SELECT COUNT(1) FROM pgmq.metrics_all(NULL)) = (SELECT COUNT(1) FROM pgmq.metrics_all()) AS null_pattern_is_all;
+
 -- pg_monitor can compute metrics but must not read queue/archive payloads.
 -- It is granted only column-level SELECT on (vt, enqueued_at) of each queue table
 -- and SELECT on the msg_id sequence; there is no SECURITY DEFINER path.
@@ -159,6 +165,7 @@ SET ROLE pgmq_test_monitor;
 -- metrics / metrics_all / list_queues work for pg_monitor
 SELECT queue_name, queue_length, total_messages, queue_visible_length FROM pgmq.metrics('test_metrics_queue');
 SELECT COUNT(1) > 0 FROM pgmq.metrics_all();
+SELECT queue_name FROM pgmq.metrics_all('^test_metrics_') ORDER BY queue_name;
 SELECT queue_name FROM pgmq.list_queues() WHERE queue_name = 'test_metrics_queue';
 -- pg_monitor may read the metrics columns and the sequence it needs
 SELECT count(*) > 0 AS can_read_metrics_cols FROM (SELECT vt, enqueued_at FROM pgmq.q_test_metrics_queue) x;

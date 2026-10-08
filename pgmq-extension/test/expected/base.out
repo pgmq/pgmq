@@ -317,6 +317,33 @@ SELECT pgmq.send('test_metrics_unlogged', '{"secret": 1}');
     1
 (1 row)
 
+-- metrics_all can be limited to the queues whose name matches a regular expression
+SELECT queue_name FROM pgmq.metrics_all('^test_metrics_') ORDER BY queue_name;
+      queue_name       
+-----------------------
+ test_metrics_part
+ test_metrics_queue
+ test_metrics_unlogged
+(3 rows)
+
+SELECT queue_name, queue_length FROM pgmq.metrics_all(pattern => '_part$');
+    queue_name     | queue_length 
+-------------------+--------------
+ test_metrics_part |            1
+(1 row)
+
+SELECT COUNT(1) FROM pgmq.metrics_all('^no_such_queue$');
+ count 
+-------
+     0
+(1 row)
+
+SELECT (SELECT COUNT(1) FROM pgmq.metrics_all(NULL)) = (SELECT COUNT(1) FROM pgmq.metrics_all()) AS null_pattern_is_all;
+ null_pattern_is_all 
+---------------------
+ t
+(1 row)
+
 -- pg_monitor can compute metrics but must not read queue/archive payloads.
 -- It is granted only column-level SELECT on (vt, enqueued_at) of each queue table
 -- and SELECT on the msg_id sequence; there is no SECURITY DEFINER path.
@@ -352,6 +379,14 @@ SELECT COUNT(1) > 0 FROM pgmq.metrics_all();
 ----------
  t
 (1 row)
+
+SELECT queue_name FROM pgmq.metrics_all('^test_metrics_') ORDER BY queue_name;
+      queue_name       
+-----------------------
+ test_metrics_part
+ test_metrics_queue
+ test_metrics_unlogged
+(3 rows)
 
 SELECT queue_name FROM pgmq.list_queues() WHERE queue_name = 'test_metrics_queue';
      queue_name     
