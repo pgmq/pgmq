@@ -1,0 +1,37 @@
+-- An extension owner may not own queues created by other roles. The upgrade
+-- must give an actionable error and leave the extension at the old version.
+\set VERBOSITY terse
+SET client_min_messages = warning;
+CREATE ROLE pgmq_security_ext_owner;
+CREATE ROLE pgmq_security_queue_owner;
+GRANT pgmq_security_ext_owner, pgmq_security_queue_owner TO CURRENT_USER;
+DO $$ BEGIN EXECUTE pg_catalog.format('GRANT CREATE ON DATABASE %I TO pgmq_security_ext_owner', pg_catalog.current_database()); END $$;
+CREATE SCHEMA pgmq AUTHORIZATION pgmq_security_ext_owner;
+SET ROLE pgmq_security_ext_owner;
+CREATE EXTENSION pgmq VERSION '1.13.0';
+GRANT USAGE, CREATE ON SCHEMA pgmq TO pgmq_security_queue_owner;
+GRANT SELECT, INSERT, UPDATE, DELETE ON pgmq.meta TO pgmq_security_queue_owner;
+RESET ROLE;
+SET ROLE pgmq_security_queue_owner;
+CREATE FUNCTION pgmq.now() RETURNS timestamptz
+LANGUAGE sql AS $$ SELECT pg_catalog.now() $$;
+SET search_path = pgmq, pg_catalog;
+SELECT pgmq.create('split_owner_q');
+RESET search_path;
+RESET ROLE;
+SET ROLE pgmq_security_ext_owner;
+ALTER EXTENSION pgmq UPDATE TO '1.13.1';
+RESET ROLE;
+SELECT extversion AS version_after_owner_error
+  FROM pg_catalog.pg_extension WHERE extname = 'pgmq';
+ALTER EXTENSION pgmq UPDATE TO '1.13.1';
+SELECT extversion AS version_after_superuser_upgrade
+  FROM pg_catalog.pg_extension WHERE extname = 'pgmq';
+SELECT pgmq.drop_queue('split_owner_q');
+DROP FUNCTION pgmq.now();
+DROP EXTENSION pgmq CASCADE;
+DROP SCHEMA pgmq CASCADE;
+DO $$ BEGIN EXECUTE pg_catalog.format('REVOKE CREATE ON DATABASE %I FROM pgmq_security_ext_owner', pg_catalog.current_database()); END $$;
+REVOKE pgmq_security_ext_owner, pgmq_security_queue_owner FROM CURRENT_USER;
+DROP ROLE pgmq_security_queue_owner;
+DROP ROLE pgmq_security_ext_owner;

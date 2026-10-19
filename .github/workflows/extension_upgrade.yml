@@ -220,10 +220,12 @@ jobs:
           # \restrict JHbd1xebXKAq2dfkAGAXWi7b1B3ifORyKWdIrTcwerJibjA54EsYymeEFrIQNmc
           # \unrestrict JHbd1xebXKAq2dfkAGAXWi7b1B3ifORyKWdIrTcwerJibjA54EsYymeEFrIQNmc
           # ```
-          num_lines_different=$(! diff -y --suppress-common-lines --ignore-all-space /tmp/pg_dump_upgrade.txt /tmp/pg_dump_fresh.txt | wc -l)
+          #
+          # Differences consisting only of SQL comment lines (e.g. comments inside function bodies) are ignored.
+          num_lines_different=$(! diff -y --suppress-common-lines --ignore-all-space -I '^[[:space:]]*--' /tmp/pg_dump_upgrade.txt /tmp/pg_dump_fresh.txt | wc -l)
           if [[ $num_lines_different -gt 2 ]]; then
             echo "PGMQ upgrade diverges from a fresh installation. Diff:"
-            ! diff --suppress-common-lines --ignore-all-space /tmp/pg_dump_upgrade.txt /tmp/pg_dump_fresh.txt
+            ! diff --suppress-common-lines --ignore-all-space -I '^[[:space:]]*--' /tmp/pg_dump_upgrade.txt /tmp/pg_dump_fresh.txt
 
             echo "Upgrade path:"
             cat /tmp/pg_dump_upgrade.txt

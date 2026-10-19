@@ -41,7 +41,9 @@ SELECT pgmq.create_partitioned(repeat('p', 48));
 ERROR:  queue name is too long, maximum length is 47 characters
 CONTEXT:  PL/pgSQL function pgmq.validate_queue_name(text) line 8 at RAISE
 SQL statement "SELECT pgmq.validate_queue_name(queue_name)"
-PL/pgSQL function pgmq.create_partitioned(text,text,text,integer) line 11 at PERFORM
+PL/pgSQL function pgmq._create_partitioned(text,text,text,integer) line 11 at PERFORM
+SQL statement "SELECT pgmq._create_partitioned(queue_name, partition_interval, retention_interval, premake)"
+PL/pgSQL function pgmq.create_partitioned(text,text,text,integer) line 5 at PERFORM
 SELECT pgmq.create_partitioned(repeat('p', 47));
  create_partitioned 
 --------------------
@@ -942,7 +944,9 @@ SELECT * FROM pgmq.create_partitioned(
 ERROR:  pg_partman is required for partitioned queues
 CONTEXT:  PL/pgSQL function pgmq._ensure_pg_partman_installed() line 4 at RAISE
 SQL statement "SELECT pgmq._ensure_pg_partman_installed()"
-PL/pgSQL function pgmq.create_partitioned(text,text,text,integer) line 13 at PERFORM
+PL/pgSQL function pgmq._create_partitioned(text,text,text,integer) line 13 at PERFORM
+SQL statement "SELECT pgmq._create_partitioned(queue_name, partition_interval, retention_interval, premake)"
+PL/pgSQL function pgmq.create_partitioned(text,text,text,integer) line 5 at PERFORM
 -- With the extension existing, the queue is created successfully
 CREATE EXTENSION pg_partman;
 SELECT * FROM pgmq.create_partitioned(
@@ -1081,7 +1085,9 @@ SELECT pgmq.convert_archive_partitioned('long_queue_name_12345678901234567890123
 NOTICE:  identifier "archived_at_idx_long_queue_name_1234567890123456789012345678901_old" will be truncated to "archived_at_idx_long_queue_name_1234567890123456789012345678901"
 ERROR:  relation "archived_at_idx_long_queue_name_1234567890123456789012345678901" already exists
 CONTEXT:  SQL statement "ALTER INDEX pgmq.archived_at_idx_long_queue_name_1234567890123456789012345678901 RENAME TO archived_at_idx_long_queue_name_1234567890123456789012345678901_old"
-PL/pgSQL function pgmq.convert_archive_partitioned(text,text,text,integer) line 52 at EXECUTE
+PL/pgSQL function pgmq._convert_archive_partitioned(text,text,text,integer) line 52 at EXECUTE
+SQL statement "SELECT pgmq._convert_archive_partitioned(table_name, partition_interval, retention_interval, leading_partition)"
+PL/pgSQL function pgmq.convert_archive_partitioned(text,text,text,integer) line 5 at PERFORM
 --Success
 SELECT pgmq.create('long_queue_name_');
  create 

@@ -1,0 +1,82 @@
+-- A vulnerable queue created before the upgrade can retain a function OID in
+-- its column default. Replacing PGMQ functions must also remove that binding.
+SET client_min_messages = warning;
+DROP EXTENSION IF EXISTS pgmq CASCADE;
+CREATE EXTENSION pgmq VERSION '1.13.0';
+CREATE TABLE public.pgmq_stored_default_canary (hit boolean);
+CREATE ROLE pgmq_stored_default_attacker;
+GRANT CREATE, USAGE ON SCHEMA pgmq TO pgmq_stored_default_attacker;
+GRANT INSERT ON public.pgmq_stored_default_canary TO pgmq_stored_default_attacker;
+SET ROLE pgmq_stored_default_attacker;
+CREATE FUNCTION pgmq.now() RETURNS timestamptz
+LANGUAGE plpgsql AS $f$
+BEGIN
+  INSERT INTO public.pgmq_stored_default_canary VALUES (true);
+  RETURN pg_catalog.now();
+END $f$;
+RESET ROLE;
+SET search_path = pgmq, pg_catalog;
+SELECT pgmq.create('stored_default_q');
+ create 
+--------
+ 
+(1 row)
+
+RESET search_path;
+SELECT msg_id > 0 AS pre_upgrade_send_ok
+  FROM pgmq.send('stored_default_q', '{}'::pg_catalog.jsonb) AS t(msg_id);
+ pre_upgrade_send_ok 
+---------------------
+ t
+(1 row)
+
+SELECT count(*) AS pre_upgrade_hits FROM public.pgmq_stored_default_canary;
+ pre_upgrade_hits 
+------------------
+                1
+(1 row)
+
+TRUNCATE public.pgmq_stored_default_canary;
+ALTER EXTENSION pgmq UPDATE TO '1.13.1';
+SELECT msg_id > 0 AS post_upgrade_send_ok
+  FROM pgmq.send('stored_default_q', '{}'::pg_catalog.jsonb) AS t(msg_id);
+ post_upgrade_send_ok 
+----------------------
+ t
+(1 row)
+
+SELECT count(*) AS post_upgrade_hits FROM public.pgmq_stored_default_canary;
+ post_upgrade_hits 
+-------------------
+                 0
+(1 row)
+
+SELECT count(*) AS tainted_defaults
+  FROM pg_catalog.pg_attrdef d
+  JOIN pg_catalog.pg_attribute a ON a.attrelid = d.adrelid
+   AND a.attnum = d.adnum
+  JOIN pg_catalog.pg_depend dep ON dep.classid = 'pg_catalog.pg_attrdef'::pg_catalog.regclass
+   AND dep.objid = d.oid
+   AND dep.refclassid = 'pg_catalog.pg_proc'::pg_catalog.regclass
+  JOIN pg_catalog.pg_proc p ON p.oid = dep.refobjid
+  JOIN pg_catalog.pg_namespace n ON n.oid = p.pronamespace
+ WHERE d.adrelid IN ('pgmq.q_stored_default_q'::pg_catalog.regclass,
+                      'pgmq.a_stored_default_q'::pg_catalog.regclass)
+   AND a.attname IN ('enqueued_at', 'archived_at')
+   AND n.nspname <> 'pg_catalog';
+ tainted_defaults 
+------------------
+                0
+(1 row)
+
+SELECT pgmq.drop_queue('stored_default_q');
+ drop_queue 
+------------
+ t
+(1 row)
+
+DROP FUNCTION pgmq.now();
+DROP TABLE public.pgmq_stored_default_canary;
+REVOKE CREATE, USAGE ON SCHEMA pgmq FROM pgmq_stored_default_attacker;
+DROP ROLE pgmq_stored_default_attacker;
+DROP EXTENSION pgmq CASCADE;
