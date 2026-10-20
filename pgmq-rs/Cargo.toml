@@ -104,3 +104,7 @@ required-features = ["cli"]
 [package.metadata.docs.rs]
 # Have docs.rs pass `--all-features` to ensure all features have their documentation built.
 all-features = true
+
+[lints.clippy]
+# async-trait generated methods trigger this on newer clippy (1.99+)
+double_must_use = "allow"
