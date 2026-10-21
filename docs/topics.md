@@ -207,6 +207,7 @@ SELECT pgmq.send_topic('orders.created', '{"order_id": 123}', 5); -- 5 second de
 - If no patterns match the routing key, the message is not sent (returns 0)
 - If multiple patterns match, the message is sent to all matching queues
 - All sends succeed or all fail (transactional)
+- Each message gets two headers set by the broker: `x-pgmq-pattern` (the binding pattern that matched) and `x-pgmq-routing-key` (the routing key used). These are merged with any headers you pass, so you can route or log by pattern and key without changing the payload.
 
 #### `pgmq.send_batch_topic(routing_key, msgs, headers, delay)`
 
@@ -273,6 +274,7 @@ SELECT * FROM pgmq.send_batch_topic(
 - Headers array length must exactly match messages array length when provided (not NULL). Empty headers arrays will fail validation if msgs is not empty. To send without headers, omit the parameter or pass NULL
 - If no patterns match the routing key, returns an empty result set
 - All sends succeed or all fail (transactional)
+- Each message gets two headers set by the broker: `x-pgmq-pattern` (the binding pattern that matched) and `x-pgmq-routing-key` (the routing key used). These are merged with any per-message headers you pass.
 
 ### Testing Functions
 
