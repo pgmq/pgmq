@@ -1317,12 +1317,21 @@ select * from pgmq.metrics('my_queue');
 
 ### metrics_all
 
-Get metrics for all existing queues.
+Get metrics for all existing queues, or only for the queues whose name matches a pattern.
 
 ```text
 pgmq.metrics_all()
 RETURNS SETOF pgmq.metrics_result
+
+pgmq.metrics_all(pattern text)
+RETURNS SETOF pgmq.metrics_result
 ```
+
+**Parameters:**
+
+| Parameter   | Type  | Description             |
+| :---        | :---- |                    :--- |
+| pattern  | text  | POSIX regular expression matched against the queue name with `~` (case sensitive). Null returns all queues |
 
 **Returns:**
 
@@ -1344,6 +1353,16 @@ select * from pgmq.metrics_all();
  my_queue             |           16 |               2563 |               2565 |             35 | 2023-10-28 20:25:07.016413-05
  my_partitioned_queue |            1 |                 11 |                 11 |              1 | 2023-10-28 20:25:07.016413-05
  my_unlogged          |            1 |                  3 |                  3 |              1 | 2023-10-28 20:25:07.016413-05
+```
+
+Only the queues whose name ends in `_queue`:
+
+```sql
+select queue_name, queue_length from pgmq.metrics_all('_queue$');
+      queue_name      | queue_length
+----------------------+--------------
+ my_queue             |           16
+ my_partitioned_queue |            1
 ```
 ---
 
