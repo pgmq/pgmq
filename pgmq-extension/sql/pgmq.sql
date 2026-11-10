@@ -1272,19 +1272,26 @@ BEGIN
     atable
   );
 
-  EXECUTE FORMAT(
-    $QUERY$
-    CREATE INDEX IF NOT EXISTS %I ON pgmq.%I (vt ASC);
-    $QUERY$,
-    qtable || '_vt_idx', qtable
-  );
+  -- CREATE INDEX takes a SHARE lock on the table before it checks IF NOT EXISTS, so on an existing queue it
+  -- would wait for every open transaction that has written to it. to_regclass() takes no lock: only run the
+  -- DDL when the index is actually missing, which keeps create() idempotent (it still repairs a missing index).
+  IF to_regclass(FORMAT('pgmq.%I', qtable || '_vt_idx')) IS NULL THEN
+    EXECUTE FORMAT(
+      $QUERY$
+      CREATE INDEX IF NOT EXISTS %I ON pgmq.%I (vt ASC);
+      $QUERY$,
+      qtable || '_vt_idx', qtable
+    );
+  END IF;
 
-  EXECUTE FORMAT(
-    $QUERY$
-    CREATE INDEX IF NOT EXISTS %I ON pgmq.%I (archived_at);
-    $QUERY$,
-    'archived_at_idx_' || queue_name, atable
-  );
+  IF to_regclass(FORMAT('pgmq.%I', 'archived_at_idx_' || queue_name)) IS NULL THEN
+    EXECUTE FORMAT(
+      $QUERY$
+      CREATE INDEX IF NOT EXISTS %I ON pgmq.%I (archived_at);
+      $QUERY$,
+      'archived_at_idx_' || queue_name, atable
+    );
+  END IF;
 
   EXECUTE FORMAT(
     $QUERY$
@@ -1298,8 +1305,16 @@ BEGIN
 
   -- Let pg_monitor compute queue metrics (pgmq.metrics / pgmq.metrics_all) without exposing
   -- message payloads: column-level SELECT on the metrics columns only, plus the msg_id sequence.
-  EXECUTE FORMAT('GRANT SELECT (vt, enqueued_at) ON pgmq.%I TO pg_monitor', qtable);
-  EXECUTE FORMAT('GRANT SELECT ON SEQUENCE pgmq.%I TO pg_monitor', qtable_seq);
+  -- Skip the grants when pg_monitor already has them, so a create() on an existing queue doesn't rewrite catalog rows.
+  IF NOT (
+    has_column_privilege('pg_monitor', FORMAT('pgmq.%I', qtable), 'vt', 'SELECT')
+    AND has_column_privilege('pg_monitor', FORMAT('pgmq.%I', qtable), 'enqueued_at', 'SELECT')
+  ) THEN
+    EXECUTE FORMAT('GRANT SELECT (vt, enqueued_at) ON pgmq.%I TO pg_monitor', qtable);
+  END IF;
+  IF NOT has_sequence_privilege('pg_monitor', FORMAT('pgmq.%I', qtable_seq), 'SELECT') THEN
+    EXECUTE FORMAT('GRANT SELECT ON SEQUENCE pgmq.%I TO pg_monitor', qtable_seq);
+  END IF;
 
 END;
 $$ LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp;
@@ -1345,19 +1360,26 @@ BEGIN
     atable
   );
 
-  EXECUTE FORMAT(
-    $QUERY$
-    CREATE INDEX IF NOT EXISTS %I ON pgmq.%I (vt ASC);
-    $QUERY$,
-    qtable || '_vt_idx', qtable
-  );
+  -- CREATE INDEX takes a SHARE lock on the table before it checks IF NOT EXISTS, so on an existing queue it
+  -- would wait for every open transaction that has written to it. to_regclass() takes no lock: only run the
+  -- DDL when the index is actually missing, which keeps create() idempotent (it still repairs a missing index).
+  IF to_regclass(FORMAT('pgmq.%I', qtable || '_vt_idx')) IS NULL THEN
+    EXECUTE FORMAT(
+      $QUERY$
+      CREATE INDEX IF NOT EXISTS %I ON pgmq.%I (vt ASC);
+      $QUERY$,
+      qtable || '_vt_idx', qtable
+    );
+  END IF;
 
-  EXECUTE FORMAT(
-    $QUERY$
-    CREATE INDEX IF NOT EXISTS %I ON pgmq.%I (archived_at);
-    $QUERY$,
-    'archived_at_idx_' || queue_name, atable
-  );
+  IF to_regclass(FORMAT('pgmq.%I', 'archived_at_idx_' || queue_name)) IS NULL THEN
+    EXECUTE FORMAT(
+      $QUERY$
+      CREATE INDEX IF NOT EXISTS %I ON pgmq.%I (archived_at);
+      $QUERY$,
+      'archived_at_idx_' || queue_name, atable
+    );
+  END IF;
 
   EXECUTE FORMAT(
     $QUERY$
@@ -1371,8 +1393,16 @@ BEGIN
 
   -- Let pg_monitor compute queue metrics (pgmq.metrics / pgmq.metrics_all) without exposing
   -- message payloads: column-level SELECT on the metrics columns only, plus the msg_id sequence.
-  EXECUTE FORMAT('GRANT SELECT (vt, enqueued_at) ON pgmq.%I TO pg_monitor', qtable);
-  EXECUTE FORMAT('GRANT SELECT ON SEQUENCE pgmq.%I TO pg_monitor', qtable_seq);
+  -- Skip the grants when pg_monitor already has them, so a create() on an existing queue doesn't rewrite catalog rows.
+  IF NOT (
+    has_column_privilege('pg_monitor', FORMAT('pgmq.%I', qtable), 'vt', 'SELECT')
+    AND has_column_privilege('pg_monitor', FORMAT('pgmq.%I', qtable), 'enqueued_at', 'SELECT')
+  ) THEN
+    EXECUTE FORMAT('GRANT SELECT (vt, enqueued_at) ON pgmq.%I TO pg_monitor', qtable);
+  END IF;
+  IF NOT has_sequence_privilege('pg_monitor', FORMAT('pgmq.%I', qtable_seq), 'SELECT') THEN
+    EXECUTE FORMAT('GRANT SELECT ON SEQUENCE pgmq.%I TO pg_monitor', qtable_seq);
+  END IF;
 END;
 $$ LANGUAGE plpgsql SET search_path = pg_catalog, pg_temp;
 
