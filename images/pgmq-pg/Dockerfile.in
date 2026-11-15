@@ -1,4 +1,4 @@
-FROM postgres:@@PG_VERSION@@-bookworm as builder
+FROM @@BASE_IMAGE@@ as builder
 
 RUN apt-get update \
     && apt-get install -y \
@@ -20,7 +20,7 @@ RUN cd pgmq-extension && make && make install
 # install pg_partman
 RUN cd pgmq-extension && make install-pg-partman
 
-FROM postgres:@@PG_VERSION@@-bookworm
+FROM @@BASE_IMAGE@@
 
 COPY --from=builder /usr/share/postgresql/@@PG_VERSION@@/extension /usr/share/postgresql/@@PG_VERSION@@/extension
 COPY --from=builder /usr/lib/postgresql/@@PG_VERSION@@/lib /usr/lib/postgresql/@@PG_VERSION@@/lib

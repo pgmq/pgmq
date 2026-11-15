@@ -1,0 +1,19 @@
+version: 2
+updates:
+  # Base images for ghcr.io/pgmq/pg{N}-pgmq. Merging a digest bump rebuilds
+  # the latest release's images (see .github/workflows/images.yml).
+  - package-ecosystem: docker
+    directories:
+      - /images/pgmq-pg/base/pg15
+      - /images/pgmq-pg/base/pg16
+      - /images/pgmq-pg/base/pg17
+      - /images/pgmq-pg/base/pg18
+    schedule:
+      interval: daily
+    ignore:
+      # Each directory tracks one Postgres major; don't propose moving to another.
+      - dependency-name: postgres
+        update-types: ["version-update:semver-major"]
+    groups:
+      postgres-base-images:
+        patterns: ["postgres"]

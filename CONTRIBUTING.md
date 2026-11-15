@@ -182,7 +182,7 @@ CREATE EXTENSION pg_partman;
 
 ## Running tests
 
-Tests are written for [pg_regress](https://www.postgresql.org/docs/current/regress-run.html) and [pg_isolation_regress](https://github.com/postgres/postgres/blob/master/src/test/isolation/README). The latter is available on Postgres 14 and higher, so the `Makefile` skips them for earlier versions.
+Tests are written for [pg_regress](https://www.postgresql.org/docs/current/regress-run.html) and [pg_isolation_regress](https://github.com/postgres/postgres/blob/master/src/test/isolation/README).
 
 Once you have a postgres instance with the extension installed, run:
 
@@ -230,7 +230,13 @@ The PGMQ Postgres Extension is released as a bundle with Postgres (in a containe
 
 ### Container Images
 
-Postgres images with PGMQ and all required dependencies are built and published to `ghcr.io/pgmq/pg{PG_VERSION}-pgmq:{TAG}` for all supported Postgres versions and PGMQ releases.
+Postgres images with PGMQ and all required dependencies are built and published to `ghcr.io/pgmq/pg{PG_MAJOR}-pgmq` for all supported Postgres versions and PGMQ releases, with these tags:
+
+- `v{TAG}-pg{PG_MINOR}` (e.g. `v1.13.1-pg18.1`): a specific PGMQ release on a specific Postgres minor version. Never changes.
+- `v{TAG}`: the PGMQ release on the newest Postgres minor version.
+- `latest`: the newest PGMQ release on the newest Postgres minor version.
+
+The base images are pinned by digest in `images/pgmq-pg/base/`. Dependabot opens a PR when a base image is updated, and merging it rebuilds the latest release's images.
 
 ### Extension Packages
 
