@@ -2,7 +2,7 @@ name: 🐘 Build and push images
 on:
   # Called by release.yml for a new release.
   workflow_call:
-  # Rebuild the latest release when Dependabot bumps a base image digest.
+  # Rebuild the latest release when Dependabot bumps a base image's Postgres minor.
   push:
     branches: [main]
     paths: ['images/pgmq-pg/base/**']
@@ -44,8 +44,7 @@ jobs:
         id: versions
         run: |
           echo "TAG_VER=$(grep 'default_version' pgmq-extension/pgmq.control | cut -d "'" -f 2)" >> $GITHUB_OUTPUT
-          base=$(sed -n 's/^FROM //p' images/pgmq-pg/base/pg${{ matrix.pg }}/Dockerfile)
-          echo "PG_MINOR=$(docker run --rm "$base" sh -c 'echo ${PG_VERSION%%-*}')" >> $GITHUB_OUTPUT
+          echo "PG_MINOR=$(sed -n 's/^FROM postgres:\([0-9.]*\)-.*/\1/p' images/pgmq-pg/base/pg${{ matrix.pg }}/Dockerfile)" >> $GITHUB_OUTPUT
 
       - name: Set up QEMU
         uses: docker/setup-qemu-action@v3

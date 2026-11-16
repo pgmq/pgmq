@@ -1,6 +1,6 @@
 version: 2
 updates:
-  # Base images for ghcr.io/pgmq/pg{N}-pgmq. Merging a digest bump rebuilds
+  # Base images for ghcr.io/pgmq/pg{N}-pgmq. Merging a Postgres minor bump rebuilds
   # the latest release's images (see .github/workflows/images.yml).
   - package-ecosystem: docker
     directories:
