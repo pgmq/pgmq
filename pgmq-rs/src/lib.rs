@@ -1,6 +1,6 @@
 //! # Postgres Message Queue (PGMQ)
 //!
-//! [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-13%20%7C%2014%20%7C%2015%20%7C%2016%20%7C%2017%20%7C%2018-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+//! [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15%20%7C%2016%20%7C%2017%20%7C%2018-336791?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
 //! [![PGXN version](https://badge.fury.io/pg/pgmq.svg)](https://pgxn.org/dist/pgmq/)
 //! [![Latest Version](https://img.shields.io/crates/v/pgmq.svg)](https://crates.io/crates/pgmq)
 //! [![docs.rs](https://img.shields.io/docsrs/pgmq?logo=docsdotrs)](https://docs.rs/pgmq)
@@ -19,7 +19,7 @@
 //! - Messages can be archived, instead of deleted, for long-term retention and replayability
 //! - Completely asynchronous API
 //!
-//! Supported on Postgres 14-18.
+//! Supported on Postgres 15-18.
 //!
 //! Not building in Rust? Try the [PGMQ Postgres extension](https://pgt.dev/extensions/pgmq).
 //!

@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 jobs:
   build:
-    if: github.repository == 'pgmq/pgmq'
+    if: github.repository == 'pgmq/pgmq' && (github.ref == 'refs/heads/main' || github.ref_type == 'tag')
     name: Build and push pg${{ matrix.pg }} image
     runs-on: ubuntu-latest
     permissions:
