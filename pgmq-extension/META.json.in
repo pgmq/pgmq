@@ -18,7 +18,7 @@
    "prereqs": {
       "runtime": {
          "requires": {
-            "PostgreSQL": "11.0.0"
+            "PostgreSQL": "15.0.0"
          },
          "recommends": {
             "pg_partman": "4.5.1"

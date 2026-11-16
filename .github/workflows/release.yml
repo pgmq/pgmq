@@ -24,6 +24,9 @@ jobs:
         run: pgxn-release
   container-image-release:
     name: Build and push images
+    permissions:
+      contents: read
+      packages: write
     uses: ./.github/workflows/images.yml
   docs-release:
     if: github.repository == 'pgmq/pgmq'

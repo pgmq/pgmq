@@ -36,10 +36,10 @@ make install
 ## Building from source
 
 PGMQ requires the `postgres-server-dev` package to build. For example, to install
-version 14 on ubuntu:
+version 18 on ubuntu:
 
 ```bash
-sudo apt-get install postgres-server-dev-14
+sudo apt-get install postgres-server-dev-18
 ```
 
 ## Platform-Specific Installation Instructions
