@@ -4,5 +4,6 @@
 version=$1
 filename=$2
 out=$3
+base=$(sed -n 's/^FROM //p' "$(dirname "$0")/base/pg${version}/Dockerfile")
 
-sed "s/@@PG_VERSION@@/$version/g" $filename > $out
+sed -e "s/@@PG_VERSION@@/$version/g" -e "s|@@BASE_IMAGE@@|$base|g" $filename > $out

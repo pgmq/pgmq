@@ -1,0 +1,74 @@
+name: 🐘 Build and push images
+on:
+  # Called by release.yml for a new release.
+  workflow_call:
+  # Rebuild the latest release when Dependabot bumps a base image's Postgres minor.
+  push:
+    branches: [main]
+    paths: ['images/pgmq-pg/base/**']
+  workflow_dispatch:
+jobs:
+  build:
+    if: github.repository == 'pgmq/pgmq' && (github.ref == 'refs/heads/main' || github.ref_type == 'tag')
+    name: Build and push pg${{ matrix.pg }} image
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    strategy:
+      fail-fast: false
+      matrix:
+        pg: [15, 16, 17, 18]
+    steps:
+      - name: Check out the repo
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      # The image build files come from the current ref; the extension comes
+      # from the release being published (the pushed tag, else the newest one).
+      - name: Check out the release
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$REF_TYPE" = tag ]; then
+            release=$REF_NAME
+          else
+            release=$(git tag --sort=-v:refname --list 'v[0-9]*.[0-9]*.[0-9]*' | head -1)
+          fi
+          rm -rf pgmq-extension
+          git checkout "$release" -- pgmq-extension
+
+      - name: Set version strings
+        id: versions
+        run: |
+          echo "TAG_VER=$(grep 'default_version' pgmq-extension/pgmq.control | cut -d "'" -f 2)" >> $GITHUB_OUTPUT
+          echo "PG_MINOR=$(sed -n 's/^FROM postgres:\([0-9.]*\)-.*/\1/p' images/pgmq-pg/base/pg${{ matrix.pg }}/Dockerfile)" >> $GITHUB_OUTPUT
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v2
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate dockerfile from template file
+        run: ./images/pgmq-pg/replace-pg-version.sh ${{ matrix.pg }} ./images/pgmq-pg/Dockerfile.in ./images/pgmq-pg/Dockerfile
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          file: ./images/pgmq-pg/Dockerfile
+          context: .
+          platforms: linux/amd64, linux/arm64
+          push: true
+          tags: |
+            ghcr.io/pgmq/pg${{matrix.pg}}-pgmq:v${{ steps.versions.outputs.TAG_VER }}-pg${{ steps.versions.outputs.PG_MINOR }}
+            ghcr.io/pgmq/pg${{matrix.pg}}-pgmq:v${{ steps.versions.outputs.TAG_VER }}
+            ghcr.io/pgmq/pg${{matrix.pg}}-pgmq:latest
