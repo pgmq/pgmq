@@ -23,66 +23,11 @@ jobs:
           PGXN_PASSWORD: ${{ secrets.PGXN_PASSWORD }}
         run: pgxn-release
   container-image-release:
-    if: github.repository == 'pgmq/pgmq'
     name: Build and push images
-    runs-on: ubuntu-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        pg: [14, 15, 16, 17, 18]
-    outputs:
-      short_sha: ${{ steps.versions.outputs.SHORT_SHA }}
-    steps:
-      - name: Check out the repo
-        uses: actions/checkout@v4
-      - name: Install stoml
-        shell: bash
-        run: |
-          set -xe
-          sudo apt-get update && sudo apt-get install -y wget
-          wget https://github.com/freshautomations/stoml/releases/download/v0.7.1/stoml_linux_amd64 &> /dev/null
-          mv stoml_linux_amd64 stoml
-          chmod +x stoml
-          sudo mv stoml /usr/local/bin/
-
-      - name: Set version strings
-        id: versions
-        working-directory: ./pgmq-extension
-        run: |
-          echo "SHORT_SHA=$(git rev-parse --short HEAD)" >> $GITHUB_OUTPUT
-          echo "TAG_VER=$(grep 'default_version' pgmq.control | cut -d "'" -f 2)" >> $GITHUB_OUTPUT
-
-      - name: Set up QEMU
-        uses: docker/setup-qemu-action@v3
-      - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
-
-      - name: Login to GitHub Container Registry
-        uses: docker/login-action@v2
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.GITHUB_TOKEN }}
-
-      - name: Set package visibility to public
-        run: |
-          echo "Setting package visibility to public"
-          echo "::set-output name=package_visibility::public"
-
-      - name: Generate dockerfile from template file
-        working-directory: ./
-        run: ./images/pgmq-pg/replace-pg-version.sh ${{ matrix.pg }} ./images/pgmq-pg/Dockerfile.in ./images/pgmq-pg/Dockerfile
-
-      - name: Build and push -- Releases
-        uses: docker/build-push-action@v5
-        with:
-          file: ./images/pgmq-pg/Dockerfile
-          context: .
-          platforms: linux/amd64, linux/arm64
-          push: true
-          tags: |
-            ghcr.io/pgmq/pg${{matrix.pg}}-pgmq:v${{ steps.versions.outputs.TAG_VER }}
-            ghcr.io/pgmq/pg${{matrix.pg}}-pgmq:latest
+    permissions:
+      contents: read
+      packages: write
+    uses: ./.github/workflows/images.yml
   docs-release:
     if: github.repository == 'pgmq/pgmq'
     name: Deploy versioned docs

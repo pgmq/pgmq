@@ -4,6 +4,7 @@ target
 *.iml
 **/*.rs.bk
 Dockerfile
+!images/pgmq-pg/base/*/Dockerfile
 .dockerignore
 docker/**
 *.deb
