@@ -1,0 +1,197 @@
+Parsed test spec with 2 sessions
+
+starting permutation: wbegin wsend ccreate wcommit
+send
+----
+   1
+(1 row)
+
+step wbegin: BEGIN;
+step wsend: SELECT pgmq.send('create_lock_queue', jsonb_build_object()) > 0 AS sent;
+sent
+----
+t   
+(1 row)
+
+creator: NOTICE:  relation "q_create_lock_queue" already exists, skipping
+creator: NOTICE:  relation "a_create_lock_queue" already exists, skipping
+step ccreate: SELECT pgmq.create('create_lock_queue');
+create
+------
+      
+(1 row)
+
+step wcommit: COMMIT;
+drop_queue
+----------
+t         
+(1 row)
+
+
+starting permutation: wbegin wread ccreate wcommit
+send
+----
+   1
+(1 row)
+
+step wbegin: BEGIN;
+step wread: SELECT count(*) AS read FROM pgmq.read('create_lock_queue', 30, 1);
+read
+----
+   1
+(1 row)
+
+creator: NOTICE:  relation "q_create_lock_queue" already exists, skipping
+creator: NOTICE:  relation "a_create_lock_queue" already exists, skipping
+step ccreate: SELECT pgmq.create('create_lock_queue');
+create
+------
+      
+(1 row)
+
+step wcommit: COMMIT;
+drop_queue
+----------
+t         
+(1 row)
+
+
+starting permutation: wbegin wdelete ccreate wcommit
+send
+----
+   1
+(1 row)
+
+step wbegin: BEGIN;
+step wdelete: SELECT pgmq.delete('create_lock_queue', (SELECT min(msg_id) FROM pgmq.q_create_lock_queue)) AS deleted;
+deleted
+-------
+t      
+(1 row)
+
+creator: NOTICE:  relation "q_create_lock_queue" already exists, skipping
+creator: NOTICE:  relation "a_create_lock_queue" already exists, skipping
+step ccreate: SELECT pgmq.create('create_lock_queue');
+create
+------
+      
+(1 row)
+
+step wcommit: COMMIT;
+drop_queue
+----------
+t         
+(1 row)
+
+
+starting permutation: wbegin warchive ccreate wcommit
+send
+----
+   1
+(1 row)
+
+step wbegin: BEGIN;
+step warchive: SELECT pgmq.archive('create_lock_queue', (SELECT min(msg_id) FROM pgmq.q_create_lock_queue)) AS archived;
+archived
+--------
+t       
+(1 row)
+
+creator: NOTICE:  relation "q_create_lock_queue" already exists, skipping
+creator: NOTICE:  relation "a_create_lock_queue" already exists, skipping
+step ccreate: SELECT pgmq.create('create_lock_queue');
+create
+------
+      
+(1 row)
+
+step wcommit: COMMIT;
+drop_queue
+----------
+t         
+(1 row)
+
+
+starting permutation: wbegin wsendu ccreateu wcommit
+send
+----
+   1
+(1 row)
+
+step wbegin: BEGIN;
+step wsendu: SELECT pgmq.send('create_lock_unlogged_queue', jsonb_build_object()) > 0 AS sent;
+sent
+----
+t   
+(1 row)
+
+creator: NOTICE:  relation "q_create_lock_unlogged_queue" already exists, skipping
+creator: NOTICE:  relation "a_create_lock_unlogged_queue" already exists, skipping
+step ccreateu: SELECT pgmq.create_unlogged('create_lock_unlogged_queue');
+create_unlogged
+---------------
+               
+(1 row)
+
+step wcommit: COMMIT;
+drop_queue
+----------
+t         
+(1 row)
+
+
+starting permutation: cbegin ccreate wsend ccommit
+send
+----
+   1
+(1 row)
+
+step cbegin: BEGIN;
+creator: NOTICE:  relation "q_create_lock_queue" already exists, skipping
+creator: NOTICE:  relation "a_create_lock_queue" already exists, skipping
+step ccreate: SELECT pgmq.create('create_lock_queue');
+create
+------
+      
+(1 row)
+
+step wsend: SELECT pgmq.send('create_lock_queue', jsonb_build_object()) > 0 AS sent;
+sent
+----
+t   
+(1 row)
+
+step ccommit: COMMIT;
+drop_queue
+----------
+t         
+(1 row)
+
+
+starting permutation: cbegin ccreateu wsendu ccommit
+send
+----
+   1
+(1 row)
+
+step cbegin: BEGIN;
+creator: NOTICE:  relation "q_create_lock_unlogged_queue" already exists, skipping
+creator: NOTICE:  relation "a_create_lock_unlogged_queue" already exists, skipping
+step ccreateu: SELECT pgmq.create_unlogged('create_lock_unlogged_queue');
+create_unlogged
+---------------
+               
+(1 row)
+
+step wsendu: SELECT pgmq.send('create_lock_unlogged_queue', jsonb_build_object()) > 0 AS sent;
+sent
+----
+t   
+(1 row)
+
+step ccommit: COMMIT;
+drop_queue
+----------
+t         
+(1 row)
+

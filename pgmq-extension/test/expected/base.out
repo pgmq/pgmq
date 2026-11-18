@@ -63,8 +63,6 @@ SELECT pgmq.create('test_default_queue');
 SELECT pgmq.create('test_default_queue');
 NOTICE:  relation "q_test_default_queue" already exists, skipping
 NOTICE:  relation "a_test_default_queue" already exists, skipping
-NOTICE:  relation "q_test_default_queue_vt_idx" already exists, skipping
-NOTICE:  relation "archived_at_idx_test_default_queue" already exists, skipping
  create 
 --------
  
